@@ -4,9 +4,13 @@ import pytest
 from etl import pipeline
 from etl.sources.eastmoney import DailyBar, DailySeries
 from fastapi.testclient import TestClient
+from sqlalchemy import func, select
 
+from app.db.models import BacktestRun, User
 from app.db.session import get_session
 from app.main import app
+from app.security import create_access_token
+from app.settings import settings
 
 
 @pytest.fixture
@@ -89,3 +93,50 @@ def test_run_backtest_rejects_unknown_strategy(client_with_prices) -> None:
         json={"code": "510300", "strategy": "does-not-exist"},
     )
     assert response.status_code == 400
+
+
+def test_run_is_persisted(client_with_prices, session) -> None:
+    response = client_with_prices.post(
+        "/api/v1/backtests",
+        json={"code": "510300", "strategy": "buy-and-hold"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["run_id"] is not None
+    assert body["saved"] is True
+    assert body["quota"]["used"] == 1
+    assert session.scalar(select(func.count()).select_from(BacktestRun)) == 1
+
+
+def test_guest_quota_limit(client_with_prices, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "guest_daily_limit", 1)
+    payload = {"code": "510300", "strategy": "buy-and-hold"}
+
+    first = client_with_prices.post("/api/v1/backtests", json=payload)
+    assert first.status_code == 200
+
+    second = client_with_prices.post("/api/v1/backtests", json=payload)
+    assert second.status_code == 429
+    assert second.json()["detail"]["quota"]["limit"] == 1
+
+
+def test_history_requires_membership(client_with_prices, session) -> None:
+    user = User(phone="13700137000", plan="free")
+    session.add(user)
+    session.commit()
+    token = create_access_token(user)
+
+    free = client_with_prices.get(
+        "/api/v1/backtests/history",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert free.status_code == 403
+
+    user.plan = "member"
+    session.commit()
+    member = client_with_prices.get(
+        "/api/v1/backtests/history",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert member.status_code == 200
+    assert member.json() == []

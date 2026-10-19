@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { EquityCurve } from "@/components/equity-curve";
-import { fetchStrategies, runBacktest, type StrategyParam } from "@/lib/api";
+import { fetchStrategies, runBacktest } from "@/lib/api";
 import { etfs, getStrategy, strategies } from "@/lib/mock";
 
 type PageProps = {
@@ -108,15 +109,24 @@ export default async function StrategyDetailPage({ params, searchParams }: PageP
     }
   }
 
-  const live = ENGINE_SLUGS.has(slug)
-    ? await runBacktest({
-        code,
-        strategy: slug,
-        start,
-        end: new Date().toISOString().slice(0, 10),
-        params: strategyParams,
-      })
+  const headerBag = await headers();
+  const forwardedFor = headerBag.get("x-forwarded-for") ?? "";
+  const outcome = ENGINE_SLUGS.has(slug)
+    ? await runBacktest(
+        {
+          code,
+          strategy: slug,
+          start,
+          end: new Date().toISOString().slice(0, 10),
+          params: strategyParams,
+        },
+        { forwardedFor },
+      )
     : null;
+
+  const live = outcome?.ok ? outcome.result : null;
+  const backtestError = outcome && !outcome.ok ? outcome.error : null;
+  const quota = outcome?.ok ? outcome.quota : outcome?.quota ?? null;
 
   const metrics: { label: string; value: string; tone?: string }[] = live
     ? [
@@ -176,7 +186,7 @@ export default async function StrategyDetailPage({ params, searchParams }: PageP
           <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-soft">{strategy.summary}</p>
         </div>
         <span className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-muted">
-          {live ? "引擎实时计算" : "示例结果"}
+          {live ? "引擎实时计算" : backtestError ? "额度受限" : "示例结果"}
         </span>
       </div>
 
@@ -232,9 +242,24 @@ export default async function StrategyDetailPage({ params, searchParams }: PageP
             运行回测
           </button>
           <span className="text-xs text-muted">
-            {live ? `数据 ${live.start} → ${live.end}` : "API 不可用时回退示例"}
+            {quota
+              ? quota.limit == null
+                ? `会员不限次数 · 今日已用 ${quota.used} 次`
+                : `今日剩余 ${quota.remaining}/${quota.limit} 次`
+              : live
+                ? `数据 ${live.start} → ${live.end}`
+                : "API 不可用时回退示例"}
           </span>
         </form>
+      ) : null}
+
+      {backtestError ? (
+        <div className="rounded-sm border border-amber/30 bg-amber-soft/60 p-4 text-sm leading-6 text-amber">
+          {backtestError}
+          <Link href="/pricing" className="ml-2 underline">
+            了解会员
+          </Link>
+        </div>
       ) : null}
 
       <section className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">

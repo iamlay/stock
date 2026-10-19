@@ -81,7 +81,21 @@ export type BacktestResult = {
   equity: { date: string; equity: number; benchmark: number; shares: number }[];
   trades: BacktestTrade[];
   warnings: string[];
+  run_id: number | null;
+  saved: boolean;
+  quota: Quota | null;
 };
+
+export type Quota = {
+  plan: string;
+  used: number;
+  limit: number | null;
+  remaining: number | null;
+};
+
+export type BacktestOutcome =
+  | { ok: true; result: BacktestResult; quota: Quota | null }
+  | { ok: false; status: number; error: string; quota?: Quota };
 
 export type StrategyParam = {
   type: "integer" | "number";
@@ -139,25 +153,50 @@ export async function fetchOverview(): Promise<ApiOverview | null> {
   return fetchJson<ApiOverview>("/api/v1/market/overview");
 }
 
-export async function runBacktest(body: {
-  code: string;
-  strategy: string;
-  start?: string;
-  end?: string;
-  params?: Record<string, number>;
-}): Promise<BacktestResult | null> {
+export async function runBacktest(
+  body: {
+    code: string;
+    strategy: string;
+    start?: string;
+    end?: string;
+    params?: Record<string, number>;
+  },
+  options?: { forwardedFor?: string },
+): Promise<BacktestOutcome> {
   try {
     const response = await fetch(`${API_BASE}/api/v1/backtests`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(options?.forwardedFor ? { "x-forwarded-for": options.forwardedFor } : {}),
+      },
       body: JSON.stringify(body),
       cache: "no-store",
       signal: AbortSignal.timeout(8000),
     });
-    if (!response.ok) return null;
-    return (await response.json()) as BacktestResult;
+    if (response.ok) {
+      const result = (await response.json()) as BacktestResult;
+      return { ok: true, result, quota: result.quota ?? null };
+    }
+
+    let error = "回测失败，请稍后重试";
+    let quota: Quota | undefined;
+    try {
+      const payload = (await response.json()) as {
+        detail?: string | { message?: string; quota?: Quota };
+      };
+      if (typeof payload.detail === "string") {
+        error = payload.detail;
+      } else if (payload.detail?.message) {
+        error = payload.detail.message;
+        quota = payload.detail.quota;
+      }
+    } catch {
+      // keep default message
+    }
+    return { ok: false, status: response.status, error, quota };
   } catch {
-    return null;
+    return { ok: false, status: 0, error: "回测服务不可用，请稍后重试" };
   }
 }
 

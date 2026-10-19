@@ -74,3 +74,14 @@ def get_current_user(
     if user is None or user.status != "active":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="user unavailable")
     return user
+
+
+def get_optional_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
+    session: Annotated[Session, Depends(get_session)],
+) -> User | None:
+    if credentials is None:
+        return None
+    payload = decode_token(credentials.credentials)
+    user = session.get(User, int(payload["sub"]))
+    return user if user is not None and user.status == "active" else None

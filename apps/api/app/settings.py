@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     otp_secret: str = "dev-only-change-me-please-32-bytes-min"
     auth_dev_mode: bool = True
     sms_provider: str = "none"
+    guest_daily_limit: int = 20
+    free_daily_limit: int = 50
 
     @property
     def cors_origin_list(self) -> list[str]:

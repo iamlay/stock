@@ -167,8 +167,35 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     phone: Mapped[str] = mapped_column(String(20), nullable=False, unique=True, index=True)
     role: Mapped[str] = mapped_column(String(16), nullable=False, default="member")
+    plan: Mapped[str] = mapped_column(String(16), nullable=False, default="free")
+    plan_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class BacktestRun(Base):
+    __tablename__ = "backtest_runs"
+    __table_args__ = (
+        Index("ix_backtest_runs_user_created", "user_id", "created_at"),
+        Index("ix_backtest_runs_client_created", "client_key", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    client_key: Mapped[str | None] = mapped_column(String(64))
+    code: Mapped[str] = mapped_column(String(16), nullable=False)
+    strategy: Mapped[str] = mapped_column(String(32), nullable=False)
+    params: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
+    start_date: Mapped[date | None] = mapped_column(Date)
+    end_date: Mapped[date | None] = mapped_column(Date)
+    initial_cash: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="success")
+    metrics: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
+    result: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
