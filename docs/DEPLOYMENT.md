@@ -106,6 +106,47 @@ postgresql+psycopg://postgres:密码@xxx.proxy.rlwy.net:PORT/railway?sslmode=req
 
 ---
 
+## 3.5 备选：Railway Cron 跑 ETL（不暴露数据库）
+
+如果不想开 TCP Proxy，或 GitHub Actions 连不上公网数据库，可以直接在 Railway 内跑：
+
+1. 同一项目 → **New → GitHub Repo** → 选同一个仓库；
+2. 服务设置：
+   - Root Directory：仓库根目录
+   - Builder：Dockerfile
+   - Dockerfile Path：`etl/Dockerfile`
+3. 变量：
+
+```text
+STOCKLAB_DATABASE_URL=${{Postgres.DATABASE_URL}}
+```
+
+4. **Settings → Deploy → Custom Start Command**：
+
+```bash
+python -m etl.cli daily
+```
+
+5. **Settings → Cron Schedule**：
+
+```text
+30 10 * * 1-5
+```
+
+Railway Cron 使用 UTC，`10:30 UTC` 即北京时间 `18:30`。
+
+6. 首次全量：把 Start Command 临时改成：
+
+```bash
+python -m etl.cli sync-all --start 2016-01-01 --delay 0.2 && python -m etl.cli sync-shares && python -m etl.cli sync-valuation
+```
+
+手动触发一次，跑完再改回 `daily`。
+
+> 该方案不需要 `DATABASE_PUBLIC_URL`，也不需要 GitHub Secret。
+
+---
+
 ## 4. GitHub Actions：ETL
 
 工作流：`.github/workflows/etl.yml`
