@@ -100,13 +100,23 @@ export default function AccountPage() {
           <h1 className="font-serif text-3xl text-ink">个人中心</h1>
           <p className="mt-1 text-sm text-muted">账号、会员与回测历史</p>
         </div>
-        <button
-          type="button"
-          onClick={onLogout}
-          className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-ink-soft hover:border-ink"
-        >
-          退出登录
-        </button>
+        <div className="flex items-center gap-2">
+          {me.role === "admin" ? (
+            <Link
+              href="/admin/redeem-codes"
+              className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"
+            >
+              兑换码管理
+            </Link>
+          ) : null}
+          <button
+            type="button"
+            onClick={onLogout}
+            className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-ink-soft hover:border-ink"
+          >
+            退出登录
+          </button>
+        </div>
       </div>
 
       <section className="grid gap-4 sm:grid-cols-3">

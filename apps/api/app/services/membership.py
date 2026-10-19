@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import secrets
+import string
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
@@ -8,6 +11,8 @@ from sqlalchemy.orm import Session
 
 from app.db.models import BacktestRun, RedeemCode, User
 from app.settings import settings
+
+CODE_ALPHABET = string.ascii_uppercase + string.digits
 
 
 def _aware(value: datetime | None) -> datetime | None:
@@ -129,3 +134,45 @@ def redeem_code(session: Session, user: User, raw_code: str) -> dict:
         "plan_expires_at": expires_at.isoformat(),
         "duration_days": row.duration_days,
     }
+
+
+def _new_code() -> str:
+    return "SL" + "".join(secrets.choice(CODE_ALPHABET) for _ in range(10))
+
+
+def generate_codes(
+    session: Session,
+    *,
+    count: int,
+    days: int,
+    plan: str = "member",
+    channel: str = "manual",
+    valid_days: int = 90,
+) -> tuple[str, list[RedeemCode]]:
+    batch_id = str(uuid.uuid4())
+    expires_at = datetime.now(UTC) + timedelta(days=valid_days)
+    rows: list[RedeemCode] = []
+
+    for _ in range(count):
+        code = _new_code()
+        for _attempt in range(5):
+            if session.get(RedeemCode, code) is None:
+                break
+            code = _new_code()
+        else:
+            raise RuntimeError("failed to generate a unique code")
+
+        row = RedeemCode(
+            code=code,
+            plan=plan,
+            duration_days=days,
+            batch_id=batch_id,
+            channel=channel,
+            max_uses=1,
+            expires_at=expires_at,
+        )
+        session.add(row)
+        rows.append(row)
+
+    session.commit()
+    return batch_id, rows

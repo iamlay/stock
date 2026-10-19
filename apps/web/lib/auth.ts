@@ -20,6 +20,28 @@ export type HistoryItem = {
   created_at: string;
 };
 
+export type AdminCode = {
+  code: string;
+  plan: string;
+  duration_days: number;
+  channel: string;
+  batch_id: string | null;
+  max_uses: number;
+  used_count: number;
+  status: string;
+  expires_at: string | null;
+  created_at: string;
+  redeemed_at: string | null;
+};
+
+export type AdminCodeStats = {
+  total: number;
+  issued: number;
+  redeemed: number;
+  expired: number;
+  revoked: number;
+};
+
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(TOKEN_KEY);
@@ -91,4 +113,43 @@ export async function fetchHistory(): Promise<HistoryItem[]> {
 
 export async function fetchHistoryDetail(id: number): Promise<BacktestResult> {
   return request<BacktestResult>(`/api/v1/backtests/history/${id}`);
+}
+
+export async function adminListCodes(status?: string): Promise<{
+  items: AdminCode[];
+  stats: AdminCodeStats;
+}> {
+  const suffix = status ? `?status=${encodeURIComponent(status)}` : "";
+  return request<{ items: AdminCode[]; stats: AdminCodeStats }>(
+    `/api/v1/admin/redeem-codes${suffix}`,
+  );
+}
+
+export async function adminGenerateCodes(payload: {
+  count: number;
+  days: number;
+  valid_days: number;
+  channel: string;
+  plan: string;
+}): Promise<{ batch_id: string; codes: AdminCode[] }> {
+  return request<{ batch_id: string; codes: AdminCode[] }>("/api/v1/admin/redeem-codes", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function adminRevokeCode(code: string): Promise<AdminCode> {
+  return request<AdminCode>(`/api/v1/admin/redeem-codes/${code}/revoke`, {
+    method: "POST",
+  });
+}
+
+export async function adminExportCsv(status?: string): Promise<Blob> {
+  const token = getToken();
+  const suffix = status ? `?status=${encodeURIComponent(status)}` : "";
+  const response = await fetch(`${API_BASE}/api/v1/admin/redeem-codes/export${suffix}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) throw new Error("导出失败");
+  return response.blob();
 }

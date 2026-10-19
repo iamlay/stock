@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W8 兑换码 → 会员 → 历史闭环 |
+| 阶段 | ✅ W9 后台兑换码管理 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 |
-| Web | ✅ 登录 / 兑换 / 个人中心 / 历史回看已打通 |
-| API | ✅ 行情、ETF、估值、回测、历史、登录、兑换，45 个测试 |
+| Web | ✅ 登录 / 兑换 / 历史 / 后台兑换码管理 |
+| API | ✅ 行情、ETF、估值、回测、历史、登录、兑换、后台，48 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 上线 | ⬜ 计划 2027-01-22 |
 
@@ -152,6 +152,9 @@ POST /api/v1/backtests
 # 生成兑换码（服务端 CLI）
 python -m app.cli gen-codes --count 10 --days 365 --channel zhishixingqiu
 
+# 建管理员账号（手机号先登录过或不存在均可）
+python -m app.cli create-admin --phone 13900139000
+
 # 用户登录后兑换
 POST /api/v1/redeem   {"code":"SLXXXXXXXXXX"}
 ```
@@ -162,6 +165,17 @@ POST /api/v1/redeem   {"code":"SLXXXXXXXXXX"}
 - `/account`：会员状态、兑换入口、历史列表、点开看净值与指标。
 
 浏览器侧 API 地址由 `NEXT_PUBLIC_API_BASE_URL` 指定（构建时注入）。
+
+## 后台兑换码管理
+
+`/admin/redeem-codes`（仅 `role=admin`）：
+
+- 批量生成：数量、会员天数、码有效期、渠道、套餐；
+- 统计：总数 / 未使用 / 已兑换 / 已过期 / 已作废；
+- 列表筛选、单码作废、一键复制本批次；
+- 导出 CSV（带 BOM，Excel 直接打开）。
+
+接口：`GET/POST /api/v1/admin/redeem-codes`、`POST /{code}/revoke`、`GET /export`。
 
 ## 登录（W4 骨架）
 

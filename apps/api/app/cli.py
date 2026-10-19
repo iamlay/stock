@@ -5,7 +5,9 @@ import secrets
 import string
 from datetime import UTC, datetime, timedelta
 
-from app.db.models import RedeemCode
+from sqlalchemy import select
+
+from app.db.models import RedeemCode, User
 from app.db.session import SessionLocal
 
 ALPHABET = string.ascii_uppercase + string.digits
@@ -37,6 +39,22 @@ def cmd_gen_codes(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_create_admin(args: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        user = session.scalar(select(User).where(User.phone == args.phone))
+        if user is None:
+            user = User(phone=args.phone, role="admin", plan="member")
+            session.add(user)
+        else:
+            user.role = "admin"
+            user.plan = "member"
+        user.plan_expires_at = datetime.now(UTC) + timedelta(days=3650)
+        session.commit()
+        session.refresh(user)
+    print(f"admin ready: {user.phone} id={user.id}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="stocklab-admin", description="StockLab admin CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -48,6 +66,10 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--channel", default="manual")
     gen.add_argument("--valid-days", type=int, default=90, help="code expiry in days")
     gen.set_defaults(func=cmd_gen_codes)
+
+    admin = sub.add_parser("create-admin", help="promote or create an admin user")
+    admin.add_argument("--phone", required=True)
+    admin.set_defaults(func=cmd_create_admin)
 
     return parser
 

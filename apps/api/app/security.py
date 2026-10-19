@@ -85,3 +85,9 @@ def get_optional_user(
     payload = decode_token(credentials.credentials)
     user = session.get(User, int(payload["sub"]))
     return user if user is not None and user.status == "active" else None
+
+
+def get_current_admin(user: Annotated[User, Depends(get_current_user)]) -> User:
+    if user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限")
+    return user
