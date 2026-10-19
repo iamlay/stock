@@ -53,10 +53,30 @@ class EtfProfile(TimestampMixin, Base):
     )
     category: Mapped[str] = mapped_column(String(16), nullable=False)
     tracked_index: Mapped[str | None] = mapped_column(String(64))
+    valuation_index: Mapped[str | None] = mapped_column(String(16))
     manager: Mapped[str | None] = mapped_column(String(64))
     fee_rate: Mapped[float | None] = mapped_column(Numeric(6, 4))
     inception_date: Mapped[date | None] = mapped_column(Date)
     extra: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
+
+
+class IndexValuation(Base):
+    __tablename__ = "index_valuation"
+    __table_args__ = (Index("ix_index_valuation_trade_date", "trade_date"),)
+
+    index_code: Mapped[str] = mapped_column(String(16), primary_key=True)
+    trade_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    pe: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False)
+    pb: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False)
+    pe_percentile: Mapped[float] = mapped_column(Numeric(6, 4), nullable=False)
+    pb_percentile: Mapped[float] = mapped_column(Numeric(6, 4), nullable=False)
+    dividend_yield: Mapped[float] = mapped_column(Numeric(8, 4), nullable=False)
+    bond_yield: Mapped[float] = mapped_column(Numeric(8, 4), nullable=False)
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="danjuan")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class TradingCalendar(Base):
@@ -139,3 +159,16 @@ class DataQualityCheck(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    phone: Mapped[str] = mapped_column(String(20), nullable=False, unique=True, index=True)
+    role: Mapped[str] = mapped_column(String(16), nullable=False, default="member")
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

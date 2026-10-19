@@ -2,14 +2,21 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import date
+from datetime import date, timedelta
 
 from app.db.models import DataJob, DataQualityCheck
 from app.db.session import SessionLocal
 from app.services.status import collect_status
 from sqlalchemy import desc, select
 
-from etl.pipeline import seed_universe, sync_all, sync_calendar, sync_code, sync_shares
+from etl.pipeline import (
+    seed_universe,
+    sync_all,
+    sync_calendar,
+    sync_code,
+    sync_shares,
+    sync_valuation,
+)
 from etl.universe import ETF_BY_CODE, ETF_UNIVERSE
 
 
@@ -96,6 +103,36 @@ def cmd_sync_shares(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_sync_valuation(_: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        seed_universe(session)
+        result = sync_valuation(session)
+
+    print(f"valuation rows={result['rows']} status={result['status']} latest={result['latest']}")
+    for check in result["checks"]:
+        if check.status != "pass":
+            print(f"  {check.status.upper()} {check.name}: {check.detail}")
+    for error in result["errors"]:
+        print(f"  ERROR {error}", file=sys.stderr)
+    return 0
+
+
+def cmd_daily(args: argparse.Namespace) -> int:
+    start = args.start or (date.today() - timedelta(days=30))
+    with SessionLocal() as session:
+        seed_universe(session)
+        bars = sync_all(session, start, None, delay_seconds=args.delay)
+        shares = sync_shares(session)
+        valuation = sync_valuation(session)
+
+    failed_bars = [item for item in bars if item.status == "failed"]
+    print(
+        f"daily: bars={len(bars)} failures={len(failed_bars)} "
+        f"shares={shares['rows']} valuation={valuation['rows']}"
+    )
+    return 1 if failed_bars else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="stocklab-etl", description="StockLab data pipeline")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -121,6 +158,14 @@ def build_parser() -> argparse.ArgumentParser:
     shares = sub.add_parser("sync-shares", help="snapshot ETF shares/AUM from Tencent")
     shares.add_argument("--codes", default="", help="comma separated codes; default: all")
     shares.set_defaults(func=cmd_sync_shares)
+
+    valuation = sub.add_parser("sync-valuation", help="snapshot index PE/PB percentiles")
+    valuation.set_defaults(func=cmd_sync_valuation)
+
+    daily = sub.add_parser("daily", help="incremental daily refresh for all datasets")
+    daily.add_argument("--start", type=_parse_date, default=None)
+    daily.add_argument("--delay", type=float, default=0.2)
+    daily.set_defaults(func=cmd_daily)
 
     status = sub.add_parser("status", help="show row counts and last job")
     status.set_defaults(func=cmd_status)

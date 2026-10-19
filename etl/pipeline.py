@@ -9,6 +9,7 @@ from app.db.models import (
     DataQualityCheck,
     EtfProfile,
     EtfShareDaily,
+    IndexValuation,
     Instrument,
     MarketDaily,
     TradingCalendar,
@@ -22,10 +23,11 @@ from etl.quality import (
     expected_latest_trading_day,
     has_failures,
 )
+from etl.sources.danjuan import fetch_valuation
 from etl.sources.eastmoney import DailySeries, fetch_daily
 from etl.sources.tencent import fetch_daily_tencent
 from etl.sources.tencent_quote import fetch_quotes
-from etl.universe import ETF_BY_CODE, ETF_UNIVERSE
+from etl.universe import ETF_BY_CODE, ETF_UNIVERSE, VALUATION_INDEX
 
 
 @dataclass
@@ -63,6 +65,7 @@ def seed_universe(session: Session) -> int:
                 code=seed.code,
                 category=seed.category,
                 tracked_index=seed.tracked_index,
+                valuation_index=VALUATION_INDEX.get(seed.code),
                 extra={},
             )
         )
@@ -244,6 +247,129 @@ def sync_shares(session: Session, codes: list[str] | None = None) -> dict:
             "status": job.status,
             "latest": latest.isoformat(),
             "checks": checks,
+        }
+    except Exception as exc:
+        session.rollback()
+        failed = session.get(DataJob, job.id)
+        if failed is not None:
+            failed.status = "failed"
+            failed.error = str(exc)[:2000]
+            failed.finished_at = datetime.now(UTC)
+            session.commit()
+        raise
+
+
+def sync_valuation(session: Session, index_codes: list[str] | None = None) -> dict:
+    """Snapshot PE/PB/percentile for the indices mapped to our ETFs."""
+    if index_codes is None:
+        index_codes = sorted(
+            {
+                profile.valuation_index
+                for profile in session.scalars(select(EtfProfile)).all()
+                if profile.valuation_index
+            }
+        )
+
+    job = DataJob(
+        job_name="index_valuation",
+        status="running",
+        params={"index_codes": index_codes},
+    )
+    session.add(job)
+    session.commit()
+    session.refresh(job)
+
+    try:
+        snapshots = []
+        errors: list[str] = []
+        for index_code in index_codes:
+            try:
+                snapshots.append(fetch_valuation(index_code))
+            except Exception as exc:  # noqa: BLE001 - continue with the rest
+                errors.append(f"{index_code}: {exc}")
+            time.sleep(0.2)
+
+        if not snapshots:
+            raise ValueError(f"no valuation snapshots; errors={errors}")
+
+        for snapshot in snapshots:
+            session.execute(
+                delete(IndexValuation).where(
+                    IndexValuation.index_code == snapshot.index_code,
+                    IndexValuation.trade_date == snapshot.trade_date,
+                )
+            )
+
+        session.bulk_insert_mappings(
+            IndexValuation,
+            [
+                {
+                    "index_code": item.index_code,
+                    "trade_date": item.trade_date,
+                    "name": item.name,
+                    "pe": item.pe,
+                    "pb": item.pb,
+                    "pe_percentile": item.pe_percentile,
+                    "pb_percentile": item.pb_percentile,
+                    "dividend_yield": item.dividend_yield,
+                    "bond_yield": item.bond_yield,
+                    "source": "danjuan",
+                }
+                for item in snapshots
+            ],
+        )
+        session.flush()
+
+        latest = max(item.trade_date for item in snapshots)
+        lag = (date.today() - latest).days
+        checks = [
+            CheckResult(
+                name="valuation_complete",
+                status="pass" if len(snapshots) == len(index_codes) else "warn",
+                detail={"expected": len(index_codes), "received": len(snapshots), "errors": errors},
+            ),
+            CheckResult(
+                name="positive_pe",
+                status="pass" if all(item.pe > 0 for item in snapshots) else "fail",
+                detail={"violations": sum(1 for item in snapshots if item.pe <= 0)},
+            ),
+            CheckResult(
+                name="percentile_range",
+                status="pass"
+                if all(0 <= item.pe_percentile <= 1 for item in snapshots)
+                else "fail",
+                detail={
+                    "violations": sum(
+                        1 for item in snapshots if not 0 <= item.pe_percentile <= 1
+                    )
+                },
+            ),
+            CheckResult(
+                name="freshness",
+                status="pass" if lag <= 7 else "warn",
+                detail={"latest": latest.isoformat(), "lag_days": lag},
+            ),
+        ]
+
+        job.status = "warning" if (errors or has_failures(checks)) else "success"
+        job.rows_written = len(snapshots)
+        job.finished_at = datetime.now(UTC)
+        for check in checks:
+            session.add(
+                DataQualityCheck(
+                    job_id=job.id,
+                    check_name=check.name,
+                    status=check.status,
+                    detail=check.detail,
+                )
+            )
+        session.commit()
+        return {
+            "rows": len(snapshots),
+            "status": job.status,
+            "latest": latest.isoformat(),
+            "checks": checks,
+            "errors": errors,
         }
     except Exception as exc:
         session.rollback()

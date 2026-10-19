@@ -38,6 +38,8 @@ services:
       STOCKLAB_ENV: production
       STOCKLAB_CORS_ORIGINS: http://localhost:3000
       STOCKLAB_DATABASE_URL: postgresql+psycopg://stocklab:stocklab@db:5432/stocklab
+      STOCKLAB_AUTH_DEV_MODE: ${STOCKLAB_AUTH_DEV_MODE:-false}
+      STOCKLAB_JWT_SECRET: ${STOCKLAB_JWT_SECRET:-change-me-in-production-32-bytes-minimum}
     ports:
       - "8000:8000"
     depends_on:

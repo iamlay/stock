@@ -69,6 +69,15 @@ export default async function EtfDetailPage({ params }: PageProps) {
       label: "近 1 年回撤",
       value: api?.max_drawdown_1y == null ? "—" : `${api.max_drawdown_1y.toFixed(1)}%`,
     },
+    { label: "PE（TTM）", value: api?.pe == null ? "—" : api.pe.toFixed(2) },
+    {
+      label: "估值分位",
+      value: api?.pe_percentile == null ? "—" : `${api.pe_percentile}%`,
+    },
+    {
+      label: "指数股息率",
+      value: api?.dividend_yield == null ? "—" : `${api.dividend_yield.toFixed(2)}%`,
+    },
   ];
 
   return (
@@ -152,7 +161,7 @@ export default async function EtfDetailPage({ params }: PageProps) {
             {live
               ? `均线与回撤按最近 260 个交易日计算；份额来自交易所快照${
                   api?.fee_rate ? `；管理费率 ${api.fee_rate}%` : ""
-                }。`
+                }；PE 与分位来自指数估值快照。`
               : "示例数据。启动 API 与数据管道后自动切换为真实行情。"}
           </p>
         </section>

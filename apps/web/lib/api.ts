@@ -20,6 +20,10 @@ export type ApiEtf = {
   aum: number | null;
   shares: number | null;
   turnover: number | null;
+  pe: number | null;
+  pb: number | null;
+  pe_percentile: number | null;
+  dividend_yield: number | null;
 };
 
 export type ApiEtfDetail = ApiEtf & {
@@ -64,8 +68,8 @@ export function toEtf(item: ApiEtf): Etf {
     price: item.price,
     change: item.change_pct,
     aum: item.aum,
-    dividendYield: null,
-    pePercentile: null,
+    dividendYield: item.dividend_yield,
+    pePercentile: item.pe_percentile,
     ma20: item.ma20,
     maxDrawdown: item.max_drawdown_1y,
     turnover: item.turnover,

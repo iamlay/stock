@@ -49,7 +49,7 @@ export default async function DashboardPage() {
           },
           {
             label: "平均回撤",
-            value: `${avgDrawdown.toFixed(1)}%`,
+            value: `${Number(avgDrawdown).toFixed(1)}%`,
             hint: "近 1 年 · 等权",
           },
         ]

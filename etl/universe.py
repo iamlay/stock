@@ -37,3 +37,13 @@ ETF_UNIVERSE: tuple[EtfSeed, ...] = (
 )
 
 ETF_BY_CODE = {item.code: item for item in ETF_UNIVERSE}
+
+# Danjuan index codes verified for valuation. Others stay null until a source is found.
+VALUATION_INDEX: dict[str, str] = {
+    "510300": "SH000300",
+    "510500": "SH000905",
+    "512100": "SH000852",
+    "515080": "SH000922",
+    "510880": "SH000015",
+    "512890": "CSIH30269",
+}

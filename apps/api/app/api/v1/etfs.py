@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_session
-from app.db.models import EtfProfile, EtfShareDaily, Instrument
+from app.db.models import EtfProfile, EtfShareDaily, IndexValuation, Instrument
 from app.services.indicators import compute_indicators, load_recent_closes
 
 router = APIRouter(prefix="/etfs", tags=["etfs"])
@@ -32,6 +32,10 @@ class EtfSummary(BaseModel):
     aum: float | None
     shares: float | None
     turnover: float | None
+    pe: float | None
+    pb: float | None
+    pe_percentile: float | None
+    dividend_yield: float | None
 
 
 class Bar(BaseModel):
@@ -64,6 +68,28 @@ def _latest_shares(session: Session) -> dict[str, EtfShareDaily]:
     return {row.code: row for row in rows}
 
 
+def _latest_valuations(
+    session: Session, index_codes: list[str]
+) -> dict[str, IndexValuation]:
+    if not index_codes:
+        return {}
+    ranked = (
+        select(
+            IndexValuation,
+            func.row_number()
+            .over(
+                partition_by=IndexValuation.index_code,
+                order_by=IndexValuation.trade_date.desc(),
+            )
+            .label("rn"),
+        )
+        .where(IndexValuation.index_code.in_(index_codes))
+        .subquery()
+    )
+    rows = session.execute(select(ranked).where(ranked.c.rn == 1)).all()
+    return {row.index_code: row for row in rows}
+
+
 def _summaries(session: Session, category: str | None = None) -> list[EtfSummary]:
     stmt = (
         select(Instrument, EtfProfile)
@@ -78,6 +104,10 @@ def _summaries(session: Session, category: str | None = None) -> list[EtfSummary
     codes = [instrument.code for instrument, _ in records]
     closes = load_recent_closes(session, codes, limit=260)
     shares = _latest_shares(session)
+    index_codes = sorted(
+        {profile.valuation_index for _, profile in records if profile and profile.valuation_index}
+    )
+    valuations = _latest_valuations(session, index_codes)
 
     summaries: list[EtfSummary] = []
     for instrument, profile in records:
@@ -86,6 +116,7 @@ def _summaries(session: Session, category: str | None = None) -> list[EtfSummary
         if indicator is None:
             continue
         share = shares.get(instrument.code)
+        valuation = valuations.get(profile.valuation_index) if profile else None
         summaries.append(
             EtfSummary(
                 code=instrument.code,
@@ -105,6 +136,14 @@ def _summaries(session: Session, category: str | None = None) -> list[EtfSummary
                 aum=float(share.aum) if share else None,
                 shares=float(share.shares) if share else None,
                 turnover=indicator.last_amount,
+                pe=float(valuation.pe) if valuation else None,
+                pb=float(valuation.pb) if valuation else None,
+                pe_percentile=round(float(valuation.pe_percentile) * 100, 1)
+                if valuation
+                else None,
+                dividend_yield=round(float(valuation.dividend_yield) * 100, 2)
+                if valuation
+                else None,
             )
         )
     return summaries
@@ -139,6 +178,11 @@ def get_etf(
         raise HTTPException(status_code=404, detail=f"no price data for {code}")
 
     share = _latest_shares(session).get(code)
+    valuation = (
+        _latest_valuations(session, [profile.valuation_index]).get(profile.valuation_index)
+        if profile and profile.valuation_index
+        else None
+    )
     return EtfDetail(
         code=instrument.code,
         name=instrument.name,
@@ -157,6 +201,10 @@ def get_etf(
         aum=float(share.aum) if share else None,
         shares=float(share.shares) if share else None,
         turnover=indicator.last_amount,
+        pe=float(valuation.pe) if valuation else None,
+        pb=float(valuation.pb) if valuation else None,
+        pe_percentile=round(float(valuation.pe_percentile) * 100, 1) if valuation else None,
+        dividend_yield=round(float(valuation.dividend_yield) * 100, 2) if valuation else None,
         fee_rate=float(profile.fee_rate) if profile and profile.fee_rate else None,
         return_1m=indicator.return_1m,
         return_3m=indicator.return_3m,

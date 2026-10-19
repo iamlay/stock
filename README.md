@@ -44,12 +44,12 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W3 指标与真实数据 API 完成，进入 W4 |
+| 阶段 | ✅ W4 估值与登录骨架完成 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 |
-| Web | ✅ 工作台 / ETF 列表 / ETF 详情已切换真实数据，失败自动回退示例 |
-| API | ✅ 健康检查、套餐、市场概览、ETF 列表/详情、数据状态 + 22 个测试 |
-| 数据 | ✅ 20 只 × 10 年，34,374 行日线 + 20 条份额快照，质量检查 0 失败 |
+| Web | ✅ 工作台 / ETF 列表 / ETF 详情使用真实数据，失败自动回退示例 |
+| API | ✅ 行情、ETF、估值、数据状态、手机号登录 + JWT，27 个测试 |
+| 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 上线 | ⬜ 计划 2027-01-22 |
 
 ## 快速开始
@@ -77,6 +77,7 @@ alembic -c apps/api/alembic.ini upgrade head
 python -m etl.cli seed
 python -m etl.cli sync-all --start 2016-01-01 --delay 0.2
 python -m etl.cli sync-shares
+python -m etl.cli sync-valuation
 python -m etl.cli status
 python -m etl.cli quality --limit 20
 ```
@@ -88,11 +89,11 @@ python -m etl.cli quality --limit 20
 
 | 项 | 状态 |
 |---|---|
-| 覆盖 | 20 只 ETF，2016-01-04 → 2026-10-19，34,374 行日线 + 20 条份额快照 |
-| 数据源 | 东财日线为主、腾讯兜底；份额/成交额来自腾讯批量快照 |
+| 覆盖 | 20 只 ETF，2016-01-04 → 2026-10-19，34,374 行日线 + 20 条份额 + 6 个指数估值 |
+| 数据源 | 东财日线为主、腾讯兜底；份额来自腾讯快照；估值来自蛋卷 |
 | 幂等 | 按窗口删除重插，重复同步不产生重复行 |
 | 可观测 | `data_jobs`（每次任务）+ `data_quality_checks`（4–8 项/次） |
-| 指标 | MA5/20/60、20 日波动、近 1 年回撤、1/3/12 月收益、52 周高低 |
+| 指标 | MA5/20/60、20 日波动、近 1 年回撤、1/3/12 月收益、52 周高低、PE/PB 分位 |
 | 校验 | OHLC、重复、顺序、正价格、成交量、份额、新鲜度 |
 
 详见 [etl/README.md](etl/README.md)。
@@ -105,8 +106,18 @@ python -m etl.cli quality --limit 20
 | `GET /api/v1/etfs/{code}` | 详情 + 120 根日线 + 1/3/12 月收益 |
 | `GET /api/v1/market/overview` | 重点 ETF 等权涨跌、涨跌家数、成交额、领涨/领跌 |
 | `GET /api/v1/data/status` | 行数、最新交易日、份额快照、最近任务 |
+| `POST /api/v1/auth/sms-code` | 发送验证码；**dev 模式返回 code** |
+| `POST /api/v1/auth/login` | 手机号 + 验证码换 JWT |
+| `GET /api/v1/me` | 当前用户（Bearer） |
 
 前端通过 `API_BASE_URL` 服务端拉取；API 不可用时自动回退到示例数据。
+
+## 登录（W4 骨架）
+
+- 手机号 + 6 位验证码，换取 JWT（HS256，默认 12 小时）。
+- `STOCKLAB_AUTH_DEV_MODE=true` 时，`/auth/sms-code` 直接返回 `dev_code`，仅用于本地开发。
+- 生产环境需要接短信服务商：`STOCKLAB_SMS_PROVIDER` 配置前，接口返回 503，不会静默放行。
+- 当前受保护接口只有 `/api/v1/me`；行情接口保持公开，便于 SEO 与内测。
 
 ## 目录结构
 

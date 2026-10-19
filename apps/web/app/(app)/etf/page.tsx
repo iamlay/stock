@@ -80,7 +80,7 @@ export default async function EtfListPage({
           <span className="font-medium text-ink">数据状态</span>
           <br />
           {live
-            ? `来自本地数据管道，更新至 ${dataDate}；估值分位待 W4 接入。`
+            ? `来自本地数据管道，更新至 ${dataDate}；估值覆盖核心指数，其余显示 —。`
             : "Sprint 0 示例数据；启动 API 与数据管道后自动切换。"}
         </p>
       </div>
