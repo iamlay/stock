@@ -44,12 +44,13 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W10 后台分页/审计 + 订单流水 |
+| 阶段 | ✅ W11 部署配置（Vercel + Railway + Actions） |
 | 范围 | ✅ MVP 仅 ETF |
-| 文档 | ✅ 开发计划 v1.2 + ADR-0008 |
+| 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 登录 / 兑换 / 历史 / 兑换码后台 / 订单后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，51 个测试 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，54 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
+| 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
 
 ## 快速开始
@@ -230,6 +231,7 @@ stock/
 | [开发计划](docs/DEVELOPMENT_PLAN.md) | 总纲：范围、架构、数据、模块、排期、风险 |
 | [ETF 覆盖清单](docs/etf-universe.md) | 首批 20 只标的与字段 |
 | [商业化方案](docs/DEVELOPMENT_PLAN.md#17-无主体无站内支付的商业化方案) | 无主体、无站内支付如何变现 |
+| [部署手册](docs/DEPLOYMENT.md) | Vercel + Railway + GitHub Actions |
 | [ADR-0008](docs/adr/0008-monetization-without-entity.md) | 登录与商业化的决策记录 |
 | [页面地图](docs/DEVELOPMENT_PLAN.md#附录-a页面地图) | 全部路由与权限 |
 

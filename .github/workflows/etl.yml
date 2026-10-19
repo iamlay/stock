@@ -1,0 +1,49 @@
+name: ETL
+
+on:
+  schedule:
+    # 18:30 Asia/Shanghai on weekdays
+    - cron: "30 10 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "Run full history from 2016 (first deployment)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: etl-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install API package
+        run: pip install -e apps/api
+
+      - name: Run migrations
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: alembic -c apps/api/alembic.ini upgrade head
+
+      - name: Refresh data
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: |
+          if [ "${{ inputs.full }}" = "true" ]; then
+            python -m etl.cli sync-all --start 2016-01-01 --delay 0.2
+            python -m etl.cli sync-shares
+            python -m etl.cli sync-valuation
+          else
+            python -m etl.cli daily
+          fi
+          python -m etl.cli status

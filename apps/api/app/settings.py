@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,6 +20,7 @@ class Settings(BaseSettings):
         "http://localhost:3000,http://127.0.0.1:3000,"
         "http://localhost:3100,http://127.0.0.1:3100"
     )
+    cors_origin_regex: str = ""
     database_url: str = "postgresql+psycopg://stocklab:stocklab@127.0.0.1:5432/stocklab"
     data_start_date: str = "2016-01-01"
     jwt_secret: str = "dev-only-change-me-please-32-bytes-min"
@@ -28,6 +30,17 @@ class Settings(BaseSettings):
     sms_provider: str = "none"
     guest_daily_limit: int = 20
     free_daily_limit: int = 50
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _normalize_database_url(cls, value: str) -> str:
+        """Railway/Heroku expose postgres:// URLs; SQLAlchemy needs the driver name."""
+        if isinstance(value, str):
+            if value.startswith("postgres://"):
+                return "postgresql+psycopg://" + value[len("postgres://") :]
+            if value.startswith("postgresql://"):
+                return "postgresql+psycopg://" + value[len("postgresql://") :]
+        return value
 
     @property
     def cors_origin_list(self) -> list[str]:
