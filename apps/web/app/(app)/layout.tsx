@@ -35,7 +35,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
       <footer className="mx-auto max-w-6xl px-4 pb-10 sm:px-6">
         <p className="border-t border-line pt-5 text-xs leading-6 text-muted">
-          数据为示例，仅用于产品开发。历史回测不代表未来收益，不构成投资建议。
+          行情与规模来自本地数据管道；板块与策略仍为示例。历史回测不代表未来收益，不构成投资建议。
         </p>
       </footer>
     </div>

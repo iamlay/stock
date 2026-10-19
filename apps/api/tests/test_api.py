@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.db.session import get_session
 from app.main import app
 
 client = TestClient(app)
@@ -13,13 +14,18 @@ def test_healthz() -> None:
     assert body["service"] == "stocklab-api"
 
 
-def test_market_overview_is_demo() -> None:
-    response = client.get("/api/v1/market/overview")
+def test_market_overview_demo_without_data(session) -> None:
+    app.dependency_overrides[get_session] = lambda: session
+    try:
+        response = client.get("/api/v1/market/overview")
+    finally:
+        app.dependency_overrides.clear()
+
     assert response.status_code == 200
     body = response.json()
     assert body["demo"] is True
-    assert len(body["indices"]) == 3
-    assert body["advancing"] > body["declining"]
+    assert body["etf_count"] == 0
+    assert body["turnover_billion"] is None
 
 
 def test_plans_have_no_in_app_checkout() -> None:

@@ -23,6 +23,8 @@ class DataStatus(BaseModel):
     etf_profiles: int
     daily_bars: int
     latest_trade_date: str | None
+    share_rows: int
+    latest_share_date: str | None
     failed_quality_checks: int
     last_job: LastJob | None
 

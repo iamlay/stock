@@ -12,6 +12,8 @@ const categoryStyles: Record<string, string> = {
 };
 
 export function EtfTable({ rows, compact = false }: { rows: Etf[]; compact?: boolean }) {
+  const showPercentile = rows.some((etf) => etf.pePercentile !== null);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-full border-collapse text-sm">
@@ -23,7 +25,9 @@ export function EtfTable({ rows, compact = false }: { rows: Etf[]; compact?: boo
             <th className="px-3 py-2.5 text-right font-medium">日涨跌</th>
             <th className="hidden px-3 py-2.5 text-right font-medium sm:table-cell">规模（亿）</th>
             <th className="hidden px-3 py-2.5 text-right font-medium md:table-cell">股息率</th>
-            <th className="hidden px-3 py-2.5 text-right font-medium md:table-cell">估值分位</th>
+            <th className="hidden px-3 py-2.5 text-right font-medium md:table-cell">
+              {showPercentile ? "估值分位" : "MA20"}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -49,21 +53,33 @@ export function EtfTable({ rows, compact = false }: { rows: Etf[]; compact?: boo
                 {fmtPct(etf.change)}
               </td>
               <td className="tnum hidden px-3 py-3 text-right text-ink-soft sm:table-cell">
-                {fmtNumber(etf.aum, 1)}
+                {etf.aum === null ? "—" : fmtNumber(etf.aum, 1)}
               </td>
               <td className="tnum hidden px-3 py-3 text-right text-ink-soft md:table-cell">
                 {etf.dividendYield === null ? "—" : `${etf.dividendYield.toFixed(1)}%`}
               </td>
-              <td className="hidden px-3 py-3 md:table-cell">
-                <div className="flex items-center justify-end gap-2">
-                  <span className="h-1 w-14 overflow-hidden rounded-full bg-line">
-                    <span
-                      className="block h-full rounded-full bg-jade/70"
-                      style={{ width: `${Math.min(etf.pePercentile, 100)}%` }}
-                    />
+              <td className="hidden px-3 py-3 text-right md:table-cell">
+                {showPercentile ? (
+                  etf.pePercentile === null ? (
+                    <span className="text-xs text-muted">—</span>
+                  ) : (
+                    <div className="flex items-center justify-end gap-2">
+                      <span className="h-1 w-14 overflow-hidden rounded-full bg-line">
+                        <span
+                          className="block h-full rounded-full bg-jade/70"
+                          style={{ width: `${Math.min(etf.pePercentile, 100)}%` }}
+                        />
+                      </span>
+                      <span className="tnum w-8 text-right text-xs text-muted">
+                        {etf.pePercentile}%
+                      </span>
+                    </div>
+                  )
+                ) : (
+                  <span className="tnum text-ink-soft">
+                    {etf.ma20 == null ? "—" : fmtNumber(etf.ma20, 3)}
                   </span>
-                  <span className="tnum w-8 text-right text-xs text-muted">{etf.pePercentile}%</span>
-                </div>
+                )}
               </td>
               {!compact ? <td className="w-6" /> : null}
             </tr>

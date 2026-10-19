@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { EtfTable } from "@/components/etf-table";
+import { fetchEtfs, toEtf } from "@/lib/api";
 import { categories, etfs, type EtfCategory } from "@/lib/mock";
 
 export const metadata: Metadata = { title: "ETF 数据" };
+export const revalidate = 60;
 
 export default async function EtfListPage({
   searchParams,
@@ -13,8 +15,13 @@ export default async function EtfListPage({
 }) {
   const { category } = await searchParams;
   const active = categories.includes(category as EtfCategory) ? (category as EtfCategory) : null;
-  const rows = active ? etfs.filter((etf) => etf.category === active) : etfs;
-  const totalAum = rows.reduce((sum, etf) => sum + etf.aum, 0);
+
+  const apiEtfs = await fetchEtfs();
+  const live = Boolean(apiEtfs && apiEtfs.length > 0);
+  const all = apiEtfs && apiEtfs.length > 0 ? apiEtfs.map(toEtf) : etfs;
+  const rows = active ? all.filter((etf) => etf.category === active) : all;
+  const totalAum = rows.reduce((sum, etf) => sum + (etf.aum ?? 0), 0);
+  const dataDate = apiEtfs?.[0]?.trade_date ?? null;
 
   return (
     <div className="space-y-6">
@@ -24,7 +31,7 @@ export default async function EtfListPage({
           <p className="mt-1 text-sm text-muted">20 只重点标的 · 红利 / 现金流 / 跨境 / 宽基 / 行业</p>
         </div>
         <p className="tnum text-xs text-muted">
-          {rows.length} 只 · 合计规模 {totalAum.toFixed(0)} 亿（示例）
+          {rows.length} 只 · 合计规模 {totalAum.toFixed(0)} 亿 · {live ? `数据 ${dataDate}` : "示例数据"}
         </p>
       </div>
 
@@ -72,7 +79,9 @@ export default async function EtfListPage({
         <p className="rounded-sm border border-line bg-surface p-4">
           <span className="font-medium text-ink">数据状态</span>
           <br />
-          Sprint 0 为示例数据；W2–W3 接入日线、份额与估值后替换。
+          {live
+            ? `来自本地数据管道，更新至 ${dataDate}；估值分位待 W4 接入。`
+            : "Sprint 0 示例数据；启动 API 与数据管道后自动切换。"}
         </p>
       </div>
     </div>

@@ -9,7 +9,7 @@ from app.db.session import SessionLocal
 from app.services.status import collect_status
 from sqlalchemy import desc, select
 
-from etl.pipeline import seed_universe, sync_all, sync_calendar, sync_code
+from etl.pipeline import seed_universe, sync_all, sync_calendar, sync_code, sync_shares
 from etl.universe import ETF_BY_CODE, ETF_UNIVERSE
 
 
@@ -83,6 +83,19 @@ def cmd_quality(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_sync_shares(args: argparse.Namespace) -> int:
+    codes = [item.strip() for item in args.codes.split(",") if item.strip()] if args.codes else None
+    with SessionLocal() as session:
+        seed_universe(session)
+        result = sync_shares(session, codes)
+
+    print(f"shares rows={result['rows']} status={result['status']} latest={result['latest']}")
+    for check in result["checks"]:
+        if check.status != "pass":
+            print(f"  {check.status.upper()} {check.name}: {check.detail}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="stocklab-etl", description="StockLab data pipeline")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -104,6 +117,10 @@ def build_parser() -> argparse.ArgumentParser:
     sync_all_cmd.set_defaults(
         func=lambda args: _run_sync_all(args.start, args.end, args.delay)
     )
+
+    shares = sub.add_parser("sync-shares", help="snapshot ETF shares/AUM from Tencent")
+    shares.add_argument("--codes", default="", help="comma separated codes; default: all")
+    shares.set_defaults(func=cmd_sync_shares)
 
     status = sub.add_parser("status", help="show row counts and last job")
     status.set_defaults(func=cmd_status)

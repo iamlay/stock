@@ -2,27 +2,67 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { EtfTable } from "@/components/etf-table";
+import { fetchEtfs, fetchOverview, toEtf } from "@/lib/api";
 import { etfs, sectors, strategies } from "@/lib/mock";
 import { fmtPct, trendBg, trendClass } from "@/lib/format";
 
 export const metadata: Metadata = { title: "今日市场" };
+export const revalidate = 60;
 
-const stats = [
-  { label: "沪深 300", value: "4,018.55", change: 0.48, hint: "较上一交易日" },
-  { label: "两市成交", value: "1.87 万亿", change: 8.2, hint: "较 5 日均值" },
-  { label: "涨跌家数", value: "3,124 / 1,893", change: 0, hint: "上涨 / 下跌" },
-  { label: "股债利差", value: "5.42%", change: 0, hint: "近 5 年 72% 分位" },
+const fallbackStats = [
+  { label: "沪深 300", value: "4,018.55", hint: "较上一交易日" },
+  { label: "两市成交", value: "1.87 万亿", hint: "较 5 日均值" },
+  { label: "涨跌家数", value: "3,124 / 1,893", hint: "上涨 / 下跌" },
+  { label: "股债利差", value: "5.42%", hint: "近 5 年 72% 分位" },
 ];
 
-export default function DashboardPage() {
-  const top = etfs.slice(0, 8);
+export default async function DashboardPage() {
+  const [apiEtfs, overview] = await Promise.all([fetchEtfs(), fetchOverview()]);
+  const live = Boolean(apiEtfs?.length && overview && !overview.demo);
+  const list = apiEtfs && apiEtfs.length > 0 ? apiEtfs.map(toEtf) : etfs;
+  const top = [...list].sort((a, b) => (b.aum ?? 0) - (a.aum ?? 0)).slice(0, 8);
+
+  const drawdowns = list
+    .map((etf) => etf.maxDrawdown)
+    .filter((value): value is number => typeof value === "number");
+  const avgDrawdown = drawdowns.length
+    ? drawdowns.reduce((sum, value) => sum + value, 0) / drawdowns.length
+    : 0;
+
+  const stats =
+    live && overview
+      ? [
+          {
+            label: "重点 ETF 等权",
+            value: fmtPct(overview.avg_change_pct ?? 0),
+            hint: `${overview.etf_count} 只等权`,
+          },
+          {
+            label: "成交额",
+            value: `${(overview.turnover_billion ?? 0).toFixed(0)} 亿`,
+            hint: "重点 ETF 合计",
+          },
+          {
+            label: "涨跌家数",
+            value: `${overview.advancing} / ${overview.declining}`,
+            hint: "上涨 / 下跌",
+          },
+          {
+            label: "平均回撤",
+            value: `${avgDrawdown.toFixed(1)}%`,
+            hint: "近 1 年 · 等权",
+          },
+        ]
+      : fallbackStats;
 
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-serif text-3xl text-ink">今日市场</h1>
-          <p className="mt-1 text-sm text-muted">2026-10-19 收盘 · 示例数据</p>
+          <p className="mt-1 text-sm text-muted">
+            {overview?.trade_date ?? "2026-10-19"} 收盘 · {live ? "真实数据" : "示例数据"}
+          </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted">
           <span className="rounded-sm border border-line bg-surface px-2.5 py-1">日频</span>
@@ -35,9 +75,7 @@ export default function DashboardPage() {
           <div key={stat.label} className="card p-4">
             <p className="text-xs text-muted">{stat.label}</p>
             <p className="tnum mt-2 text-xl font-semibold text-ink">{stat.value}</p>
-            <p className={`tnum mt-1 text-xs ${stat.change === 0 ? "text-muted" : trendClass(stat.change)}`}>
-              {stat.change === 0 ? stat.hint : `${fmtPct(stat.change)} · ${stat.hint}`}
-            </p>
+            <p className="tnum mt-1 text-xs text-muted">{stat.hint}</p>
           </div>
         ))}
       </section>
@@ -47,7 +85,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-medium text-ink">板块热力</h2>
-              <p className="mt-0.5 text-xs text-muted">申万一级行业 · 当日涨跌幅</p>
+              <p className="mt-0.5 text-xs text-muted">申万一级行业 · 当日涨跌幅（示例）</p>
             </div>
             <span className="text-xs text-muted">红涨绿跌</span>
           </div>
@@ -117,7 +155,9 @@ export default function DashboardPage() {
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <h2 className="text-base font-medium text-ink">重点 ETF</h2>
-            <p className="mt-0.5 text-xs text-muted">按规模排序 · 示例数据</p>
+            <p className="mt-0.5 text-xs text-muted">
+              按规模排序 · {live ? `更新至 ${overview?.trade_date}` : "示例数据"}
+            </p>
           </div>
           <Link href="/etf" className="text-xs text-jade-deep hover:underline">
             查看全部 →
@@ -129,7 +169,9 @@ export default function DashboardPage() {
       </section>
 
       <section className="rounded-sm border border-amber/20 bg-amber-soft/60 p-4 text-xs leading-6 text-amber">
-        说明：当前为 Sprint 0 界面骨架，所有行情、估值与回测数值均为示例，接入数据管道后替换。
+        {live
+          ? `行情与规模来自本地数据管道，更新至 ${overview?.trade_date}；板块热力与策略速览仍为示例。`
+          : "当前为示例数据：启动 API、执行 W2 数据同步后，本页会自动切换到真实行情。"}
       </section>
     </div>
   );

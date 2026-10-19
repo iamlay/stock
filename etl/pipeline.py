@@ -8,6 +8,7 @@ from app.db.models import (
     DataJob,
     DataQualityCheck,
     EtfProfile,
+    EtfShareDaily,
     Instrument,
     MarketDaily,
     TradingCalendar,
@@ -23,6 +24,7 @@ from etl.quality import (
 )
 from etl.sources.eastmoney import DailySeries, fetch_daily
 from etl.sources.tencent import fetch_daily_tencent
+from etl.sources.tencent_quote import fetch_quotes
 from etl.universe import ETF_BY_CODE, ETF_UNIVERSE
 
 
@@ -129,6 +131,129 @@ def sync_calendar(session: Session, dates: set[date]) -> int:
         )
     session.commit()
     return len(missing)
+
+
+def sync_shares(session: Session, codes: list[str] | None = None) -> dict:
+    """Snapshot ETF shares / AUM from Tencent's batched quote endpoint."""
+    targets = codes or [seed.code for seed in ETF_UNIVERSE]
+    job = DataJob(
+        job_name="etf_shares",
+        status="running",
+        params={"codes": targets},
+    )
+    session.add(job)
+    session.commit()
+    session.refresh(job)
+
+    try:
+        quotes = fetch_quotes(targets)
+        if not quotes:
+            raise ValueError("no quotes returned")
+
+        for quote in quotes:
+            session.execute(
+                delete(EtfShareDaily).where(
+                    EtfShareDaily.code == quote.code,
+                    EtfShareDaily.trade_date == quote.trade_date,
+                )
+            )
+            session.execute(
+                delete(MarketDaily).where(
+                    MarketDaily.code == quote.code,
+                    MarketDaily.trade_date == quote.trade_date,
+                )
+            )
+            session.add(
+                MarketDaily(
+                    code=quote.code,
+                    trade_date=quote.trade_date,
+                    open=quote.open or quote.price,
+                    high=quote.high or quote.price,
+                    low=quote.low or quote.price,
+                    close=quote.price,
+                    prev_close=quote.prev_close,
+                    volume=quote.volume,
+                    amount=quote.amount,
+                    amplitude=round(
+                        (quote.high - quote.low) / quote.prev_close * 100, 4
+                    )
+                    if quote.prev_close
+                    else 0,
+                    adj_factor=1,
+                    source="tencent_quote",
+                )
+            )
+
+        session.bulk_insert_mappings(
+            EtfShareDaily,
+            [
+                {
+                    "code": quote.code,
+                    "trade_date": quote.trade_date,
+                    "shares": quote.shares,
+                    "aum": quote.aum,
+                    "close": quote.price,
+                    "change_pct": quote.change_pct,
+                    "source": "tencent",
+                }
+                for quote in quotes
+            ],
+        )
+        session.flush()
+
+        latest = max(quote.trade_date for quote in quotes)
+        lag = (date.today() - latest).days
+        checks = [
+            CheckResult(
+                name="quotes_complete",
+                status="pass" if len(quotes) == len(targets) else "warn",
+                detail={"expected": len(targets), "received": len(quotes)},
+            ),
+            CheckResult(
+                name="positive_aum",
+                status="pass" if all(quote.aum > 0 for quote in quotes) else "fail",
+                detail={"violations": sum(1 for quote in quotes if quote.aum <= 0)},
+            ),
+            CheckResult(
+                name="positive_price",
+                status="pass" if all(quote.price > 0 for quote in quotes) else "fail",
+                detail={"violations": sum(1 for quote in quotes if quote.price <= 0)},
+            ),
+            CheckResult(
+                name="freshness",
+                status="pass" if lag <= 7 else "warn",
+                detail={"latest": latest.isoformat(), "lag_days": lag},
+            ),
+        ]
+
+        job.status = "warning" if has_failures(checks) else "success"
+        job.rows_written = len(quotes)
+        job.finished_at = datetime.now(UTC)
+        for check in checks:
+            session.add(
+                DataQualityCheck(
+                    job_id=job.id,
+                    check_name=check.name,
+                    status=check.status,
+                    detail=check.detail,
+                )
+            )
+        session.commit()
+        return {
+            "rows": len(quotes),
+            "status": job.status,
+            "latest": latest.isoformat(),
+            "checks": checks,
+        }
+    except Exception as exc:
+        session.rollback()
+        failed = session.get(DataJob, job.id)
+        if failed is not None:
+            failed.status = "failed"
+            failed.error = str(exc)[:2000]
+            failed.finished_at = datetime.now(UTC)
+            session.commit()
+        raise
 
 
 def _fetch_series(code: str, start: date, end: date) -> DailySeries:

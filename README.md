@@ -44,12 +44,12 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W2 数据底座完成，进入 W3 指标与接口 |
+| 阶段 | ✅ W3 指标与真实数据 API 完成，进入 W4 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 |
-| Web | ✅ 首页 / 工作台 / ETF / 策略 / 登录 / 定价（示例数据） |
-| API | ✅ 健康检查、套餐、行情概览、`/api/v1/data/status` + 16 个测试 |
-| 数据 | ✅ 20 只 × 10 年，34,361 行日线，质量检查 0 失败 |
+| Web | ✅ 工作台 / ETF 列表 / ETF 详情已切换真实数据，失败自动回退示例 |
+| API | ✅ 健康检查、套餐、市场概览、ETF 列表/详情、数据状态 + 22 个测试 |
+| 数据 | ✅ 20 只 × 10 年，34,374 行日线 + 20 条份额快照，质量检查 0 失败 |
 | 上线 | ⬜ 计划 2027-01-22 |
 
 ## 快速开始
@@ -76,6 +76,7 @@ alembic -c apps/api/alembic.ini upgrade head
 # 数据管道
 python -m etl.cli seed
 python -m etl.cli sync-all --start 2016-01-01 --delay 0.2
+python -m etl.cli sync-shares
 python -m etl.cli status
 python -m etl.cli quality --limit 20
 ```
@@ -83,17 +84,29 @@ python -m etl.cli quality --limit 20
 > 非 Docker 环境可用本地 PostgreSQL，并通过 `STOCKLAB_DATABASE_URL` 指定连接串；
 > 参考 `.env.example`。
 
-## 数据管道（W2）
+## 数据管道（W2–W3）
 
 | 项 | 状态 |
 |---|---|
-| 覆盖 | 20 只 ETF，2016-01-04 → 2026-10-19，34,361 行 |
-| 数据源 | 东财为主、腾讯兜底；实际来源写入 `market_daily.source` |
+| 覆盖 | 20 只 ETF，2016-01-04 → 2026-10-19，34,374 行日线 + 20 条份额快照 |
+| 数据源 | 东财日线为主、腾讯兜底；份额/成交额来自腾讯批量快照 |
 | 幂等 | 按窗口删除重插，重复同步不产生重复行 |
-| 可观测 | `data_jobs`（每次任务）+ `data_quality_checks`（7–8 项/次） |
-| 校验 | OHLC、重复、顺序、正价格、成交量、新鲜度 |
+| 可观测 | `data_jobs`（每次任务）+ `data_quality_checks`（4–8 项/次） |
+| 指标 | MA5/20/60、20 日波动、近 1 年回撤、1/3/12 月收益、52 周高低 |
+| 校验 | OHLC、重复、顺序、正价格、成交量、份额、新鲜度 |
 
 详见 [etl/README.md](etl/README.md)。
+
+## W3 API
+
+| 接口 | 说明 |
+|---|---|
+| `GET /api/v1/etfs` | 20 只 ETF + 最新价、涨跌、均线、回撤、规模、份额 |
+| `GET /api/v1/etfs/{code}` | 详情 + 120 根日线 + 1/3/12 月收益 |
+| `GET /api/v1/market/overview` | 重点 ETF 等权涨跌、涨跌家数、成交额、领涨/领跌 |
+| `GET /api/v1/data/status` | 行数、最新交易日、份额快照、最近任务 |
+
+前端通过 `API_BASE_URL` 服务端拉取；API 不可用时自动回退到示例数据。
 
 ## 目录结构
 

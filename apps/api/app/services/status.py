@@ -7,6 +7,7 @@ from app.db.models import (
     DataJob,
     DataQualityCheck,
     EtfProfile,
+    EtfShareDaily,
     Instrument,
     MarketDaily,
 )
@@ -17,6 +18,8 @@ def collect_status(session: Session) -> dict:
     profiles = session.scalar(select(func.count()).select_from(EtfProfile)) or 0
     bars = session.scalar(select(func.count()).select_from(MarketDaily)) or 0
     latest = session.scalar(select(func.max(MarketDaily.trade_date)))
+    share_rows = session.scalar(select(func.count()).select_from(EtfShareDaily)) or 0
+    latest_share = session.scalar(select(func.max(EtfShareDaily.trade_date)))
     failed_checks = (
         session.scalar(
             select(func.count())
@@ -32,6 +35,8 @@ def collect_status(session: Session) -> dict:
         "etf_profiles": profiles,
         "daily_bars": bars,
         "latest_trade_date": latest.isoformat() if latest else None,
+        "share_rows": share_rows,
+        "latest_share_date": latest_share.isoformat() if latest_share else None,
         "failed_quality_checks": failed_checks,
         "last_job": (
             {

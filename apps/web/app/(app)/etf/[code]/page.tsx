@@ -3,12 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EquityCurve } from "@/components/equity-curve";
+import { fetchEtf } from "@/lib/api";
 import { etfs, getEtf, strategies } from "@/lib/mock";
 import { fmtNumber, fmtPct, trendClass } from "@/lib/format";
 
 type PageProps = { params: Promise<{ code: string }> };
 
 export const dynamicParams = false;
+export const revalidate = 60;
 
 export function generateStaticParams() {
   return etfs.map((etf) => ({ code: etf.code }));
@@ -16,11 +18,13 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { code } = await params;
-  const etf = getEtf(code);
-  if (!etf) return { title: "ETF 未找到" };
+  const api = await fetchEtf(code);
+  const fallback = getEtf(code);
+  const name = api?.name ?? fallback?.name;
+  if (!name) return { title: "ETF 未找到" };
   return {
-    title: `${etf.name}（${etf.code}）`,
-    description: `${etf.name} 的行情、规模、股息率与估值分位。示例数据，接入真实数据后更新。`,
+    title: `${name}（${code}）`,
+    description: `${name} 的行情、规模、均线、回撤与份额数据。`,
   };
 }
 
@@ -34,21 +38,37 @@ function demoCurve(seed: number): number[] {
 
 export default async function EtfDetailPage({ params }: PageProps) {
   const { code } = await params;
-  const etf = getEtf(code);
-  if (!etf) notFound();
+  const api = await fetchEtf(code);
+  const fallback = getEtf(code);
+  if (!api && !fallback) notFound();
 
-  const shares = etf.aum / etf.price;
+  const name = api?.name ?? fallback!.name;
+  const category = api?.category ?? fallback!.category;
+  const price = api?.price ?? fallback!.price;
+  const change = api?.change_pct ?? fallback!.change;
+  const aum = api?.aum ?? fallback!.aum;
+  const shares = api?.shares ?? (aum !== null ? aum / price : null);
+  const live = api !== null;
+
+  const points =
+    api && api.bars.length > 0
+      ? api.bars.map((bar) => bar.close)
+      : demoCurve(fallback?.pePercentile ?? 30);
+  const chartNote =
+    api && api.bars.length > 0
+      ? `近 ${api.bars.length} 个交易日 · 前复权`
+      : "近 24 个月 · 示例";
 
   const metrics: { label: string; value: string; tone?: string }[] = [
-    { label: "最新价", value: fmtNumber(etf.price, 3) },
-    { label: "日涨跌", value: fmtPct(etf.change), tone: trendClass(etf.change) },
-    { label: "规模", value: `${fmtNumber(etf.aum, 1)} 亿` },
-    { label: "估算份额", value: `${fmtNumber(shares, 1)} 亿份` },
+    { label: "最新价", value: fmtNumber(price, 3) },
+    { label: "日涨跌", value: fmtPct(change), tone: trendClass(change) },
+    { label: "规模", value: aum === null ? "—" : `${fmtNumber(aum, 1)} 亿` },
+    { label: "份额", value: shares === null ? "—" : `${fmtNumber(shares, 1)} 亿份` },
+    { label: "MA20", value: api?.ma20 == null ? "—" : fmtNumber(api.ma20, 3) },
     {
-      label: "股息率",
-      value: etf.dividendYield === null ? "—" : `${etf.dividendYield.toFixed(1)}%`,
+      label: "近 1 年回撤",
+      value: api?.max_drawdown_1y == null ? "—" : `${api.max_drawdown_1y.toFixed(1)}%`,
     },
-    { label: "估值分位", value: `${etf.pePercentile}%` },
   ];
 
   return (
@@ -58,24 +78,24 @@ export default async function EtfDetailPage({ params }: PageProps) {
           ETF 数据
         </Link>
         <span className="mx-1.5">/</span>
-        <span>{etf.category}</span>
+        <span>{category}</span>
         <span className="mx-1.5">/</span>
-        <span className="text-ink">{etf.code}</span>
+        <span className="text-ink">{code}</span>
       </nav>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="font-serif text-3xl text-ink">{etf.name}</h1>
+            <h1 className="font-serif text-3xl text-ink">{name}</h1>
             <span className="rounded-sm bg-jade-soft px-2 py-0.5 text-[11px] text-jade-deep">
-              {etf.category}
+              {category}
             </span>
           </div>
-          <p className="tnum mt-1 text-sm text-muted">{etf.code}</p>
+          <p className="tnum mt-1 text-sm text-muted">{code}</p>
         </div>
         <div className="text-right">
-          <p className="tnum text-3xl font-semibold text-ink">{fmtNumber(etf.price, 3)}</p>
-          <p className={`tnum mt-1 text-sm ${trendClass(etf.change)}`}>{fmtPct(etf.change)}</p>
+          <p className="tnum text-3xl font-semibold text-ink">{fmtNumber(price, 3)}</p>
+          <p className={`tnum mt-1 text-sm ${trendClass(change)}`}>{fmtPct(change)}</p>
         </div>
       </div>
 
@@ -84,18 +104,36 @@ export default async function EtfDetailPage({ params }: PageProps) {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-medium text-ink">净值走势</h2>
-              <p className="mt-0.5 text-xs text-muted">近 24 个月 · 后复权 · 示例</p>
+              <p className="mt-0.5 text-xs text-muted">{chartNote}</p>
             </div>
-            <span className="rounded-sm border border-line px-2 py-1 text-[11px] text-muted">月线</span>
+            <span className="rounded-sm border border-line px-2 py-1 text-[11px] text-muted">
+              {live ? "日线" : "示例"}
+            </span>
           </div>
           <div className="mt-6">
-            <EquityCurve
-              id={`etf-${etf.code}`}
-              points={demoCurve(etf.pePercentile)}
-              height={240}
-              stroke="#0b7a5c"
-            />
+            <EquityCurve id={`etf-${code}`} points={points} height={240} stroke="#0b7a5c" />
           </div>
+          {live ? (
+            <dl className="mt-4 grid grid-cols-4 gap-2 border-t border-line pt-4 text-xs">
+              {[
+                ["近 1 月", api?.return_1m],
+                ["近 3 月", api?.return_3m],
+                ["近 1 年", api?.return_1y],
+                ["年化波动", api?.volatility_20d],
+              ].map(([label, value]) => (
+                <div key={String(label)}>
+                  <dt className="text-muted">{label}</dt>
+                  <dd
+                    className={`tnum mt-1 font-medium ${
+                      typeof value === "number" && value > 0 ? "text-loss" : "text-ink"
+                    }`}
+                  >
+                    {typeof value === "number" ? `${value > 0 ? "+" : ""}${value}%` : "—"}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
         </section>
 
         <section className="card p-5">
@@ -111,7 +149,11 @@ export default async function EtfDetailPage({ params }: PageProps) {
             ))}
           </dl>
           <p className="mt-5 border-t border-line pt-4 text-[11px] leading-5 text-muted">
-            管理费率 0.50%（示例）。估值分位为近 5 年 PE 分位；份额为规模 / 净值估算，接入交易所数据后以实际份额为准。
+            {live
+              ? `均线与回撤按最近 260 个交易日计算；份额来自交易所快照${
+                  api?.fee_rate ? `；管理费率 ${api.fee_rate}%` : ""
+                }。`
+              : "示例数据。启动 API 与数据管道后自动切换为真实行情。"}
           </p>
         </section>
       </div>
@@ -132,7 +174,9 @@ export default async function EtfDetailPage({ params }: PageProps) {
             >
               <div>
                 <p className="text-sm font-medium text-ink">{strategy.name}</p>
-                <p className="mt-1 text-xs text-muted">最大回撤 {strategy.maxDrawdown.toFixed(1)}%</p>
+                <p className="mt-1 text-xs text-muted">
+                  最大回撤 {strategy.maxDrawdown.toFixed(1)}%
+                </p>
               </div>
               <span className="tnum text-sm text-loss">+{strategy.totalReturn.toFixed(1)}%</span>
             </Link>
@@ -141,7 +185,8 @@ export default async function EtfDetailPage({ params }: PageProps) {
       </section>
 
       <p className="text-xs leading-6 text-muted">
-        以上为示例数据，不构成投资建议。ETF 存在跟踪误差、折溢价与流动性风险，历史表现不代表未来收益。
+        {live ? `数据更新至 ${api?.trade_date}。` : ""}
+        以上不构成投资建议。ETF 存在跟踪误差、折溢价与流动性风险，历史表现不代表未来收益。
       </p>
     </div>
   );

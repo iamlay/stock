@@ -92,6 +92,24 @@ class MarketDaily(Base):
     )
 
 
+class EtfShareDaily(Base):
+    __tablename__ = "etf_share_daily"
+    __table_args__ = (Index("ix_etf_share_daily_trade_date", "trade_date"),)
+
+    code: Mapped[str] = mapped_column(
+        String(16), ForeignKey("instruments.code", ondelete="CASCADE"), primary_key=True
+    )
+    trade_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    shares: Mapped[float] = mapped_column(Numeric(18, 4), nullable=False)
+    aum: Mapped[float] = mapped_column(Numeric(18, 4), nullable=False)
+    close: Mapped[float] = mapped_column(Numeric(12, 4), nullable=False)
+    change_pct: Mapped[float] = mapped_column(Numeric(8, 4), nullable=False)
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="tencent")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class DataJob(Base):
     __tablename__ = "data_jobs"
 

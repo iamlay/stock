@@ -6,9 +6,12 @@ export type Etf = {
   category: EtfCategory;
   price: number;
   change: number;
-  aum: number;
+  aum: number | null;
   dividendYield: number | null;
-  pePercentile: number;
+  pePercentile: number | null;
+  ma20?: number | null;
+  maxDrawdown?: number | null;
+  turnover?: number | null;
 };
 
 export type IndexQuote = {

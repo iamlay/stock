@@ -1,41 +1,75 @@
-from fastapi import APIRouter
+from __future__ import annotations
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.api.v1.etfs import EtfSummary, _summaries
+from app.db import get_session
 
 router = APIRouter(prefix="/market", tags=["market"])
 
 
-class IndexQuote(BaseModel):
+class Mover(BaseModel):
+    code: str
     name: str
-    value: float
     change_pct: float
 
 
 class MarketOverview(BaseModel):
-    trade_date: str
+    trade_date: str | None
     demo: bool
-    indices: list[IndexQuote]
+    etf_count: int
+    avg_change_pct: float | None
     advancing: int
     declining: int
-    turnover_billion: float
-    valuation_percentile_5y: int
+    turnover_billion: float | None
+    top_gainers: list[Mover]
+    top_losers: list[Mover]
     note: str
 
 
-@router.get("/overview", response_model=MarketOverview, summary="今日市场概览")
-def market_overview() -> MarketOverview:
-    """Sprint 0 returns demo data; W3 replaces it with the ETL-backed query."""
+def _overview(summaries: list[EtfSummary]) -> MarketOverview:
+    if not summaries:
+        return MarketOverview(
+            trade_date=None,
+            demo=True,
+            etf_count=0,
+            avg_change_pct=None,
+            advancing=0,
+            declining=0,
+            turnover_billion=None,
+            top_gainers=[],
+            top_losers=[],
+            note="数据库中暂无行情数据，请先运行 etl.cli sync-all。",
+        )
 
+    ordered = sorted(summaries, key=lambda item: item.change_pct, reverse=True)
+    turnover = sum(item.turnover or 0 for item in summaries) / 100_000_000
     return MarketOverview(
-        trade_date="2026-10-19",
-        demo=True,
-        indices=[
-            IndexQuote(name="上证指数", value=3342.12, change_pct=0.62),
-            IndexQuote(name="沪深 300", value=4018.55, change_pct=0.48),
-            IndexQuote(name="创业板指", value=2311.09, change_pct=-0.35),
+        trade_date=max(item.trade_date or "" for item in summaries),
+        demo=False,
+        etf_count=len(summaries),
+        avg_change_pct=round(sum(item.change_pct for item in summaries) / len(summaries), 2),
+        advancing=sum(1 for item in summaries if item.change_pct > 0),
+        declining=sum(1 for item in summaries if item.change_pct < 0),
+        turnover_billion=round(turnover, 2),
+        top_gainers=[
+            Mover(code=item.code, name=item.name, change_pct=item.change_pct)
+            for item in ordered[:5]
         ],
-        advancing=3124,
-        declining=1893,
-        turnover_billion=1870.0,
-        valuation_percentile_5y=38,
-        note="示例数据，接入数据管道后替换。",
+        top_losers=[
+            Mover(code=item.code, name=item.name, change_pct=item.change_pct)
+            for item in ordered[-5:][::-1]
+        ],
+        note="重点 ETF 等权统计，非全市场；成交额来自日线数据。",
     )
+
+
+@router.get("/overview", response_model=MarketOverview, summary="重点 ETF 市场概览")
+def market_overview(
+    session: Annotated[Session, Depends(get_session)],
+) -> MarketOverview:
+    return _overview(_summaries(session))
