@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #f6f4ef;
+  --color-surface: #ffffff;
+  --color-ink: #12181f;
+  --color-ink-soft: #3b4650;
+  --color-muted: #6d7681;
+  --color-line: #e2dfd5;
+  --color-jade: #0b7a5c;
+  --color-jade-deep: #075c46;
+  --color-jade-soft: #e7f2ec;
+  --color-amber: #a8641a;
+  --color-amber-soft: #f8efe0;
+  --color-loss: #b42318;
+  --color-loss-soft: #fbeae8;
+
+  --font-sans: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui,
+    -apple-system, sans-serif;
+  --font-serif: "Noto Serif SC", "Songti SC", "STSong", Georgia, serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background-color: var(--color-jade);
+  color: #fff;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+@layer base {
+  svg {
+    max-width: 100%;
+  }
+}
+
+.grid-paper {
+  background-image:
+    linear-gradient(to right, rgba(18, 24, 31, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(18, 24, 31, 0.045) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.card {
+  border: 1px solid var(--color-line);
+  background-color: var(--color-surface);
+  border-radius: 0.25rem;
+  min-width: 0;
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-jade);
+  outline-offset: 2px;
+}

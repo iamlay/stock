@@ -1,0 +1,17 @@
+{
+  "name": "stocklab",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.28.5",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0"
+  }
+}
