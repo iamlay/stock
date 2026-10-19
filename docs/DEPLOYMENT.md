@@ -151,7 +151,50 @@ postgresql+psycopg://postgres:密码@xxx.proxy.rlwy.net:PORT/railway?sslmode=req
 
 ---
 
-## 7. 已知限制
+## 7. 常见错误
+
+### `The executable pnpm could not be found`
+
+这不是 API 代码的问题，而是 Railway 没有走 Dockerfile，正在用 Nixpacks 或自定义 Start Command 启动仓库。
+
+修复顺序：
+
+1. **Service → Settings → Source**
+   - Root Directory 留空（仓库根目录），不要选 `apps/api`。
+2. **Service → Settings → Build**
+   - Builder 选 `Dockerfile`
+   - Dockerfile Path 填 `apps/api/Dockerfile`
+3. **Service → Settings → Deploy**
+   - Custom Start Command **清空**（使用 Dockerfile 里的 uvicorn 命令）
+   - Healthcheck Path 填 `/healthz`
+4. 重新 Deploy。
+
+构建日志应该出现：
+
+```text
+Using Dockerfile
+...
+Successfully built ...
+```
+
+启动日志应该是：
+
+```text
+alembic upgrade head
+INFO:     Uvicorn running on http://0.0.0.0:8000
+```
+
+而不是 `pnpm install` / `pnpm start`。
+
+> 如果 Root Directory 必须是 `apps/api`，当前 Dockerfile 不适用（它按仓库根目录复制 `apps/api/...`）。此时要么把 Root Directory 改回仓库根目录，要么单独维护一份 context 为 `apps/api` 的 Dockerfile。
+
+### Vercel 构建找不到 workspace
+
+见第 3 节的 pnpm workspace 配置。
+
+---
+
+## 8. 已知限制
 
 - Railway 容器启动时会跑迁移，多副本部署会并发执行；当前单副本没问题。
 - GitHub Actions 依赖 Railway 公网数据库，需确保 `DATABASE_PUBLIC_URL` 可用。
