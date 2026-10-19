@@ -43,7 +43,16 @@ def test_strategy_catalog(client_with_prices) -> None:
     response = client_with_prices.get("/api/v1/backtests/strategies")
     assert response.status_code == 200
     slugs = {item["slug"] for item in response.json()}
-    assert {"buy-and-hold", "dual-ma", "rsi", "bollinger", "macd", "deviation"} <= slugs
+    assert {
+        "buy-and-hold",
+        "dual-ma",
+        "rsi",
+        "bollinger",
+        "macd",
+        "deviation",
+        "monthly-dca",
+        "grid",
+    } <= slugs
 
 
 def test_run_backtest(client_with_prices) -> None:

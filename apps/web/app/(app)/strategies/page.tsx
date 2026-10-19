@@ -12,7 +12,7 @@ export default function StrategiesPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-serif text-3xl text-ink">策略实验室</h1>
-          <p className="mt-1 text-sm text-muted">6 个规则策略 · 参数可调 · T+1 撮合</p>
+          <p className="mt-1 text-sm text-muted">8 个规则策略 · 参数可调 · T+1 撮合</p>
         </div>
         <span className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-muted">
           历史回测 · 非实盘建议

@@ -40,6 +40,7 @@ def _execute(
     config: BacktestConfig,
     previous_close: float,
     reason: str,
+    no_sell: bool = False,
 ) -> tuple[float, int, float, Trade | None, str | None]:
     """Execute a target weight at the bar open. Returns unchanged state if skipped."""
     if _is_suspended(bar):
@@ -94,6 +95,8 @@ def _execute(
         return cash, new_shares, average_cost, trade, None
 
     if delta < 0:
+        if no_sell:
+            return cash, shares, average_cost, None, None
         if limit_down:
             return cash, shares, average_cost, None, "limit_down"
         quantity = min(-delta, shares)
@@ -220,6 +223,7 @@ def run_backtest(
                 config,
                 previous_close,
                 f"target={pending:.0%}",
+                no_sell=spec.no_sell,
             )
             if trade is not None:
                 trades.append(trade)

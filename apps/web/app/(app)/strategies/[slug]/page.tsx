@@ -3,22 +3,37 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EquityCurve } from "@/components/equity-curve";
-import { runBacktest } from "@/lib/api";
+import { fetchStrategies, runBacktest, type StrategyParam } from "@/lib/api";
 import { etfs, getStrategy, strategies } from "@/lib/mock";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ code?: string; start?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 const ENGINE_SLUGS = new Set([
   "buy-and-hold",
+  "monthly-dca",
   "dual-ma",
   "rsi",
   "bollinger",
   "macd",
   "deviation",
+  "grid",
 ]);
+
+const PARAM_LABELS: Record<string, string> = {
+  fast: "快线",
+  slow: "慢线",
+  period: "周期",
+  oversold: "超卖线",
+  overbought: "超买线",
+  width: "带宽",
+  window: "窗口",
+  step: "步长",
+  months: "定投月数",
+  levels: "档位数",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +79,11 @@ const rules: Record<string, string[]> = {
     "正偏离超过阈值时逐步减仓。",
     "每日只买卖目标仓位与当前仓位的差额，允许长期半仓。",
   ],
+  grid: [
+    "取最近 N 个交易日的最高价与最低价，等分为若干档。",
+    "价格越接近区间下沿，目标仓位越高；越接近上沿，仓位越低。",
+    "每天只调整目标仓位与当前仓位的差额。",
+  ],
 };
 
 export default async function StrategyDetailPage({ params, searchParams }: PageProps) {
@@ -72,8 +92,21 @@ export default async function StrategyDetailPage({ params, searchParams }: PageP
   if (!strategy) notFound();
 
   const query = await searchParams;
-  const code = etfs.some((etf) => etf.code === query.code) ? query.code! : "510300";
-  const start = query.start && /^\d{4}-\d{2}-\d{2}$/.test(query.start) ? query.start : "2020-01-01";
+  const rawCode = Array.isArray(query.code) ? query.code[0] : query.code;
+  const rawStart = Array.isArray(query.start) ? query.start[0] : query.start;
+  const code = etfs.some((etf) => etf.code === rawCode) ? rawCode! : "510300";
+  const start = rawStart && /^\d{4}-\d{2}-\d{2}$/.test(rawStart) ? rawStart : "2020-01-01";
+
+  const catalog = await fetchStrategies();
+  const spec = catalog?.find((item) => item.slug === slug);
+  const strategyParams: Record<string, number> = {};
+  if (spec) {
+    for (const [key, rule] of Object.entries(spec.params)) {
+      const raw = Array.isArray(query[key]) ? query[key]?.[0] : query[key];
+      const value = Number(raw ?? rule.default ?? 0);
+      if (Number.isFinite(value)) strategyParams[key] = value;
+    }
+  }
 
   const live = ENGINE_SLUGS.has(slug)
     ? await runBacktest({
@@ -81,6 +114,7 @@ export default async function StrategyDetailPage({ params, searchParams }: PageP
         strategy: slug,
         start,
         end: new Date().toISOString().slice(0, 10),
+        params: strategyParams,
       })
     : null;
 
@@ -175,6 +209,22 @@ export default async function StrategyDetailPage({ params, searchParams }: PageP
               className="rounded-sm border border-line bg-surface px-3 py-2 text-sm"
             />
           </label>
+          {spec
+            ? Object.entries(spec.params).map(([key, rule]) => (
+                <label key={key} className="flex w-24 flex-col gap-1">
+                  <span className="text-xs text-muted">{PARAM_LABELS[key] ?? key}</span>
+                  <input
+                    type="number"
+                    name={key}
+                    defaultValue={strategyParams[key]}
+                    min={rule.min}
+                    max={rule.max}
+                    step={rule.type === "integer" ? 1 : "any"}
+                    className="w-full rounded-sm border border-line bg-surface px-2 py-2 text-sm"
+                  />
+                </label>
+              ))
+            : null}
           <button
             type="submit"
             className="rounded-sm bg-ink px-4 py-2 text-sm font-medium text-paper hover:bg-jade-deep"

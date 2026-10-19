@@ -122,3 +122,51 @@ def test_unknown_strategy_raises() -> None:
         assert "unknown strategy" in str(exc)
     else:
         raise AssertionError("expected ValueError")
+
+
+def test_monthly_dca_never_sells() -> None:
+    bars = [
+        Bar(date(2024, 1, 2), 10.0, 10.0, 10.0, 10.0, volume=1_000_000),
+        Bar(date(2024, 1, 3), 10.0, 10.0, 10.0, 10.0, prev_close=10.0, volume=1_000_000),
+        Bar(date(2024, 2, 1), 11.0, 11.0, 11.0, 11.0, prev_close=10.0, volume=1_000_000),
+        Bar(date(2024, 3, 1), 12.0, 12.0, 12.0, 12.0, prev_close=11.0, volume=1_000_000),
+        Bar(date(2024, 3, 4), 12.0, 12.0, 12.0, 12.0, prev_close=12.0, volume=1_000_000),
+    ]
+    result = run_backtest(
+        bars,
+        get_strategy("monthly-dca"),
+        params={"months": 6},
+        config=CONFIG,
+    )
+
+    assert result.trades
+    assert all(trade.side == "buy" for trade in result.trades)
+    assert len(result.trades) == 3
+
+
+def test_grid_buys_low_sells_high() -> None:
+    closes = [10, 9, 8, 7, 6, 7, 8, 9] * 4
+    bars = []
+    for index, close in enumerate(closes):
+        previous = closes[index - 1] if index else None
+        bars.append(
+            Bar(
+                trade_date=date(2024, 1, 1) + timedelta(days=index),
+                open=close,
+                high=close + 0.2,
+                low=close - 0.2,
+                close=close,
+                prev_close=previous,
+                volume=1_000_000,
+            )
+        )
+
+    result = run_backtest(
+        bars,
+        get_strategy("grid"),
+        params={"window": 20, "levels": 5},
+        config=CONFIG,
+    )
+
+    assert any(trade.side == "buy" for trade in result.trades)
+    assert any(trade.side == "sell" for trade in result.trades)

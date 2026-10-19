@@ -83,6 +83,21 @@ export type BacktestResult = {
   warnings: string[];
 };
 
+export type StrategyParam = {
+  type: "integer" | "number";
+  min?: number;
+  max?: number;
+  default?: number;
+};
+
+export type StrategyInfo = {
+  slug: string;
+  name: string;
+  description: string;
+  defaults: Record<string, number>;
+  params: Record<string, StrategyParam>;
+};
+
 async function fetchJson<T>(path: string): Promise<T | null> {
   try {
     const response = await fetch(`${API_BASE}${path}`, {
@@ -144,4 +159,8 @@ export async function runBacktest(body: {
   } catch {
     return null;
   }
+}
+
+export async function fetchStrategies(): Promise<StrategyInfo[] | null> {
+  return fetchJson<StrategyInfo[]>("/api/v1/backtests/strategies");
 }

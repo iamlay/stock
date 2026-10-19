@@ -166,6 +166,18 @@ export const strategies: Strategy[] = [
     trades: 64,
     curve: [100, 101, 103, 102, 106, 109, 108, 112, 115, 113, 117, 120, 119, 123, 126, 124, 128, 131, 130, 134, 137, 136, 140, 153.8],
   },
+  {
+    slug: "grid",
+    name: "滚动网格",
+    tag: "网格",
+    summary: "在滚动高低点之间等分网格，价格越低仓位越高，越高越减。",
+    totalReturn: 31.5,
+    annual: 5.6,
+    maxDrawdown: -11.2,
+    sharpe: 0.7,
+    trades: 48,
+    curve: [100, 102, 101, 104, 107, 106, 109, 111, 110, 113, 116, 115, 118, 121, 120, 123, 126, 125, 128, 130, 129, 131, 132, 131.5],
+  },
 ];
 
 export function getEtf(code: string): Etf | undefined {

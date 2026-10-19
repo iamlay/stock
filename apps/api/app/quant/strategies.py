@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -16,6 +17,7 @@ class StrategySpec:
     defaults: dict[str, float | int]
     target: Callable[[list[Bar], dict[str, Any]], float | None]
     param_schema: dict[str, dict[str, Any]] = field(default_factory=dict)
+    no_sell: bool = False
 
 
 def _closes(bars: list[Bar]) -> list[float]:
@@ -85,6 +87,41 @@ def _deviation(bars: list[Bar], params: dict[str, Any]) -> float | None:
     return max(0.0, min(1.0, weight))
 
 
+def _monthly_dca(bars: list[Bar], params: dict[str, Any]) -> float | None:
+    """Invest 1/N of capital on the first trading day of each month, never sell."""
+    if not bars:
+        return None
+    months = int(params["months"])
+    first = bars[0].trade_date
+    current = bars[-1].trade_date
+
+    if len(bars) > 1:
+        previous = bars[-2].trade_date
+        if current.year == previous.year and current.month == previous.month:
+            return None
+
+    elapsed = (current.year - first.year) * 12 + (current.month - first.month) + 1
+    return min(1.0, elapsed / months)
+
+
+def _grid(bars: list[Bar], params: dict[str, Any]) -> float | None:
+    """Ladder between the rolling low and high: lower price -> higher target weight."""
+    window = int(params["window"])
+    levels = int(params["levels"])
+    if len(bars) < window:
+        return None
+
+    recent = bars[-window:]
+    high = max(bar.high for bar in recent)
+    low = min(bar.low for bar in recent)
+    if high <= low:
+        return None
+
+    position = (high - bars[-1].close) / (high - low)
+    weight = math.floor(max(0.0, min(1.0, position)) * levels) / levels
+    return max(0.0, min(1.0, weight))
+
+
 STRATEGIES: dict[str, StrategySpec] = {
     "buy-and-hold": StrategySpec(
         slug="buy-and-hold",
@@ -148,6 +185,28 @@ STRATEGIES: dict[str, StrategySpec] = {
         param_schema={
             "window": {"type": "integer", "min": 5, "max": 250, "default": 60},
             "step": {"type": "number", "min": 0.01, "max": 0.5, "default": 0.08},
+        },
+    ),
+    "monthly-dca": StrategySpec(
+        slug="monthly-dca",
+        name="每月定投",
+        description="把初始资金分成 N 份，每月首个交易日买入一份，只买不卖。",
+        defaults={"months": 24},
+        target=_monthly_dca,
+        param_schema={
+            "months": {"type": "integer", "min": 6, "max": 120, "default": 24},
+        },
+        no_sell=True,
+    ),
+    "grid": StrategySpec(
+        slug="grid",
+        name="滚动网格",
+        description="在滚动窗口高低点之间等分网格，价格越低目标仓位越高，越高越减。",
+        defaults={"window": 250, "levels": 10},
+        target=_grid,
+        param_schema={
+            "window": {"type": "integer", "min": 20, "max": 750, "default": 250},
+            "levels": {"type": "integer", "min": 3, "max": 30, "default": 10},
         },
     ),
 }
