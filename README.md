@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W7 回测持久化 + 会员墙 |
+| 阶段 | ✅ W8 兑换码 → 会员 → 历史闭环 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 |
-| Web | ✅ 工作台 / ETF 真实数据；策略可调参、显示剩余次数 |
-| API | ✅ 行情、ETF、估值、回测、历史、登录，42 个测试 |
+| Web | ✅ 登录 / 兑换 / 个人中心 / 历史回看已打通 |
+| API | ✅ 行情、ETF、估值、回测、历史、登录、兑换，45 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 上线 | ⬜ 计划 2027-01-22 |
 
@@ -146,13 +146,30 @@ POST /api/v1/backtests
 
 用户表新增 `plan`、`plan_expires_at`；会员判定为 `plan=member` 且未过期。
 
+## 兑换码 → 会员 → 历史
+
+```bash
+# 生成兑换码（服务端 CLI）
+python -m app.cli gen-codes --count 10 --days 365 --channel zhishixingqiu
+
+# 用户登录后兑换
+POST /api/v1/redeem   {"code":"SLXXXXXXXXXX"}
+```
+
+- 兑换码表：`redeem_codes`，支持批次、渠道、次数、绑定用户、过期时间；
+- 兑换事务内行锁 + 次数校验，会员时长可叠加；
+- 登录页已接 API：开发模式自动回填验证码；
+- `/account`：会员状态、兑换入口、历史列表、点开看净值与指标。
+
+浏览器侧 API 地址由 `NEXT_PUBLIC_API_BASE_URL` 指定（构建时注入）。
+
 ## 登录（W4 骨架）
 
 - 手机号 + 6 位验证码，换取 JWT（HS256，默认 12 小时）。
 - `STOCKLAB_AUTH_DEV_MODE=true` 时，`/auth/sms-code` 直接返回 `dev_code`，仅用于本地开发。
 - 生产环境需要接短信服务商：`STOCKLAB_SMS_PROVIDER` 配置前，接口返回 503，不会静默放行。
-- 当前受保护接口只有 `/api/v1/me` 与会员历史；行情接口保持公开，便于 SEO 与内测。
-- `users.plan` 默认 `free`，会员通过后台/兑换码开通（兑换流程待接）。
+- 当前受保护接口：`/api/v1/me`、`/api/v1/redeem`、会员历史；行情接口保持公开，便于 SEO 与内测。
+- 登录页已接真实 API；`users.plan` 默认 `free`，兑换码开通后变 `member`。
 
 ## 目录结构
 

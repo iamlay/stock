@@ -1,21 +1,28 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import BacktestRun, User
+from app.db.models import BacktestRun, RedeemCode, User
 from app.settings import settings
+
+
+def _aware(value: datetime | None) -> datetime | None:
+    if value is not None and value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value
 
 
 def is_member(user: User | None) -> bool:
     if user is None or user.plan != "member":
         return False
-    if user.plan_expires_at is None:
+    expires = _aware(user.plan_expires_at)
+    if expires is None:
         return True
-    return user.plan_expires_at > datetime.now(UTC)
+    return expires > datetime.now(UTC)
 
 
 def plan_for(user: User | None) -> str:
@@ -60,4 +67,65 @@ def quota_for(session: Session, user: User | None, client_key: str) -> dict:
         "used": used,
         "limit": limit,
         "remaining": remaining,
+    }
+
+
+def activate_membership(
+    session: Session,
+    user: User,
+    *,
+    plan: str = "member",
+    days: int = 365,
+    now: datetime | None = None,
+) -> datetime:
+    current = now or datetime.now(UTC)
+    base = current
+    existing = _aware(user.plan_expires_at)
+    if user.plan == "member" and existing and existing > current:
+        base = existing
+    user.plan = plan
+    user.plan_expires_at = base + timedelta(days=days)
+    return user.plan_expires_at
+
+
+def redeem_code(session: Session, user: User, raw_code: str) -> dict:
+    code = raw_code.strip().upper()
+    row = session.scalar(
+        select(RedeemCode).where(RedeemCode.code == code).with_for_update()
+    )
+    if row is None:
+        raise ValueError("兑换码不存在")
+    if row.status != "issued":
+        raise ValueError("兑换码已被使用或已失效")
+    if row.bound_user_id is not None and row.bound_user_id != user.id:
+        raise ValueError("兑换码与当前账号不匹配")
+    if row.used_count >= row.max_uses:
+        raise ValueError("兑换码使用次数已达上限")
+
+    now = datetime.now(UTC)
+    expires = _aware(row.expires_at)
+    if expires is not None and expires < now:
+        row.status = "expired"
+        session.commit()
+        raise ValueError("兑换码已过期")
+
+    row.used_count += 1
+    row.redeemed_by = user.id
+    row.redeemed_at = now
+    if row.used_count >= row.max_uses:
+        row.status = "redeemed"
+
+    expires_at = activate_membership(
+        session,
+        user,
+        plan=row.plan,
+        days=row.duration_days,
+        now=now,
+    )
+    session.commit()
+    return {
+        "code": code,
+        "plan": user.plan,
+        "plan_expires_at": expires_at.isoformat(),
+        "duration_days": row.duration_days,
     }

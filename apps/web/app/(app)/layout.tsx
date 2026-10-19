@@ -16,18 +16,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
             <span className="hidden text-xs text-muted lg:block">演示环境 · 示例数据</span>
             <Link
-              href="/pricing"
+              href="/account"
               className="hidden rounded-sm border border-line px-3 py-1.5 text-xs text-ink-soft hover:border-ink hover:text-ink sm:block"
             >
-              会员
+              个人中心
             </Link>
             <Link
               href="/login"
               className="hidden rounded-sm bg-ink px-3 py-1.5 text-xs font-medium text-paper hover:bg-jade-deep sm:block"
             >
               登录
-            </Link>
-          </div>
+            </Link>          </div>
         </div>
       </header>
 

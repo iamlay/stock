@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.db import get_session
 from app.db.models import User
 from app.security import create_access_token, generate_code, get_current_user, verify_code
+from app.services.membership import is_member, redeem_code
 from app.settings import settings
 
 router = APIRouter(tags=["auth"])
@@ -35,12 +36,37 @@ class UserOut(BaseModel):
     id: int
     phone: str
     role: str
+    plan: str
+    plan_expires_at: str | None
+    is_member: bool
 
 
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+
+
+class RedeemRequest(BaseModel):
+    code: str = Field(min_length=4, max_length=24)
+
+
+class RedeemResponse(BaseModel):
+    code: str
+    plan: str
+    plan_expires_at: str
+    duration_days: int
+
+
+def _user_out(user: User) -> UserOut:
+    return UserOut(
+        id=user.id,
+        phone=user.phone,
+        role=user.role,
+        plan=user.plan,
+        plan_expires_at=user.plan_expires_at.isoformat() if user.plan_expires_at else None,
+        is_member=is_member(user),
+    )
 
 
 @router.post("/auth/sms-code", response_model=SmsResponse, summary="发送登录验证码")
@@ -81,10 +107,23 @@ def login(
 
     return TokenResponse(
         access_token=create_access_token(user),
-        user=UserOut(id=user.id, phone=user.phone, role=user.role),
+        user=_user_out(user),
     )
+
+
+@router.post("/redeem", response_model=RedeemResponse, summary="兑换码开通会员")
+def redeem(
+    payload: RedeemRequest,
+    session: Annotated[Session, Depends(get_session)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> RedeemResponse:
+    try:
+        result = redeem_code(session, user, payload.code)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return RedeemResponse(**result)
 
 
 @router.get("/me", response_model=UserOut, summary="当前用户")
 def me(user: Annotated[User, Depends(get_current_user)]) -> UserOut:
-    return UserOut(id=user.id, phone=user.phone, role=user.role)
+    return _user_out(user)
