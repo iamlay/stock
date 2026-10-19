@@ -176,6 +176,28 @@ class User(Base):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class PaymentOrder(Base):
+    __tablename__ = "payment_orders"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_no: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
+    platform: Mapped[str] = mapped_column(String(32), nullable=False, default="manual")
+    external_order_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    buyer_phone: Mapped[str | None] = mapped_column(String(20))
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    product: Mapped[str] = mapped_column(String(32), nullable=False)
+    amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="delivered")
+    note: Mapped[str | None] = mapped_column(Text)
+    raw: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class RedeemCode(Base):
     __tablename__ = "redeem_codes"
     __table_args__ = (Index("ix_redeem_codes_status", "status"),)
@@ -188,6 +210,9 @@ class RedeemCode(Base):
     max_uses: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     used_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     bound_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    order_id: Mapped[int | None] = mapped_column(
+        ForeignKey("payment_orders.id", ondelete="SET NULL"), index=True
+    )
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="issued")
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
@@ -195,6 +220,22 @@ class RedeemCode(Base):
     )
     redeemed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     redeemed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+
+class AdminAuditLog(Base):
+    __tablename__ = "admin_audit_logs"
+    __table_args__ = (Index("ix_admin_audit_logs_created", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    target_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    target_id: Mapped[str | None] = mapped_column(String(64))
+    detail: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
+    ip: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class BacktestRun(Base):

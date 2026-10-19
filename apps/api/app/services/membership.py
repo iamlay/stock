@@ -136,7 +136,7 @@ def redeem_code(session: Session, user: User, raw_code: str) -> dict:
     }
 
 
-def _new_code() -> str:
+def new_code() -> str:
     return "SL" + "".join(secrets.choice(CODE_ALPHABET) for _ in range(10))
 
 
@@ -154,11 +154,11 @@ def generate_codes(
     rows: list[RedeemCode] = []
 
     for _ in range(count):
-        code = _new_code()
+        code = new_code()
         for _attempt in range(5):
             if session.get(RedeemCode, code) is None:
                 break
-            code = _new_code()
+            code = new_code()
         else:
             raise RuntimeError("failed to generate a unique code")
 

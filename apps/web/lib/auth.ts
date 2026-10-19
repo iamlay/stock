@@ -42,6 +42,44 @@ export type AdminCodeStats = {
   revoked: number;
 };
 
+export type BatchSummary = {
+  batch_id: string;
+  channel: string;
+  total: number;
+  issued: number;
+  redeemed: number;
+  created_at: string;
+};
+
+export type AuditLog = {
+  id: number;
+  user_id: number | null;
+  action: string;
+  target_type: string;
+  target_id: string | null;
+  detail: Record<string, unknown>;
+  ip: string | null;
+  created_at: string;
+};
+
+export type AdminOrder = {
+  id: number;
+  order_no: string;
+  platform: string;
+  external_order_id: string | null;
+  buyer_phone: string | null;
+  user_id: number | null;
+  product: string;
+  amount: number;
+  status: string;
+  note: string | null;
+  created_at: string;
+  paid_at: string | null;
+  delivered_at: string | null;
+  refunded_at: string | null;
+  code: string | null;
+};
+
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(TOKEN_KEY);
@@ -115,14 +153,39 @@ export async function fetchHistoryDetail(id: number): Promise<BacktestResult> {
   return request<BacktestResult>(`/api/v1/backtests/history/${id}`);
 }
 
-export async function adminListCodes(status?: string): Promise<{
+export async function adminListCodes(params: {
+  status?: string;
+  batch_id?: string;
+  channel?: string;
+  q?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<{
   items: AdminCode[];
   stats: AdminCodeStats;
+  total: number;
+  page: number;
+  page_size: number;
 }> {
-  const suffix = status ? `?status=${encodeURIComponent(status)}` : "";
-  return request<{ items: AdminCode[]; stats: AdminCodeStats }>(
-    `/api/v1/admin/redeem-codes${suffix}`,
-  );
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request(`/api/v1/admin/redeem-codes${suffix}`);
+}
+
+export async function adminListBatches(): Promise<BatchSummary[]> {
+  return request<BatchSummary[]>("/api/v1/admin/redeem-codes/batches");
+}
+
+export async function adminAuditLogs(page = 1): Promise<{
+  items: AuditLog[];
+  total: number;
+  page: number;
+  page_size: number;
+}> {
+  return request(`/api/v1/admin/audit-logs?page=${page}&page_size=10`);
 }
 
 export async function adminGenerateCodes(payload: {
@@ -144,12 +207,62 @@ export async function adminRevokeCode(code: string): Promise<AdminCode> {
   });
 }
 
-export async function adminExportCsv(status?: string): Promise<Blob> {
+export async function adminExportCsv(filters: {
+  status?: string;
+  batch_id?: string;
+} = {}): Promise<Blob> {
   const token = getToken();
-  const suffix = status ? `?status=${encodeURIComponent(status)}` : "";
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) query.set(key, value);
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : "";
   const response = await fetch(`${API_BASE}/api/v1/admin/redeem-codes/export${suffix}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!response.ok) throw new Error("导出失败");
   return response.blob();
+}
+
+export async function adminCreateOrder(payload: {
+  platform: string;
+  external_order_id?: string;
+  buyer_phone?: string;
+  amount: number;
+  days: number;
+  plan: string;
+  product: string;
+  note?: string;
+}): Promise<AdminOrder> {
+  return request<AdminOrder>("/api/v1/admin/orders", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function adminListOrders(params: {
+  status?: string;
+  platform?: string;
+  q?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<{
+  items: AdminOrder[];
+  total: number;
+  page: number;
+  page_size: number;
+  revenue: number;
+}> {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request(`/api/v1/admin/orders${suffix}`);
+}
+
+export async function adminRefundOrder(orderNo: string): Promise<AdminOrder> {
+  return request<AdminOrder>(`/api/v1/admin/orders/${orderNo}/refund`, {
+    method: "POST",
+  });
 }
