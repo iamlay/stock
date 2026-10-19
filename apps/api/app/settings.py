@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     version: str = "0.1.0"
     env: str = "local"
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    database_url: str = "postgresql+psycopg://stocklab:stocklab@127.0.0.1:5432/stocklab"
+    data_start_date: str = "2016-01-01"
 
     @property
     def cors_origin_list(self) -> list[str]:

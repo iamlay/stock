@@ -44,12 +44,12 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ Sprint 0 骨架完成，进入 W2 数据管道 |
+| 阶段 | ✅ W2 数据底座完成，进入 W3 指标与接口 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 |
 | Web | ✅ 首页 / 工作台 / ETF / 策略 / 登录 / 定价（示例数据） |
-| API | ✅ FastAPI 健康检查、套餐、行情概览 + 测试 |
-| 数据 | ✅ 东财日线探针（510300，2,619 行） |
+| API | ✅ 健康检查、套餐、行情概览、`/api/v1/data/status` + 16 个测试 |
+| 数据 | ✅ 20 只 × 10 年，34,361 行日线，质量检查 0 失败 |
 | 上线 | ⬜ 计划 2027-01-22 |
 
 ## 快速开始
@@ -67,11 +67,33 @@ uvicorn app.main:app --app-dir apps/api --reload --port 8000
 
 # 测试
 pytest apps/api -q
-ruff check apps/api
+ruff check apps/api etl
 
-# 数据源探针
-python etl/probe_eastmoney.py --code 510300
+# 数据库 + 迁移（PostgreSQL）
+docker compose -f infra/docker-compose.yml up -d db redis
+alembic -c apps/api/alembic.ini upgrade head
+
+# 数据管道
+python -m etl.cli seed
+python -m etl.cli sync-all --start 2016-01-01 --delay 0.2
+python -m etl.cli status
+python -m etl.cli quality --limit 20
 ```
+
+> 非 Docker 环境可用本地 PostgreSQL，并通过 `STOCKLAB_DATABASE_URL` 指定连接串；
+> 参考 `.env.example`。
+
+## 数据管道（W2）
+
+| 项 | 状态 |
+|---|---|
+| 覆盖 | 20 只 ETF，2016-01-04 → 2026-10-19，34,361 行 |
+| 数据源 | 东财为主、腾讯兜底；实际来源写入 `market_daily.source` |
+| 幂等 | 按窗口删除重插，重复同步不产生重复行 |
+| 可观测 | `data_jobs`（每次任务）+ `data_quality_checks`（7–8 项/次） |
+| 校验 | OHLC、重复、顺序、正价格、成交量、新鲜度 |
+
+详见 [etl/README.md](etl/README.md)。
 
 ## 目录结构
 
@@ -81,7 +103,7 @@ stock/
 │  ├─ web/              # Next.js 15：公开页 SSR + 工作台
 │  └─ api/              # FastAPI + 测试
 ├─ packages/            # （规划）quant / contracts / ui
-├─ etl/                 # 数据探针与后续数据管道
+├─ etl/                 # 数据管道：采集、校验、CLI
 ├─ infra/               # docker-compose（PG / Redis / API / Web）
 ├─ docs/                # 开发计划、ADR、ETF 清单
 └─ .github/             # CI（typecheck/build + lint/test）
@@ -92,7 +114,7 @@ stock/
 | 层 | 选型 |
 |---|---|
 | Web | Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS 4 |
-| API | Python 3.12 · FastAPI · Pydantic v2（SQLAlchemy/Celery 于 W2 接入） |
+| API | Python 3.12 · FastAPI · SQLAlchemy 2 · Alembic · Pydantic v2（Celery 于 W3 接入） |
 | 数据 | PostgreSQL 16 · Redis 7（compose 已就绪）· Polars / Pandas |
 | 量化 | 自研日频回测引擎（T+1、成本、停牌、分红再投） |
 | 会员 | 兑换码；**无站内支付、无微信登录** |

@@ -36,5 +36,5 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -e "apps/api[dev]"
-      - run: ruff check apps/api
+      - run: ruff check apps/api etl
       - run: pytest apps/api -q
