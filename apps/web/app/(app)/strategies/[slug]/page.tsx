@@ -3,13 +3,24 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EquityCurve } from "@/components/equity-curve";
-import { getStrategy, strategies } from "@/lib/mock";
+import { runBacktest } from "@/lib/api";
+import { etfs, getStrategy, strategies } from "@/lib/mock";
 
-type PageProps = { params: Promise<{ slug: string }> };
+type PageProps = {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ code?: string; start?: string }>;
+};
 
-export function generateStaticParams() {
-  return strategies.map((strategy) => ({ slug: strategy.slug }));
-}
+const ENGINE_SLUGS = new Set([
+  "buy-and-hold",
+  "dual-ma",
+  "rsi",
+  "bollinger",
+  "macd",
+  "deviation",
+]);
+
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
@@ -33,6 +44,21 @@ const rules: Record<string, string[]> = {
     "快线下穿慢线时清仓卖出。",
     "全仓进出，不设分批加减仓。",
   ],
+  rsi: [
+    "RSI 低于超卖线（默认 30）时买入。",
+    "RSI 高于超买线（默认 70）时卖出。",
+    "中间区间保持当前仓位，不频繁交易。",
+  ],
+  bollinger: [
+    "收盘跌破布林带下轨时买入。",
+    "收盘回到中轨上方时卖出。",
+    "带宽随波动放大，震荡市信号更多。",
+  ],
+  macd: [
+    "DIF 上穿 DEA（金叉）时买入。",
+    "DIF 下穿 DEA（死叉）时卖出。",
+    "默认参数 12 / 26 / 9。",
+  ],
   deviation: [
     "收盘价低于均线时，按偏离幅度提高目标仓位。",
     "正偏离超过阈值时逐步减仓。",
@@ -40,19 +66,60 @@ const rules: Record<string, string[]> = {
   ],
 };
 
-export default async function StrategyDetailPage({ params }: PageProps) {
+export default async function StrategyDetailPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
   const strategy = getStrategy(slug);
   if (!strategy) notFound();
 
-  const metrics: { label: string; value: string; tone?: string }[] = [
-    { label: "累计收益", value: `+${strategy.totalReturn.toFixed(1)}%`, tone: "text-loss" },
-    { label: "年化收益", value: `${strategy.annual.toFixed(1)}%` },
-    { label: "最大回撤", value: `${strategy.maxDrawdown.toFixed(1)}%`, tone: "text-jade" },
-    { label: "夏普比率", value: strategy.sharpe.toFixed(2) },
-    { label: "交易次数", value: String(strategy.trades) },
-    { label: "仓位方式", value: strategy.tag === "仓位" ? "连续调仓" : strategy.tag === "定投" ? "分批买入" : "全仓进出" },
-  ];
+  const query = await searchParams;
+  const code = etfs.some((etf) => etf.code === query.code) ? query.code! : "510300";
+  const start = query.start && /^\d{4}-\d{2}-\d{2}$/.test(query.start) ? query.start : "2020-01-01";
+
+  const live = ENGINE_SLUGS.has(slug)
+    ? await runBacktest({
+        code,
+        strategy: slug,
+        start,
+        end: new Date().toISOString().slice(0, 10),
+      })
+    : null;
+
+  const metrics: { label: string; value: string; tone?: string }[] = live
+    ? [
+        {
+          label: "累计收益",
+          value: `${live.metrics.total_return > 0 ? "+" : ""}${live.metrics.total_return}%`,
+          tone: live.metrics.total_return >= 0 ? "text-loss" : "text-jade",
+        },
+        {
+          label: "年化收益",
+          value: `${live.metrics.annualized_return > 0 ? "+" : ""}${live.metrics.annualized_return}%`,
+        },
+        {
+          label: "最大回撤",
+          value: `${live.metrics.max_drawdown}%`,
+          tone: "text-jade",
+        },
+        { label: "夏普比率", value: live.metrics.sharpe.toFixed(2) },
+        { label: "交易次数", value: String(live.metrics.trades) },
+        {
+          label: "胜率",
+          value: live.metrics.win_rate == null ? "—" : `${live.metrics.win_rate}%`,
+        },
+      ]
+    : [
+        { label: "累计收益", value: `+${strategy.totalReturn.toFixed(1)}%`, tone: "text-loss" },
+        { label: "年化收益", value: `${strategy.annual.toFixed(1)}%` },
+        { label: "最大回撤", value: `${strategy.maxDrawdown.toFixed(1)}%`, tone: "text-jade" },
+        { label: "夏普比率", value: strategy.sharpe.toFixed(2) },
+        { label: "交易次数", value: String(strategy.trades) },
+        { label: "胜率", value: "—" },
+      ];
+
+  const points = live ? live.equity.map((point) => point.equity) : strategy.curve;
+  const chartNote = live
+    ? `${live.start} → ${live.end} · 初始资金 10 万 · T+1 开盘成交`
+    : "示例数据 · 未连接回测引擎";
 
   return (
     <div className="space-y-6">
@@ -74,15 +141,51 @@ export default async function StrategyDetailPage({ params }: PageProps) {
           </div>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-soft">{strategy.summary}</p>
         </div>
-        <button
-          type="button"
-          className="rounded-sm border border-line bg-surface px-4 py-2 text-xs text-muted"
-          disabled
-          title="参数面板将在 W8 接入"
-        >
-          参数面板 · 即将上线
-        </button>
+        <span className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-muted">
+          {live ? "引擎实时计算" : "示例结果"}
+        </span>
       </div>
+
+      {ENGINE_SLUGS.has(slug) ? (
+        <form
+          method="get"
+          className="card flex flex-wrap items-end gap-3 p-4 text-sm"
+          action={`/strategies/${slug}`}
+        >
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted">标的</span>
+            <select
+              name="code"
+              defaultValue={code}
+              className="rounded-sm border border-line bg-surface px-3 py-2 text-sm"
+            >
+              {etfs.map((etf) => (
+                <option key={etf.code} value={etf.code}>
+                  {etf.code} {etf.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted">起始日期</span>
+            <input
+              type="date"
+              name="start"
+              defaultValue={start}
+              className="rounded-sm border border-line bg-surface px-3 py-2 text-sm"
+            />
+          </label>
+          <button
+            type="submit"
+            className="rounded-sm bg-ink px-4 py-2 text-sm font-medium text-paper hover:bg-jade-deep"
+          >
+            运行回测
+          </button>
+          <span className="text-xs text-muted">
+            {live ? `数据 ${live.start} → ${live.end}` : "API 不可用时回退示例"}
+          </span>
+        </form>
+      ) : null}
 
       <section className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {metrics.map((metric) => (
@@ -99,27 +202,65 @@ export default async function StrategyDetailPage({ params }: PageProps) {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-medium text-ink">净值曲线</h2>
-            <p className="mt-0.5 text-xs text-muted">策略 vs 基准（买入持有）· 示例数据</p>
+            <p className="mt-0.5 text-xs text-muted">{chartNote}</p>
           </div>
-          <div className="flex items-center gap-4 text-[11px] text-muted">
-            <span className="flex items-center gap-1.5">
-              <span className="h-0.5 w-4 bg-jade" /> 策略
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-0.5 w-4 bg-line" /> 基准
-            </span>
+          <div className="text-right text-[11px] text-muted">
+            净值（元）· 初始 10 万
           </div>
         </div>
         <div className="mt-6">
-          <EquityCurve id={`detail-${strategy.slug}`} points={strategy.curve} height={260} />
+          {points.length > 1 ? (
+            <EquityCurve id={`detail-${slug}`} points={points} height={260} />
+          ) : (
+            <p className="py-16 text-center text-sm text-muted">回测区间内没有足够数据。</p>
+          )}
         </div>
       </section>
+
+      {live && live.trades.length > 0 ? (
+        <section className="card p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-medium text-ink">最近交易</h2>
+            <span className="text-xs text-muted">共 {live.trades.length} 笔</span>
+          </div>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
+              <thead>
+                <tr className="border-b border-line text-left text-xs text-muted">
+                  <th className="py-2 font-medium">日期</th>
+                  <th className="py-2 font-medium">方向</th>
+                  <th className="py-2 text-right font-medium">价格</th>
+                  <th className="py-2 text-right font-medium">份额</th>
+                  <th className="py-2 text-right font-medium">费用</th>
+                  <th className="py-2 text-right font-medium">已实现盈亏</th>
+                </tr>
+              </thead>
+              <tbody>
+                {live.trades.slice(-12).map((trade, index) => (
+                  <tr key={`${trade.date}-${index}`} className="border-b border-line/60">
+                    <td className="py-2 text-ink-soft">{trade.date}</td>
+                    <td className={`py-2 ${trade.side === "buy" ? "text-loss" : "text-jade"}`}>
+                      {trade.side === "buy" ? "买入" : "卖出"}
+                    </td>
+                    <td className="tnum py-2 text-right">{trade.price}</td>
+                    <td className="tnum py-2 text-right">{trade.shares}</td>
+                    <td className="tnum py-2 text-right text-muted">{trade.fee}</td>
+                    <td className="tnum py-2 text-right">
+                      {trade.realized_pnl == null ? "—" : trade.realized_pnl}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="card p-5">
           <h2 className="text-base font-medium text-ink">规则说明</h2>
           <ul className="mt-4 space-y-3">
-            {(rules[strategy.slug] ?? []).map((rule) => (
+            {(rules[slug] ?? []).map((rule) => (
               <li key={rule} className="flex gap-2 text-sm leading-6 text-ink-soft">
                 <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-jade" />
                 {rule}
@@ -133,7 +274,7 @@ export default async function StrategyDetailPage({ params }: PageProps) {
           <dl className="mt-4 space-y-3 text-sm">
             {[
               ["信号时点", "T 日收盘后"],
-              ["成交时点", "T+1 开盘（默认）"],
+              ["成交时点", "T+1 开盘"],
               ["成本", "佣金 0.02%（最低 5 元）+ 滑点 2bp"],
               ["约束", "T+1、100 份整数倍、停牌/涨跌停不成交"],
               ["复权", "后复权，分红再投"],
@@ -146,13 +287,6 @@ export default async function StrategyDetailPage({ params }: PageProps) {
           </dl>
         </section>
       </div>
-
-      <section className="rounded-sm border border-amber/20 bg-amber-soft/50 p-5">
-        <p className="text-sm font-medium text-amber">下一交易日推演</p>
-        <p className="mt-2 text-sm leading-6 text-ink-soft">
-          按最新收盘数据，当前策略未触发调仓信号。此处将在 W8 接入实时参数与推演接口，并明确标注「规则推演，非下单指令」。
-        </p>
-      </section>
 
       <p className="text-xs leading-6 text-muted">
         历史回测，非实盘承诺，不构成投资建议。回测未计入申购赎回费、冲击成本与税费，实盘结果可能显著不同。

@@ -47,6 +47,42 @@ export type ApiOverview = {
   note: string;
 };
 
+export type BacktestMetrics = {
+  total_return: number;
+  annualized_return: number;
+  max_drawdown: number;
+  volatility: number;
+  sharpe: number;
+  exposure: number;
+  trades: number;
+  win_rate: number | null;
+  benchmark_return: number;
+  final_equity: number;
+};
+
+export type BacktestTrade = {
+  date: string;
+  side: string;
+  price: number;
+  shares: number;
+  amount: number;
+  fee: number;
+  reason: string;
+  realized_pnl: number | null;
+};
+
+export type BacktestResult = {
+  code: string;
+  strategy: string;
+  params: Record<string, number>;
+  start: string | null;
+  end: string | null;
+  metrics: BacktestMetrics;
+  equity: { date: string; equity: number; benchmark: number; shares: number }[];
+  trades: BacktestTrade[];
+  warnings: string[];
+};
+
 async function fetchJson<T>(path: string): Promise<T | null> {
   try {
     const response = await fetch(`${API_BASE}${path}`, {
@@ -86,4 +122,26 @@ export async function fetchEtf(code: string): Promise<ApiEtfDetail | null> {
 
 export async function fetchOverview(): Promise<ApiOverview | null> {
   return fetchJson<ApiOverview>("/api/v1/market/overview");
+}
+
+export async function runBacktest(body: {
+  code: string;
+  strategy: string;
+  start?: string;
+  end?: string;
+  params?: Record<string, number>;
+}): Promise<BacktestResult | null> {
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/backtests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return null;
+    return (await response.json()) as BacktestResult;
+  } catch {
+    return null;
+  }
 }

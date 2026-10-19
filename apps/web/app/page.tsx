@@ -29,7 +29,7 @@ const features = [
 
 export default function HomePage() {
   const featured = etfs.slice(0, 6);
-  const flagship = strategies[3];
+  const flagship = strategies.find((item) => item.slug === "deviation") ?? strategies[0];
 
   return (
     <div className="min-h-screen">
