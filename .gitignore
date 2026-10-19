@@ -18,3 +18,4 @@ coverage/
 Thumbs.db
 
 .shots/
+*.tsbuildinfo
