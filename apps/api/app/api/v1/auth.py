@@ -261,7 +261,7 @@ def register(
             invite_ok = True
         else:
             try:
-                consume_invite_code(session, payload.invite_code)
+                consume_invite_code(session, payload.invite_code, email=email)
                 invite_ok = True
             except ValueError as exc:
                 raise HTTPException(status_code=403, detail=str(exc)) from exc

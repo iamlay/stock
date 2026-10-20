@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import {
+  adminExportInvites,
   adminGenerateInvites,
   adminListInviteBatches,
   adminListInvites,
@@ -41,6 +42,8 @@ export default function AdminInvitesPage() {
   const [maxUses, setMaxUses] = useState(1);
   const [validDays, setValidDays] = useState(90);
   const [note, setNote] = useState("内测");
+  const [boundEmail, setBoundEmail] = useState("");
+  const [boundPhone, setBoundPhone] = useState("");
   const [generated, setGenerated] = useState<string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +97,8 @@ export default function AdminInvitesPage() {
         max_uses: maxUses,
         valid_days: validDays,
         note: note || undefined,
+        bound_email: boundEmail || undefined,
+        bound_phone: boundPhone || undefined,
       });
       setGenerated(result.codes.map((item) => item.code));
       setMessage(`已生成 ${result.codes.length} 个邀请码，批次 ${result.batch_id.slice(0, 8)}`);
@@ -121,6 +126,24 @@ export default function AdminInvitesPage() {
     setMessage(`已复制 ${generated.length} 个邀请码`);
   }
 
+  async function onExport() {
+    setError(null);
+    try {
+      const blob = await adminExportInvites({
+        status: statusFilter || undefined,
+        batch_id: batchFilter || undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "invite-codes.csv";
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "导出失败");
+    }
+  }
+
   if (loading) {
     return <p className="py-20 text-center text-sm text-muted">加载中…</p>;
   }
@@ -138,6 +161,13 @@ export default function AdminInvitesPage() {
           <p className="mt-1 text-sm text-muted">注册邀请码的批次、次数与作废</p>
         </div>
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onExport}
+            className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-ink-soft hover:border-ink"
+          >
+            导出 CSV
+          </button>
           <Link
             href="/admin/users"
             className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"
@@ -214,6 +244,25 @@ export default function AdminInvitesPage() {
               className="rounded-sm border border-line bg-surface px-2 py-2 text-sm"
             />
           </label>
+          <label className="flex w-48 flex-col gap-1">
+            <span className="text-xs text-muted">绑定邮箱（可选）</span>
+            <input
+              type="email"
+              value={boundEmail}
+              onChange={(event) => setBoundEmail(event.target.value)}
+              placeholder="只允许该邮箱使用"
+              className="rounded-sm border border-line bg-surface px-2 py-2 text-sm"
+            />
+          </label>
+          <label className="flex w-36 flex-col gap-1">
+            <span className="text-xs text-muted">绑定手机号（可选）</span>
+            <input
+              value={boundPhone}
+              onChange={(event) => setBoundPhone(event.target.value)}
+              placeholder="只允许该手机号"
+              className="rounded-sm border border-line bg-surface px-2 py-2 text-sm"
+            />
+          </label>
           <button
             type="submit"
             disabled={busy}
@@ -264,7 +313,7 @@ export default function AdminInvitesPage() {
             <option value="">全部批次</option>
             {batches.map((batch) => (
               <option key={batch.batch_id} value={batch.batch_id}>
-                {batch.batch_id.slice(0, 8)} · {batch.total} 个
+                {batch.batch_id.slice(0, 8)} · {batch.note ?? "无备注"} · {batch.total} 个
               </option>
             ))}
           </select>
@@ -290,6 +339,7 @@ export default function AdminInvitesPage() {
               <tr className="border-b border-line text-left text-xs text-muted">
                 <th className="py-2 pr-3 font-medium">邀请码</th>
                 <th className="py-2 pr-3 font-medium">次数</th>
+                <th className="py-2 pr-3 font-medium">绑定</th>
                 <th className="py-2 pr-3 font-medium">备注</th>
                 <th className="py-2 pr-3 font-medium">状态</th>
                 <th className="py-2 pr-3 font-medium">有效期</th>
@@ -302,6 +352,9 @@ export default function AdminInvitesPage() {
                   <td className="tnum py-2 pr-3 font-mono text-xs">{item.code}</td>
                   <td className="tnum py-2 pr-3 text-xs">
                     {item.used_count}/{item.max_uses}
+                  </td>
+                  <td className="py-2 pr-3 text-xs text-muted">
+                    {item.bound_email ?? item.bound_phone ?? "—"}
                   </td>
                   <td className="py-2 pr-3 text-xs text-muted">{item.note ?? "—"}</td>
                   <td className="py-2 pr-3">
@@ -354,6 +407,50 @@ export default function AdminInvitesPage() {
             </button>
           </div>
         </div>
+      </section>
+
+      <section className="card p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-medium text-ink">批次备注统计</h2>
+          <span className="text-xs text-muted">最近 {batches.length} 个批次</span>
+        </div>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-xs text-muted">
+                <th className="py-2 pr-3 font-medium">批次</th>
+                <th className="py-2 pr-3 font-medium">备注</th>
+                <th className="py-2 pr-3 text-right font-medium">总数</th>
+                <th className="py-2 pr-3 text-right font-medium">未使用</th>
+                <th className="py-2 pr-3 text-right font-medium">已用完</th>
+                <th className="py-2 pr-3 text-right font-medium">已过期</th>
+                <th className="py-2 pr-3 text-right font-medium">已作废</th>
+                <th className="py-2 font-medium">创建</th>
+              </tr>
+            </thead>
+            <tbody>
+              {batches.map((batch) => (
+                <tr key={batch.batch_id} className="border-b border-line/60">
+                  <td className="tnum py-2 pr-3 text-xs">
+                    {batch.batch_id.slice(0, 8)}
+                  </td>
+                  <td className="py-2 pr-3 text-xs text-muted">{batch.note ?? "—"}</td>
+                  <td className="tnum py-2 pr-3 text-right text-xs">{batch.total}</td>
+                  <td className="tnum py-2 pr-3 text-right text-xs">{batch.issued}</td>
+                  <td className="tnum py-2 pr-3 text-right text-xs">{batch.redeemed}</td>
+                  <td className="tnum py-2 pr-3 text-right text-xs">{batch.expired}</td>
+                  <td className="tnum py-2 pr-3 text-right text-xs">{batch.revoked}</td>
+                  <td className="py-2 text-xs text-muted">
+                    {batch.created_at.slice(0, 10)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {batches.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted">暂无批次</p>
+        ) : null}
       </section>
     </div>
   );

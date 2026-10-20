@@ -215,6 +215,8 @@ class InviteOut(BaseModel):
     batch_id: str | None
     max_uses: int
     used_count: int
+    bound_email: str | None
+    bound_phone: str | None
     status: str
     note: str | None
     expires_at: str | None
@@ -242,6 +244,8 @@ class InviteGenerateRequest(BaseModel):
     max_uses: int = Field(default=1, ge=1, le=1000)
     valid_days: int = Field(default=90, ge=1, le=3650)
     note: str | None = Field(default=None, max_length=128)
+    bound_email: EmailStr | None = None
+    bound_phone: str | None = Field(default=None, pattern=r"^1[3-9]\d{9}$")
 
 
 class InviteGenerateResponse(BaseModel):
@@ -251,9 +255,12 @@ class InviteGenerateResponse(BaseModel):
 
 class InviteBatchOut(BaseModel):
     batch_id: str
+    note: str | None
     total: int
     issued: int
     redeemed: int
+    expired: int
+    revoked: int
     created_at: str
 
 
@@ -885,6 +892,8 @@ def _invite_out(row: InviteCode) -> InviteOut:
         batch_id=row.batch_id,
         max_uses=row.max_uses,
         used_count=row.used_count,
+        bound_email=row.bound_email,
+        bound_phone=row.bound_phone,
         status=row.status,
         note=row.note,
         expires_at=row.expires_at.isoformat() if row.expires_at else None,
@@ -954,7 +963,10 @@ def list_invite_batches(
             func.count(),
             func.sum(case((InviteCode.status == "issued", 1), else_=0)),
             func.sum(case((InviteCode.status == "redeemed", 1), else_=0)),
+            func.sum(case((InviteCode.status == "expired", 1), else_=0)),
+            func.sum(case((InviteCode.status == "revoked", 1), else_=0)),
             func.min(InviteCode.created_at),
+            func.min(InviteCode.note),
         )
         .where(InviteCode.batch_id.is_not(None))
         .group_by(InviteCode.batch_id)
@@ -964,10 +976,13 @@ def list_invite_batches(
     return [
         InviteBatchOut(
             batch_id=row[0],
+            note=row[7],
             total=row[1],
             issued=int(row[2] or 0),
             redeemed=int(row[3] or 0),
-            created_at=row[4].isoformat(),
+            expired=int(row[4] or 0),
+            revoked=int(row[5] or 0),
+            created_at=row[6].isoformat(),
         )
         for row in rows
     ]
@@ -986,6 +1001,8 @@ def create_invites(
         max_uses=payload.max_uses,
         valid_days=payload.valid_days,
         note=payload.note,
+        bound_email=str(payload.bound_email) if payload.bound_email else None,
+        bound_phone=payload.bound_phone,
     )
     _audit(
         session,
@@ -998,6 +1015,8 @@ def create_invites(
             "count": len(rows),
             "max_uses": payload.max_uses,
             "valid_days": payload.valid_days,
+            "bound_email": str(payload.bound_email) if payload.bound_email else None,
+            "bound_phone": payload.bound_phone,
         },
     )
     return InviteGenerateResponse(
@@ -1029,6 +1048,70 @@ def revoke_invite(
         detail={"batch_id": row.batch_id},
     )
     return _invite_out(row)
+
+
+@router.get("/invites/export", summary="导出邀请码 CSV")
+def export_invites(
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    admin: Annotated[User, Depends(get_current_admin)],
+    status: str | None = Query(default=None),
+    batch_id: str | None = Query(default=None),
+) -> Response:
+    statement = select(InviteCode).order_by(InviteCode.created_at.desc())
+    if status:
+        statement = statement.where(InviteCode.status == status)
+    if batch_id:
+        statement = statement.where(InviteCode.batch_id == batch_id)
+    rows = session.scalars(statement).all()
+
+    buffer = io.StringIO()
+    buffer.write("\ufeff")
+    writer = csv.writer(buffer)
+    writer.writerow(
+        [
+            "code",
+            "batch_id",
+            "status",
+            "used_count",
+            "max_uses",
+            "bound_email",
+            "bound_phone",
+            "note",
+            "expires_at",
+            "created_at",
+        ]
+    )
+    for row in rows:
+        writer.writerow(
+            [
+                row.code,
+                row.batch_id or "",
+                row.status,
+                row.used_count,
+                row.max_uses,
+                row.bound_email or "",
+                row.bound_phone or "",
+                row.note or "",
+                row.expires_at.isoformat() if row.expires_at else "",
+                row.created_at.isoformat(),
+            ]
+        )
+
+    _audit(
+        session,
+        admin,
+        request,
+        action="export_invites",
+        target_type="invite_batch",
+        target_id=batch_id,
+        detail={"rows": len(rows), "status": status},
+    )
+    return Response(
+        content=buffer.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="invite-codes.csv"'},
+    )
 
 
 def _order_no() -> str:

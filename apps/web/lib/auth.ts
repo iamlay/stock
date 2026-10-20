@@ -148,6 +148,8 @@ export type AdminInvite = {
   batch_id: string | null;
   max_uses: number;
   used_count: number;
+  bound_email: string | null;
+  bound_phone: string | null;
   status: string;
   note: string | null;
   expires_at: string | null;
@@ -164,9 +166,12 @@ export type AdminInviteStats = {
 
 export type AdminInviteBatch = {
   batch_id: string;
+  note: string | null;
   total: number;
   issued: number;
   redeemed: number;
+  expired: number;
+  revoked: number;
   created_at: string;
 };
 
@@ -538,6 +543,8 @@ export async function adminGenerateInvites(payload: {
   max_uses: number;
   valid_days: number;
   note?: string;
+  bound_email?: string;
+  bound_phone?: string;
 }): Promise<{ batch_id: string; codes: AdminInvite[] }> {
   return request<{ batch_id: string; codes: AdminInvite[] }>(
     "/api/v1/admin/invites",
@@ -552,4 +559,21 @@ export async function adminRevokeInvite(code: string): Promise<AdminInvite> {
   return request<AdminInvite>(`/api/v1/admin/invites/${code}/revoke`, {
     method: "POST",
   });
+}
+
+export async function adminExportInvites(filters: {
+  status?: string;
+  batch_id?: string;
+} = {}): Promise<Blob> {
+  const token = getToken();
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) query.set(key, value);
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const response = await fetch(`${API_BASE}/api/v1/admin/invites/export${suffix}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) throw new Error("导出失败");
+  return response.blob();
 }

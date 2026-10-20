@@ -24,6 +24,8 @@ def generate_invites(
     max_uses: int = 1,
     valid_days: int = 90,
     note: str | None = None,
+    bound_email: str | None = None,
+    bound_phone: str | None = None,
 ) -> tuple[str, list[InviteCode]]:
     batch_id = str(uuid.uuid4())
     expires_at = datetime.now(UTC) + timedelta(days=valid_days)
@@ -41,6 +43,8 @@ def generate_invites(
             batch_id=batch_id,
             max_uses=max_uses,
             note=note,
+            bound_email=bound_email.strip().lower() if bound_email else None,
+            bound_phone=bound_phone.strip() if bound_phone else None,
             expires_at=expires_at,
         )
         session.add(row)
@@ -49,13 +53,23 @@ def generate_invites(
     return batch_id, rows
 
 
-def consume_invite_code(session: Session, raw_code: str) -> InviteCode:
+def consume_invite_code(
+    session: Session,
+    raw_code: str,
+    *,
+    email: str | None = None,
+    phone: str | None = None,
+) -> InviteCode:
     code = raw_code.strip().upper()
     row = session.scalar(
         select(InviteCode).where(InviteCode.code == code).with_for_update()
     )
     if row is None or row.status != "issued":
         raise ValueError("邀请码无效或已用完")
+    if row.bound_email and (email or "").strip().lower() != row.bound_email:
+        raise ValueError("邀请码与当前邮箱不匹配")
+    if row.bound_phone and (phone or "").strip() != row.bound_phone:
+        raise ValueError("邀请码与当前手机号不匹配")
     expires = row.expires_at
     if expires is not None and expires.tzinfo is None:
         expires = expires.replace(tzinfo=UTC)

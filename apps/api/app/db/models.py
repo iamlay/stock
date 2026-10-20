@@ -252,6 +252,8 @@ class InviteCode(Base):
     batch_id: Mapped[str | None] = mapped_column(String(36))
     max_uses: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     used_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    bound_email: Mapped[str | None] = mapped_column(String(255), index=True)
+    bound_phone: Mapped[str | None] = mapped_column(String(20), index=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="issued")
     note: Mapped[str | None] = mapped_column(String(128))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

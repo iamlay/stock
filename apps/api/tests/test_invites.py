@@ -91,3 +91,60 @@ def test_registration_consumes_invite_code(session, monkeypatch) -> None:
         assert reused.status_code == 403
     finally:
         app.dependency_overrides.clear()
+
+
+def test_invite_bound_to_email(session, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "registration_invite_required", True)
+    client = _client(session)
+    try:
+        admin_headers = _admin_headers(session)
+        created = client.post(
+            "/api/v1/admin/invites",
+            json={
+                "count": 1,
+                "max_uses": 1,
+                "valid_days": 30,
+                "bound_email": "bound@example.com",
+            },
+            headers=admin_headers,
+        ).json()
+        code = created["codes"][0]["code"]
+
+        wrong = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "other@example.com",
+                "password": "correct-horse-1",
+                "invite_code": code,
+            },
+        )
+        assert wrong.status_code == 403
+
+        ok = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "bound@example.com",
+                "password": "correct-horse-1",
+                "invite_code": code,
+            },
+        )
+        assert ok.status_code == 200
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_invite_export_csv(session) -> None:
+    client = _client(session)
+    try:
+        headers = _admin_headers(session)
+        client.post(
+            "/api/v1/admin/invites",
+            json={"count": 1, "note": "export-test"},
+            headers=headers,
+        )
+        response = client.get("/api/v1/admin/invites/export", headers=headers)
+        assert response.status_code == 200
+        assert "text/csv" in response.headers["content-type"]
+        assert "export-test" in response.text
+    finally:
+        app.dependency_overrides.clear()
