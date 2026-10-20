@@ -41,17 +41,24 @@ def cmd_gen_codes(args: argparse.Namespace) -> int:
 
 def cmd_create_admin(args: argparse.Namespace) -> int:
     with SessionLocal() as session:
-        user = session.scalar(select(User).where(User.phone == args.phone))
-        if user is None:
-            user = User(phone=args.phone, role="admin", plan="member")
-            session.add(user)
+        if args.email:
+            email = args.email.strip().lower()
+            user = session.scalar(select(User).where(User.email == email))
+            if user is None:
+                print(f"user not found: {email}; register on the website first")
+                return 1
         else:
-            user.role = "admin"
-            user.plan = "member"
+            user = session.scalar(select(User).where(User.phone == args.phone))
+            if user is None:
+                user = User(phone=args.phone, role="admin", plan="member")
+                session.add(user)
+        user.role = "admin"
+        user.plan = "member"
         user.plan_expires_at = datetime.now(UTC) + timedelta(days=3650)
         session.commit()
         session.refresh(user)
-    print(f"admin ready: {user.phone} id={user.id}")
+    identity = user.email or user.phone
+    print(f"admin ready: {identity} id={user.id}")
     return 0
 
 
@@ -68,7 +75,9 @@ def build_parser() -> argparse.ArgumentParser:
     gen.set_defaults(func=cmd_gen_codes)
 
     admin = sub.add_parser("create-admin", help="promote or create an admin user")
-    admin.add_argument("--phone", required=True)
+    identity = admin.add_mutually_exclusive_group(required=True)
+    identity.add_argument("--phone", help="promote/create by phone")
+    identity.add_argument("--email", help="promote an existing email account")
     admin.set_defaults(func=cmd_create_admin)
 
     return parser

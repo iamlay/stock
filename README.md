@@ -159,7 +159,10 @@ POST /api/v1/backtests
 # 生成兑换码（服务端 CLI）
 python -m app.cli gen-codes --count 10 --days 365 --channel zhishixingqiu
 
-# 建管理员账号（手机号先登录过或不存在均可）
+# 管理员：先在网站注册邮箱，再提升为 admin
+python -m app.cli create-admin --email admin@example.com
+
+# 旧手机号管理员（保留）
 python -m app.cli create-admin --phone 13900139000
 
 # 用户登录后兑换
@@ -170,6 +173,26 @@ POST /api/v1/redeem   {"code":"SLXXXXXXXXXX"}
 - 兑换事务内行锁 + 次数校验，会员时长可叠加；
 - 登录页已接 API：开发模式自动回填验证码；
 - `/account`：会员状态、兑换入口、历史列表、点开看净值与指标。
+
+## 管理员登录
+
+1. 先在 `/login` 用邮箱注册普通账号；
+2. 在服务器或本地对生产库执行：
+
+```bash
+STOCKLAB_DATABASE_URL="postgresql+psycopg://..." \
+  python -m app.cli create-admin --email admin@example.com
+```
+
+3. 用该邮箱正常登录；
+4. 个人中心会出现「兑换码管理」，或直接访问：
+
+```text
+/admin/redeem-codes
+/admin/orders
+```
+
+> 没有独立的管理员登录入口，管理员和普通用户走同一个 `/login`，靠 `role=admin` 区分。
 
 浏览器侧 API 地址由 `NEXT_PUBLIC_API_BASE_URL` 指定（构建时注入）。
 
