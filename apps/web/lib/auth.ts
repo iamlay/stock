@@ -82,6 +82,19 @@ export type AdminOrder = {
   code: string | null;
 };
 
+export type AdminUser = {
+  id: number;
+  email: string | null;
+  phone: string | null;
+  role: string;
+  plan: string;
+  plan_expires_at: string | null;
+  status: string;
+  email_verified: boolean;
+  created_at: string;
+  last_login_at: string | null;
+};
+
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(TOKEN_KEY);
@@ -348,5 +361,36 @@ export async function adminListOrders(params: {
 export async function adminRefundOrder(orderNo: string): Promise<AdminOrder> {
   return request<AdminOrder>(`/api/v1/admin/orders/${orderNo}/refund`, {
     method: "POST",
+  });
+}
+
+export async function adminListUsers(params: {
+  q?: string;
+  plan?: string;
+  status?: string;
+  role?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<{
+  items: AdminUser[];
+  total: number;
+  page: number;
+  page_size: number;
+}> {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request(`/api/v1/admin/users${suffix}`);
+}
+
+export async function adminUpdateUser(
+  id: number,
+  payload: { status?: "active" | "banned"; plan?: "free" | "member"; days?: number },
+): Promise<AdminUser> {
+  return request<AdminUser>(`/api/v1/admin/users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
   });
 }

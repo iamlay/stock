@@ -4,17 +4,17 @@ import csv
 import io
 import secrets
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db import get_session
 from app.db.models import AdminAuditLog, PaymentOrder, RedeemCode, User
 from app.security import get_current_admin
-from app.services.membership import new_code
+from app.services.membership import activate_membership, new_code
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -127,6 +127,32 @@ class OrderList(BaseModel):
     revenue: float
 
 
+class AdminUserOut(BaseModel):
+    id: int
+    email: str | None
+    phone: str | None
+    role: str
+    plan: str
+    plan_expires_at: str | None
+    status: str
+    email_verified: bool
+    created_at: str
+    last_login_at: str | None
+
+
+class AdminUserList(BaseModel):
+    items: list[AdminUserOut]
+    total: int
+    page: int
+    page_size: int
+
+
+class AdminUserUpdate(BaseModel):
+    status: Literal["active", "banned"] | None = None
+    plan: Literal["free", "member"] | None = None
+    days: int | None = Field(default=None, ge=1, le=3650)
+
+
 def _code_out(row: RedeemCode) -> CodeOut:
     return CodeOut(
         code=row.code,
@@ -161,6 +187,21 @@ def _order_out(row: PaymentOrder, code: str | None) -> OrderOut:
         delivered_at=row.delivered_at.isoformat() if row.delivered_at else None,
         refunded_at=row.refunded_at.isoformat() if row.refunded_at else None,
         code=code,
+    )
+
+
+def _admin_user_out(row: User) -> AdminUserOut:
+    return AdminUserOut(
+        id=row.id,
+        email=row.email,
+        phone=row.phone,
+        role=row.role,
+        plan=row.plan,
+        plan_expires_at=row.plan_expires_at.isoformat() if row.plan_expires_at else None,
+        status=row.status,
+        email_verified=row.email_verified_at is not None,
+        created_at=row.created_at.isoformat(),
+        last_login_at=row.last_login_at.isoformat() if row.last_login_at else None,
     )
 
 
@@ -427,6 +468,94 @@ def audit_logs(
         page=page,
         page_size=page_size,
     )
+
+
+@router.get("/users", response_model=AdminUserList, summary="用户列表")
+def list_users(
+    session: Annotated[Session, Depends(get_session)],
+    _admin: Annotated[User, Depends(get_current_admin)],
+    q: str | None = Query(default=None, description="邮箱或手机号"),
+    plan: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    role: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+) -> AdminUserList:
+    conditions = []
+    if q:
+        like = f"%{q.strip()}%"
+        conditions.append(or_(User.email.ilike(like), User.phone.ilike(like)))
+    if plan:
+        conditions.append(User.plan == plan)
+    if status:
+        conditions.append(User.status == status)
+    if role:
+        conditions.append(User.role == role)
+
+    total = session.scalar(
+        select(func.count()).select_from(User).where(*conditions)
+    ) or 0
+    rows = session.scalars(
+        select(User)
+        .where(*conditions)
+        .order_by(User.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all()
+    return AdminUserList(
+        items=[_admin_user_out(row) for row in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.patch("/users/{user_id}", response_model=AdminUserOut, summary="更新用户状态/会员")
+def update_user(
+    user_id: int,
+    payload: AdminUserUpdate,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    admin: Annotated[User, Depends(get_current_admin)],
+) -> AdminUserOut:
+    if payload.status is None and payload.plan is None:
+        raise HTTPException(status_code=400, detail="没有需要更新的字段")
+    user = session.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if payload.status == "banned" and user.id == admin.id:
+        raise HTTPException(status_code=400, detail="不能封禁自己")
+
+    if payload.status is not None:
+        user.status = payload.status
+    if payload.plan == "free":
+        user.plan = "free"
+        user.plan_expires_at = None
+    elif payload.plan == "member":
+        activate_membership(
+            session,
+            user,
+            plan="member",
+            days=payload.days or 365,
+        )
+    session.commit()
+
+    _audit(
+        session,
+        admin,
+        request,
+        action="update_user",
+        target_type="user",
+        target_id=str(user.id),
+        detail={
+            "status": payload.status,
+            "plan": user.plan,
+            "plan_expires_at": (
+                user.plan_expires_at.isoformat() if user.plan_expires_at else None
+            ),
+        },
+    )
+    return _admin_user_out(user)
 
 
 def _order_no() -> str:

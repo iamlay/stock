@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W15 邮箱强制验证 |
+| 阶段 | ✅ W16 管理员用户管理 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码后台 / 订单后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，67 个测试 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，68 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -190,6 +190,7 @@ STOCKLAB_DATABASE_URL="postgresql+psycopg://..." \
 ```text
 /admin/redeem-codes
 /admin/orders
+/admin/users
 ```
 
 > 没有独立的管理员登录入口，管理员和普通用户走同一个 `/login`，靠 `role=admin` 区分。
@@ -219,6 +220,18 @@ STOCKLAB_DATABASE_URL="postgresql+psycopg://..." \
 - 退款：订单置为 refunded，未使用的兑换码同步作废。
 
 接口：`POST/GET /api/v1/admin/orders`、`POST /api/v1/admin/orders/{order_no}/refund`。
+
+## 用户管理
+
+`/admin/users`：
+
+- 按邮箱/手机号搜索，按套餐、状态筛选，分页；
+- 封禁 / 解封：`users.status = banned` 后旧 JWT 立即失效；
+- 开通/续费会员：选择天数，按当前到期日叠加；
+- 取消会员：置为 `free`，清空到期日；
+- 所有操作写入 `admin_audit_logs`，不能封禁自己。
+
+接口：`GET /api/v1/admin/users`、`PATCH /api/v1/admin/users/{id}`。
 
 ## 登录（W15）
 

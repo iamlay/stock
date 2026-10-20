@@ -122,12 +122,20 @@ export default function AccountPage() {
         </div>
         <div className="flex items-center gap-2">
           {me.role === "admin" ? (
-            <Link
-              href="/admin/redeem-codes"
-              className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"
-            >
-              兑换码管理
-            </Link>
+            <>
+              <Link
+                href="/admin/redeem-codes"
+                className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"
+              >
+                兑换码管理
+              </Link>
+              <Link
+                href="/admin/users"
+                className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"
+              >
+                用户管理
+              </Link>
+            </>
           ) : null}
           <button
             type="button"

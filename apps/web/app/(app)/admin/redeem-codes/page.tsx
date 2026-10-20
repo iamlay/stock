@@ -204,6 +204,12 @@ export default function AdminRedeemCodesPage() {
             订单流水
           </Link>
           <Link
+            href="/admin/users"
+            className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"
+          >
+            用户管理
+          </Link>
+          <Link
             href="/account"
             className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-ink-soft hover:border-ink"
           >

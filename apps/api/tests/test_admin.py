@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi.testclient import TestClient
 
 from app.db.models import User
@@ -162,5 +164,68 @@ def test_order_creates_code_and_refund_revokes(session) -> None:
             f"/api/v1/admin/redeem-codes?batch_id={order['order_no']}", headers=headers
         ).json()
         assert codes["items"][0]["status"] == "revoked"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_admin_can_search_ban_and_grant_membership(session) -> None:
+    client = _client(session)
+    try:
+        headers = _headers(session)
+        target = User(
+            phone="13700000000",
+            email="member@example.com",
+            role="member",
+            plan="free",
+            email_verified_at=datetime.now(UTC),
+        )
+        session.add(target)
+        session.commit()
+        session.refresh(target)
+        target_token = create_access_token(target)
+
+        listed = client.get(
+            "/api/v1/admin/users?q=member", headers=headers
+        )
+        assert listed.status_code == 200
+        assert listed.json()["total"] == 1
+
+        granted = client.patch(
+            f"/api/v1/admin/users/{target.id}",
+            json={"plan": "member", "days": 30},
+            headers=headers,
+        )
+        assert granted.status_code == 200
+        assert granted.json()["plan"] == "member"
+        assert granted.json()["plan_expires_at"]
+
+        banned = client.patch(
+            f"/api/v1/admin/users/{target.id}",
+            json={"status": "banned"},
+            headers=headers,
+        )
+        assert banned.status_code == 200
+        assert banned.json()["status"] == "banned"
+
+        blocked = client.get(
+            "/api/v1/me",
+            headers={"Authorization": f"Bearer {target_token}"},
+        )
+        assert blocked.status_code == 401
+
+        unbanned = client.patch(
+            f"/api/v1/admin/users/{target.id}",
+            json={"status": "active"},
+            headers=headers,
+        )
+        assert unbanned.json()["status"] == "active"
+
+        revoked = client.patch(
+            f"/api/v1/admin/users/{target.id}",
+            json={"plan": "free"},
+            headers=headers,
+        )
+        assert revoked.json()["plan"] == "free"
+        assert revoked.json()["plan_expires_at"] is None
     finally:
         app.dependency_overrides.clear()
