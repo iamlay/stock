@@ -13,6 +13,8 @@ from app.settings import settings
 
 logger = logging.getLogger(__name__)
 
+USER_AGENT = "StockLab/0.1 (+https://stock.iamlay.com)"
+
 
 class EmailNotConfigured(RuntimeError):
     pass
@@ -26,7 +28,12 @@ def _post_json(url: str, payload: dict, headers: dict[str, str]) -> None:
     request = Request(
         url,
         data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json", **headers},
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": USER_AGENT,
+            **headers,
+        },
         method="POST",
     )
     try:
