@@ -47,6 +47,7 @@ def cmd_create_admin(args: argparse.Namespace) -> int:
             if user is None:
                 print(f"user not found: {email}; register on the website first")
                 return 1
+            user.email_verified_at = user.email_verified_at or datetime.now(UTC)
         else:
             user = session.scalar(select(User).where(User.phone == args.phone))
             if user is None:

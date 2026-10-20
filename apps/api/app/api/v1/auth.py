@@ -78,8 +78,16 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
-    verification_sent: bool = False
+
+
+class RegisterResponse(BaseModel):
+    email: EmailStr
+    verification_sent: bool
     dev_verification_token: str | None = None
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
 
 
 class VerifyEmailRequest(BaseModel):
@@ -138,18 +146,8 @@ def _user_out(user: User) -> UserOut:
     )
 
 
-def _token_response(
-    user: User,
-    *,
-    verification_sent: bool = False,
-    dev_verification_token: str | None = None,
-) -> TokenResponse:
-    return TokenResponse(
-        access_token=create_access_token(user),
-        user=_user_out(user),
-        verification_sent=verification_sent,
-        dev_verification_token=dev_verification_token,
-    )
+def _token_response(user: User) -> TokenResponse:
+    return TokenResponse(access_token=create_access_token(user), user=_user_out(user))
 
 
 def _send_verification(user: User) -> tuple[bool, str | None]:
@@ -220,6 +218,8 @@ def login(
     if user is None:
         user = User(phone=payload.phone, role="member")
         session.add(user)
+    if user.email is not None and user.email_verified_at is None:
+        raise HTTPException(status_code=403, detail="请先验证邮箱后再登录")
     user.last_login_at = datetime.now(UTC)
     session.commit()
     session.refresh(user)
@@ -227,12 +227,12 @@ def login(
     return _token_response(user)
 
 
-@router.post("/auth/register", response_model=TokenResponse, summary="邮箱注册")
+@router.post("/auth/register", response_model=RegisterResponse, summary="邮箱注册")
 def register(
     payload: RegisterRequest,
     request: Request,
     session: Annotated[Session, Depends(get_session)],
-) -> TokenResponse:
+) -> RegisterResponse:
     email = str(payload.email).strip().lower()
     check_rate_limit(
         session,
@@ -286,8 +286,10 @@ def register(
             status_code=503,
             detail="验证邮件发送失败：请检查 SMTP 授权码、端口和发件人",
         )
-    return _token_response(
-        user, verification_sent=True, dev_verification_token=dev_token
+    return RegisterResponse(
+        email=email,
+        verification_sent=True,
+        dev_verification_token=dev_token,
     )
 
 
@@ -318,6 +320,8 @@ def login_email(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="邮箱或密码错误",
         )
+    if user.email_verified_at is None:
+        raise HTTPException(status_code=403, detail="请先验证邮箱后再登录")
     user.last_login_at = datetime.now(UTC)
     session.commit()
     session.refresh(user)
@@ -345,30 +349,29 @@ def verify_email(
     summary="重发验证邮件",
 )
 def resend_verification(
+    payload: ResendVerificationRequest,
+    request: Request,
     session: Annotated[Session, Depends(get_session)],
-    user: Annotated[User, Depends(get_current_user)],
 ) -> ResendVerificationResponse:
+    email = str(payload.email).strip().lower()
     check_rate_limit(
         session,
-        key=rate_limit_key("resend_verification", str(user.id)),
-        limit=5,
+        key=rate_limit_key("resend_ip", client_ip(request)),
+        limit=10,
         window_seconds=3600,
         message="验证邮件发送过于频繁，请稍后再试",
     )
-    if user.email is None:
-        raise HTTPException(status_code=400, detail="当前账号没有邮箱")
-    if user.email_verified_at is not None:
-        raise HTTPException(status_code=400, detail="邮箱已验证")
-    sent, dev_token = _send_verification(user)
-    if not sent:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "邮箱服务未配置：请设置 STOCKLAB_SMTP_HOST 和 STOCKLAB_SMTP_FROM"
-                if not settings.email_configured
-                else "验证邮件发送失败：请检查 SMTP 授权码、端口和发件人"
-            ),
-        )
+    check_rate_limit(
+        session,
+        key=rate_limit_key("resend_email", email),
+        limit=5,
+        window_seconds=3600,
+        message="该邮箱验证邮件发送过于频繁，请稍后再试",
+    )
+    user = session.scalar(select(User).where(User.email == email))
+    dev_token: str | None = None
+    if user is not None and user.email_verified_at is None:
+        _sent, dev_token = _send_verification(user)
     return ResendVerificationResponse(sent=True, dev_verification_token=dev_token)
 
 

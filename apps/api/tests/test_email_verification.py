@@ -26,9 +26,14 @@ def test_register_sends_verification_and_verifies(session) -> None:
         assert verified.status_code == 200
         assert verified.json()["verified"] is True
 
+        login = client.post(
+            "/api/v1/auth/login/email",
+            json={"email": "verify@example.com", "password": "correct-horse-1"},
+        )
+        assert login.status_code == 200
         me = client.get(
             "/api/v1/me",
-            headers={"Authorization": f"Bearer {body['access_token']}"},
+            headers={"Authorization": f"Bearer {login.json()['access_token']}"},
         )
         assert me.json()["email_verified"] is True
     finally:
@@ -42,7 +47,14 @@ def test_reset_password_invalidates_old_password_and_sessions(session) -> None:
             "/api/v1/auth/register",
             json={"email": "reset@example.com", "password": "correct-horse-1"},
         ).json()
-        old_access = registered["access_token"]
+        client.post(
+            "/api/v1/auth/verify-email",
+            json={"token": registered["dev_verification_token"]},
+        )
+        old_access = client.post(
+            "/api/v1/auth/login/email",
+            json={"email": "reset@example.com", "password": "correct-horse-1"},
+        ).json()["access_token"]
 
         forgot = client.post(
             "/api/v1/auth/forgot-password", json={"email": "reset@example.com"}
@@ -91,7 +103,7 @@ def test_forgot_password_is_generic_for_unknown_email(session) -> None:
         app.dependency_overrides.clear()
 
 
-def test_resend_rejects_verified_email(session) -> None:
+def test_resend_ignores_verified_email(session) -> None:
     client = _client(session)
     try:
         registered = client.post(
@@ -104,8 +116,10 @@ def test_resend_rejects_verified_email(session) -> None:
         )
         response = client.post(
             "/api/v1/auth/resend-verification",
-            headers={"Authorization": f"Bearer {registered['access_token']}"},
+            json={"email": "resend@example.com"},
         )
-        assert response.status_code == 400
+        assert response.status_code == 200
+        assert response.json()["sent"] is True
+        assert response.json()["dev_verification_token"] is None
     finally:
         app.dependency_overrides.clear()

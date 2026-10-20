@@ -153,13 +153,12 @@ export async function registerEmail(
   password: string,
   inviteCode?: string,
 ): Promise<{
-  user: Me;
+  email: string;
   verificationSent: boolean;
   devVerificationToken: string | null;
 }> {
-  const result = await request<{
-    access_token: string;
-    user: Me;
+  return request<{
+    email: string;
     verification_sent: boolean;
     dev_verification_token: string | null;
   }>("/api/v1/auth/register", {
@@ -169,13 +168,11 @@ export async function registerEmail(
       password,
       invite_code: inviteCode || undefined,
     }),
-  });
-  setToken(result.access_token);
-  return {
-    user: result.user,
+  }).then((result) => ({
+    email: result.email,
     verificationSent: result.verification_sent,
     devVerificationToken: result.dev_verification_token,
-  };
+  }));
 }
 
 export async function verifyEmail(token: string): Promise<{ verified: boolean; email: string }> {
@@ -185,13 +182,16 @@ export async function verifyEmail(token: string): Promise<{ verified: boolean; e
   });
 }
 
-export async function resendVerification(): Promise<{
+export async function resendVerification(email: string): Promise<{
   sent: boolean;
   dev_verification_token: string | null;
 }> {
   return request<{ sent: boolean; dev_verification_token: string | null }>(
     "/api/v1/auth/resend-verification",
-    { method: "POST" },
+    {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    },
   );
 }
 

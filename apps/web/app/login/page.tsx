@@ -19,7 +19,7 @@ export default function LoginPage() {
             兑换码开通会员。
           </h1>
           <p className="mt-4 text-sm leading-6 text-paper/70">
-            当前使用邮箱和密码注册登录，不接入微信登录。注册后可用兑换码开通会员；手机号验证码登录保留，待短信服务接入后开放。
+            当前使用邮箱和密码注册，完成邮箱验证后才能登录。手机号验证码登录保留，待短信服务接入后开放。
           </p>
           <ul className="mt-10 space-y-4 text-sm text-paper/80">
             {["邮箱 + 密码，无需验证码", "游客每日 20 次回测", "兑换码开通会员与历史"].map(

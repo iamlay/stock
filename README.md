@@ -44,7 +44,7 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W14 频率限制 + 邀请码 |
+| 阶段 | ✅ W15 邮箱强制验证 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码后台 / 订单后台 |
@@ -107,10 +107,10 @@ python -m etl.cli quality --limit 20
 | `GET /api/v1/etfs/{code}` | 详情 + 120 根日线 + 1/3/12 月收益 |
 | `GET /api/v1/market/overview` | 重点 ETF 等权涨跌、涨跌家数、成交额、领涨/领跌 |
 | `GET /api/v1/data/status` | 行数、最新交易日、份额快照、最近任务 |
-| `POST /api/v1/auth/register` | 邮箱 + 密码注册，返回 JWT 并发送验证邮件 |
-| `POST /api/v1/auth/login/email` | 邮箱 + 密码登录 |
+| `POST /api/v1/auth/register` | 邮箱 + 密码注册，发送验证邮件，**不返回 JWT** |
+| `POST /api/v1/auth/login/email` | 邮箱 + 密码登录（需已验证） |
 | `POST /api/v1/auth/verify-email` | 验证邮箱 token |
-| `POST /api/v1/auth/resend-verification` | 重发验证邮件（需登录） |
+| `POST /api/v1/auth/resend-verification` | 按邮箱重发验证邮件（公开） |
 | `POST /api/v1/auth/forgot-password` | 发送密码重置邮件 |
 | `POST /api/v1/auth/reset-password` | 用 token 设置新密码 |
 | `POST /api/v1/auth/sms-code` | 发送验证码；**dev 模式返回 code** |
@@ -220,10 +220,11 @@ STOCKLAB_DATABASE_URL="postgresql+psycopg://..." \
 
 接口：`POST/GET /api/v1/admin/orders`、`POST /api/v1/admin/orders/{order_no}/refund`。
 
-## 登录（W13）
+## 登录（W15）
 
 - 主路径：**邮箱 + 密码**注册/登录，密码用 `scrypt` 加盐哈希存储。
-- 注册后发送验证邮件，24 小时内有效；个人中心可重发。
+- **邮箱未验证不能登录**：注册只发验证邮件、不返回 JWT；验证成功后回到登录页。
+- 邮箱验证链接 24 小时有效；`/verify-email/sent` 可按邮箱重发。
 - 忘记密码：邮件重置链接 30 分钟有效；重置后 `token_version` 递增，旧密码和所有旧 JWT 立即失效。
 - 手机号 + 6 位验证码登录保留；短信服务接入前，生产环境设置 `STOCKLAB_AUTH_DEV_MODE=false` 后该接口返回 503。
 - 开发模式不连 SMTP，验证/重置 token 直接返回给前端，便于本地联调。
@@ -236,7 +237,7 @@ STOCKLAB_DATABASE_URL="postgresql+psycopg://..." \
 | 注册 | 20 次/小时/IP，3 次/小时/邮箱 |
 | 邮箱登录 | 30 次/15 分钟/IP，10 次/15 分钟/账号 |
 | 忘记密码 | 20 次/小时/IP，5 次/小时/邮箱 |
-| 重发验证 | 5 次/小时/用户 |
+| 重发验证 | 10 次/小时/IP，5 次/小时/邮箱 |
 | 短信验证码 | 5 次/小时/手机号 |
 
 ## 目录结构

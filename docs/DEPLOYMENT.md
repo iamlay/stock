@@ -257,6 +257,7 @@ python -m etl.cli sync-all --start 2016-01-01 --delay 0.2 && python -m etl.cli s
 - [ ] 创建管理员：本地或 CI 执行
       `STOCKLAB_DATABASE_URL=... python -m app.cli create-admin --phone 139xxxxxxxx`
 - [ ] 用邮箱注册/登录 → 个人中心 → 生成兑换码 → 兑换 → 回测 → 历史
+- [ ] 未验证邮箱登录返回 403，验证后可登录
 - [ ] 收到验证邮件，点击链接后个人中心显示“已验证”
 - [ ] 退出登录 → 忘记密码 → 收到重置邮件 → 设置新密码 → 旧密码失效
 - [ ] Vercel 域名加入 CORS

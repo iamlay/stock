@@ -144,6 +144,8 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="user unavailable")
     if int(payload.get("ver", 0)) != user.token_version:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="session expired")
+    if user.email is not None and user.email_verified_at is None:
+        raise HTTPException(status_code=403, detail="请先验证邮箱")
     return user
 
 
@@ -158,6 +160,8 @@ def get_optional_user(
     if user is None or user.status != "active":
         return None
     if int(payload.get("ver", 0)) != user.token_version:
+        return None
+    if user.email is not None and user.email_verified_at is None:
         return None
     return user
 

@@ -61,7 +61,7 @@ export function LoginForm() {
               `/verify-email?token=${encodeURIComponent(result.devVerificationToken)}`,
             );
           } else {
-            router.push("/account");
+            router.push(`/verify-email/sent?email=${encodeURIComponent(email)}`);
           }
           router.refresh();
         } else {
@@ -195,7 +195,7 @@ export function LoginForm() {
             ) : null}
             <p className="text-xs leading-6 text-muted">
               {registering
-                ? "注册后会发送验证邮件，验证后账号更安全；会员仍通过兑换码开通。"
+                ? "注册后会发送验证邮件，验证通过后才能登录；会员仍通过兑换码开通。"
                 : "使用邮箱和密码登录。忘记密码可通过邮箱重置。"}
             </p>
           </>

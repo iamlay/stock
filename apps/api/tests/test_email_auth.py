@@ -18,23 +18,37 @@ def test_email_register_and_login(session) -> None:
         )
         assert registered.status_code == 200
         body = registered.json()
-        assert body["token_type"] == "bearer"
-        assert body["user"]["email"] == "user@example.com"
-        assert body["user"]["plan"] == "free"
+        assert body["email"] == "user@example.com"
+        assert body["verification_sent"] is True
+        assert body["dev_verification_token"]
 
-        me = client.get(
-            "/api/v1/me",
-            headers={"Authorization": f"Bearer {body['access_token']}"},
+        blocked = client.post(
+            "/api/v1/auth/login/email",
+            json={"email": "user@example.com", "password": "correct-horse-1"},
         )
-        assert me.status_code == 200
-        assert me.json()["email"] == "user@example.com"
+        assert blocked.status_code == 403
+
+        verified = client.post(
+            "/api/v1/auth/verify-email",
+            json={"token": body["dev_verification_token"]},
+        )
+        assert verified.status_code == 200
 
         login = client.post(
             "/api/v1/auth/login/email",
             json={"email": "user@example.com", "password": "correct-horse-1"},
         )
         assert login.status_code == 200
-        assert login.json()["user"]["id"] == body["user"]["id"]
+        login_body = login.json()
+        assert login_body["user"]["email"] == "user@example.com"
+        assert login_body["user"]["email_verified"] is True
+
+        me = client.get(
+            "/api/v1/me",
+            headers={"Authorization": f"Bearer {login_body['access_token']}"},
+        )
+        assert me.status_code == 200
+        assert me.json()["email"] == "user@example.com"
     finally:
         app.dependency_overrides.clear()
 

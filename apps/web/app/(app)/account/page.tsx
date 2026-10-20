@@ -86,11 +86,12 @@ export default function AccountPage() {
   }
 
   async function onResend() {
+    if (!me?.email) return;
     setError(null);
     setVerifyMessage(null);
     setResending(true);
     try {
-      const result = await resendVerification();
+      const result = await resendVerification(me.email);
       setVerifyMessage("验证邮件已发送，请检查收件箱。");
       setDevVerifyToken(result.dev_verification_token);
     } catch (err) {

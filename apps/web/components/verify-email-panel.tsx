@@ -41,10 +41,10 @@ export function VerifyEmailPanel({ token }: { token: string }) {
             {email} 已完成验证，可以正常使用账号和找回密码。
           </p>
           <Link
-            href="/account"
+            href="/login"
             className="mt-6 inline-block rounded-sm bg-ink px-4 py-2 text-sm text-paper hover:bg-jade-deep"
           >
-            进入个人中心
+            去登录
           </Link>
         </>
       ) : null}
