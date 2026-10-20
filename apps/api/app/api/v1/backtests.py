@@ -89,6 +89,27 @@ class HistoryItem(BaseModel):
     created_at: str
 
 
+class StrategySummaryItem(BaseModel):
+    slug: str
+    name: str
+    description: str
+    total_return: float
+    annualized_return: float
+    max_drawdown: float
+    sharpe: float
+    trades: int
+    benchmark_return: float
+    curve: list[float]
+
+
+class StrategySummaryResponse(BaseModel):
+    code: str
+    name: str
+    start: str
+    end: str
+    items: list[StrategySummaryItem]
+
+
 def _downsample(points: list, maximum: int = 600) -> list:
     if len(points) <= maximum:
         return points
@@ -135,6 +156,60 @@ def _serialize(result) -> dict[str, Any]:
 @router.get("/strategies", summary="可用策略与参数")
 def strategies() -> list[dict[str, Any]]:
     return list_strategies()
+
+
+@router.get("/summary", response_model=StrategySummaryResponse, summary="策略真实回测概览")
+def strategy_summary(
+    session: Annotated[Session, Depends(get_session)],
+    code: str = "510300",
+) -> StrategySummaryResponse:
+    instrument = session.scalar(
+        select(Instrument).where(Instrument.code == code, Instrument.type == "etf")
+    )
+    if instrument is None:
+        raise HTTPException(status_code=404, detail=f"unknown ETF {code}")
+
+    items: list[StrategySummaryItem] = []
+    start = end = None
+    for spec in list_strategies():
+        try:
+            result = run_for_code(session, code, spec["slug"])
+        except ValueError:
+            continue
+        if not result.equity:
+            continue
+        metrics = asdict(result.metrics)
+        base = result.equity[0].equity or 1
+        curve = [
+            round(point.equity / base * 100, 2)
+            for point in _downsample(result.equity, 60)
+        ]
+        items.append(
+            StrategySummaryItem(
+                slug=spec["slug"],
+                name=spec["name"],
+                description=spec["description"],
+                total_return=float(metrics["total_return"]),
+                annualized_return=float(metrics["annualized_return"]),
+                max_drawdown=float(metrics["max_drawdown"]),
+                sharpe=float(metrics["sharpe"]),
+                trades=int(metrics["trades"]),
+                benchmark_return=float(metrics["benchmark_return"]),
+                curve=curve,
+            )
+        )
+        start = result.start.isoformat() if result.start else start
+        end = result.end.isoformat() if result.end else end
+
+    if not items:
+        raise HTTPException(status_code=400, detail=f"no backtest data for {code}")
+    return StrategySummaryResponse(
+        code=code,
+        name=instrument.name,
+        start=start or "",
+        end=end or "",
+        items=items,
+    )
 
 
 @router.post("", response_model=BacktestResponse, summary="运行日频回测")

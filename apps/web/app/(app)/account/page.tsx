@@ -385,6 +385,7 @@ export default function AccountPage() {
             <EquityCurve
               id={`history-${detail.run_id ?? "run"}`}
               points={detail.equity.map((point) => point.equity)}
+              benchmark={detail.equity.map((point) => point.benchmark)}
               height={200}
             />
           </div>

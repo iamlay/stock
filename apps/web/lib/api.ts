@@ -134,6 +134,27 @@ export type StrategyInfo = {
   params: Record<string, StrategyParam>;
 };
 
+export type StrategySummaryItem = {
+  slug: string;
+  name: string;
+  description: string;
+  total_return: number;
+  annualized_return: number;
+  max_drawdown: number;
+  sharpe: number;
+  trades: number;
+  benchmark_return: number;
+  curve: number[];
+};
+
+export type StrategySummaryResponse = {
+  code: string;
+  name: string;
+  start: string;
+  end: string;
+  items: StrategySummaryItem[];
+};
+
 async function fetchJson<T>(path: string): Promise<T | null> {
   try {
     const response = await fetch(`${API_BASE}${path}`, {
@@ -178,6 +199,24 @@ export async function fetchCompare(
   return fetchJson<CompareResponse>(
     `/api/v1/etfs/compare?codes=${encodeURIComponent(codes.join(","))}&days=${days}`,
   );
+}
+
+export async function fetchStrategySummaries(
+  code = "510300",
+): Promise<StrategySummaryResponse | null> {
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/v1/backtests/summary?code=${code}`,
+      {
+        next: { revalidate: 300 },
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+    if (!response.ok) return null;
+    return (await response.json()) as StrategySummaryResponse;
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchOverview(): Promise<ApiOverview | null> {

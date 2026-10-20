@@ -161,6 +161,9 @@ export default async function StrategyDetailPage({ params, searchParams }: PageP
       ];
 
   const points = live ? live.equity.map((point) => point.equity) : strategy.curve;
+  const benchmarkPoints = live
+    ? live.equity.map((point) => point.benchmark)
+    : undefined;
   const chartNote = live
     ? `${live.start} → ${live.end} · 初始资金 10 万 · T+1 开盘成交`
     : "示例数据 · 未连接回测引擎";
@@ -285,10 +288,25 @@ export default async function StrategyDetailPage({ params, searchParams }: PageP
         </div>
         <div className="mt-6">
           {points.length > 1 ? (
-            <EquityCurve id={`detail-${slug}`} points={points} height={260} />
+            <EquityCurve
+              id={`detail-${slug}`}
+              points={points}
+              benchmark={benchmarkPoints}
+              height={260}
+            />
           ) : (
             <p className="py-16 text-center text-sm text-muted">回测区间内没有足够数据。</p>
           )}
+          {benchmarkPoints ? (
+            <div className="mt-3 flex gap-4 text-[11px] text-muted">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-0.5 w-4 bg-jade" /> 策略
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-0.5 w-4 border-t border-dashed border-[#a8a29e]" /> 基准
+              </span>
+            </div>
+          ) : null}
         </div>
       </section>
 
