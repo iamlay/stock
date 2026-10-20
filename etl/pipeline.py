@@ -263,14 +263,14 @@ def sync_shares(session: Session, codes: list[str] | None = None) -> dict:
 
 
 def is_trading_session(session: Session, now: datetime | None = None) -> bool:
-    """True during A-share sessions and on a known trading day."""
+    """True during A-share sessions on weekdays.
+
+    Deliberately does not require today's trading_calendar row: that row is
+    written by the evening ETL, so checking it would skip the whole trading day.
+    Holidays may fetch a stale snapshot, which is harmless.
+    """
     local = (now or datetime.now(UTC)).astimezone(ZoneInfo("Asia/Shanghai"))
     if local.weekday() >= 5:
-        return False
-    traded = session.scalar(
-        select(TradingCalendar.trade_date).where(TradingCalendar.trade_date == local.date())
-    )
-    if traded is None:
         return False
     current = local.time()
     return (clock_time(9, 30) <= current <= clock_time(11, 30)) or (
