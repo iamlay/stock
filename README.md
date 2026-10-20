@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W22 邀请码自动过期 |
+| 阶段 | ✅ W23 ETF 自选 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码 / 订单 / 用户 / 邀请码后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，79 个测试 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单、自选，80 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -119,6 +119,15 @@ python -m etl.cli quality --limit 20
 | `GET /api/v1/me` | 当前用户（Bearer） |
 
 前端通过 `API_BASE_URL` 服务端拉取；API 不可用时自动回退到示例数据。
+
+## 自选（W23）
+
+- `/watchlist`：登录后查看自选 ETF 的价格、涨跌、MA20、规模；
+- ETF 详情页「加入自选」按钮，支持加入/取消；
+- 自选按最近加入排序，空状态引导去 ETF 列表；
+- 表 `watchlist_items`，唯一约束 `(user_id, code)`；用户删除时级联清理。
+
+接口：`GET/POST /api/v1/watchlist`、`DELETE /api/v1/watchlist/{code}`。
 
 ## 回测引擎（W5）
 

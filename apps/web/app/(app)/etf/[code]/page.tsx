@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EquityCurve } from "@/components/equity-curve";
+import { WatchlistButton } from "@/components/watchlist-button";
 import { fetchEtf } from "@/lib/api";
 import { etfs, getEtf, strategies } from "@/lib/mock";
 import { fmtNumber, fmtPct, trendClass } from "@/lib/format";
@@ -102,7 +103,8 @@ export default async function EtfDetailPage({ params }: PageProps) {
           </div>
           <p className="tnum mt-1 text-sm text-muted">{code}</p>
         </div>
-        <div className="text-right">
+        <div className="flex flex-col items-end gap-2">
+          <WatchlistButton code={code} />
           <p className="tnum text-3xl font-semibold text-ink">{fmtNumber(price, 3)}</p>
           <p className={`tnum mt-1 text-sm ${trendClass(change)}`}>{fmtPct(change)}</p>
         </div>

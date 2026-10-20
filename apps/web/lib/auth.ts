@@ -1,4 +1,4 @@
-import type { BacktestResult } from "@/lib/api";
+import type { ApiEtf, BacktestResult } from "@/lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 const TOKEN_KEY = "stocklab.token";
@@ -332,6 +332,25 @@ export async function resetPassword(
 
 export async function fetchMe(): Promise<Me> {
   return request<Me>("/api/v1/me");
+}
+
+export async function fetchWatchlist(): Promise<ApiEtf[]> {
+  return request<ApiEtf[]>("/api/v1/watchlist");
+}
+
+export async function addWatchlist(code: string): Promise<{ code: string; saved: boolean }> {
+  return request<{ code: string; saved: boolean }>("/api/v1/watchlist", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function removeWatchlist(
+  code: string,
+): Promise<{ code: string; removed: boolean }> {
+  return request<{ code: string; removed: boolean }>(`/api/v1/watchlist/${code}`, {
+    method: "DELETE",
+  });
 }
 
 export async function redeem(code: string): Promise<{ plan: string; plan_expires_at: string }> {
