@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { EquityCurve } from "@/components/equity-curve";
-import { fetchStrategySummaries } from "@/lib/api";
-import { strategies } from "@/lib/mock";
+import { StrategyCodePicker } from "@/components/strategy-code-picker";
+import { fetchEtfs, fetchStrategySummaries } from "@/lib/api";
+import { etfs, strategies } from "@/lib/mock";
 
 export const metadata: Metadata = { title: "策略实验室" };
 export const dynamic = "force-dynamic";
@@ -21,8 +22,20 @@ type StrategyCard = {
   benchmarkReturn?: number;
 };
 
-export default async function StrategiesPage() {
-  const summary = await fetchStrategySummaries("510300");
+export default async function StrategiesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ code?: string }>;
+}) {
+  const params = await searchParams;
+  const apiEtfs = await fetchEtfs();
+  const options =
+    apiEtfs?.map((item) => ({ code: item.code, name: item.name })) ??
+    etfs.map((item) => ({ code: item.code, name: item.name }));
+  const selected = options.some((item) => item.code === params.code)
+    ? params.code!
+    : options[0]?.code ?? "510300";
+  const summary = await fetchStrategySummaries(selected);
   const live = Boolean(summary && summary.items.length > 0);
   const cards: StrategyCard[] = live
     ? summary!.items.map((item) => ({
@@ -61,16 +74,19 @@ export default async function StrategiesPage() {
               : " · API 未连接，暂显示示例指标"}
           </p>
         </div>
-        <span className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-muted">
-          {live ? `${summary!.start} 至 ${summary!.end}` : "历史回测 · 非实盘建议"}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <StrategyCodePicker options={options} value={selected} />
+          <span className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-muted">
+            {live ? `${summary!.start} 至 ${summary!.end}` : "历史回测 · 非实盘建议"}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         {cards.map((strategy) => (
           <Link
             key={strategy.slug}
-            href={`/strategies/${strategy.slug}`}
+            href={`/strategies/${strategy.slug}?code=${selected}`}
             className="card group p-5 transition-colors hover:border-jade/50"
           >
             <div className="flex items-start justify-between">
