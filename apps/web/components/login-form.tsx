@@ -15,6 +15,7 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
@@ -54,7 +55,7 @@ export function LoginForm() {
       setSubmitting(true);
       try {
         if (registering) {
-          const result = await registerEmail(email, password);
+          const result = await registerEmail(email, password, inviteCode || undefined);
           if (result.devVerificationToken) {
             router.push(
               `/verify-email?token=${encodeURIComponent(result.devVerificationToken)}`,
@@ -163,20 +164,34 @@ export function LoginForm() {
               />
             </div>
             {registering ? (
-              <div>
-                <label htmlFor="confirm" className="text-xs font-medium text-ink">
-                  确认密码
-                </label>
-                <input
-                  id="confirm"
-                  type="password"
-                  autoComplete="new-password"
-                  value={confirm}
-                  onChange={(event) => setConfirm(event.target.value)}
-                  placeholder="再输入一次"
-                  className="mt-2 w-full rounded-sm border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none placeholder:text-muted/70 focus:border-jade"
-                />
-              </div>
+              <>
+                <div>
+                  <label htmlFor="invite" className="text-xs font-medium text-ink">
+                    邀请码
+                  </label>
+                  <input
+                    id="invite"
+                    value={inviteCode}
+                    onChange={(event) => setInviteCode(event.target.value)}
+                    placeholder="内测需要，公开注册可留空"
+                    className="mt-2 w-full rounded-sm border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none placeholder:text-muted/70 focus:border-jade"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="confirm" className="text-xs font-medium text-ink">
+                    确认密码
+                  </label>
+                  <input
+                    id="confirm"
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirm}
+                    onChange={(event) => setConfirm(event.target.value)}
+                    placeholder="再输入一次"
+                    className="mt-2 w-full rounded-sm border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none placeholder:text-muted/70 focus:border-jade"
+                  />
+                </div>
+              </>
             ) : null}
             <p className="text-xs leading-6 text-muted">
               {registering

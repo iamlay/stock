@@ -151,6 +151,7 @@ export async function emailLogin(email: string, password: string): Promise<Me> {
 export async function registerEmail(
   email: string,
   password: string,
+  inviteCode?: string,
 ): Promise<{
   user: Me;
   verificationSent: boolean;
@@ -163,7 +164,11 @@ export async function registerEmail(
     dev_verification_token: string | null;
   }>("/api/v1/auth/register", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({
+      email,
+      password,
+      invite_code: inviteCode || undefined,
+    }),
   });
   setToken(result.access_token);
   return {

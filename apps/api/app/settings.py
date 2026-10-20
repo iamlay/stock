@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     otp_secret: str = "dev-only-change-me-please-32-bytes-min"
     auth_dev_mode: bool = True
     sms_provider: str = "none"
+    registration_invite_code: str = ""
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = ""

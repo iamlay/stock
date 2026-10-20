@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import hmac
 import logging
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -29,6 +30,7 @@ from app.services.email import (
     send_verification_email,
 )
 from app.services.membership import is_member, redeem_code
+from app.services.rate_limit import check_rate_limit, client_ip, rate_limit_key
 from app.settings import settings
 
 router = APIRouter(tags=["auth"])
@@ -53,6 +55,7 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+    invite_code: str | None = Field(default=None, max_length=64)
 
 
 class EmailLoginRequest(BaseModel):
@@ -167,8 +170,19 @@ def _send_verification(user: User) -> tuple[bool, str | None]:
 
 
 @router.post("/auth/sms-code", response_model=SmsResponse, summary="发送登录验证码")
-def send_sms_code(payload: SmsRequest) -> SmsResponse:
+def send_sms_code(
+    payload: SmsRequest,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+) -> SmsResponse:
     """Dev mode returns the code; production requires a configured SMS provider."""
+    check_rate_limit(
+        session,
+        key=rate_limit_key("sms_phone", payload.phone),
+        limit=5,
+        window_seconds=3600,
+        message="验证码发送过于频繁",
+    )
     if not settings.auth_dev_mode and settings.sms_provider == "none":
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -186,8 +200,16 @@ def send_sms_code(payload: SmsRequest) -> SmsResponse:
 @router.post("/auth/login", response_model=TokenResponse, summary="手机号登录")
 def login(
     payload: LoginRequest,
+    request: Request,
     session: Annotated[Session, Depends(get_session)],
 ) -> TokenResponse:
+    check_rate_limit(
+        session,
+        key=rate_limit_key("phone_login_ip", client_ip(request)),
+        limit=30,
+        window_seconds=900,
+        message="登录尝试过于频繁，请稍后再试",
+    )
     if not verify_code(payload.phone, payload.code):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -208,9 +230,30 @@ def login(
 @router.post("/auth/register", response_model=TokenResponse, summary="邮箱注册")
 def register(
     payload: RegisterRequest,
+    request: Request,
     session: Annotated[Session, Depends(get_session)],
 ) -> TokenResponse:
     email = str(payload.email).strip().lower()
+    check_rate_limit(
+        session,
+        key=rate_limit_key("register_ip", client_ip(request)),
+        limit=20,
+        window_seconds=3600,
+        message="注册过于频繁，请稍后再试",
+    )
+    check_rate_limit(
+        session,
+        key=rate_limit_key("register_email", email),
+        limit=3,
+        window_seconds=3600,
+        message="该邮箱注册过于频繁，请稍后再试",
+    )
+    if settings.registration_invite_code:
+        if not payload.invite_code or not hmac.compare_digest(
+            payload.invite_code, settings.registration_invite_code
+        ):
+            raise HTTPException(status_code=403, detail="邀请码无效")
+
     existing = session.scalar(select(User).where(User.email == email))
     if existing is not None:
         raise HTTPException(status_code=409, detail="该邮箱已注册")
@@ -251,9 +294,24 @@ def register(
 @router.post("/auth/login/email", response_model=TokenResponse, summary="邮箱密码登录")
 def login_email(
     payload: EmailLoginRequest,
+    request: Request,
     session: Annotated[Session, Depends(get_session)],
 ) -> TokenResponse:
     email = str(payload.email).strip().lower()
+    check_rate_limit(
+        session,
+        key=rate_limit_key("email_login_ip", client_ip(request)),
+        limit=30,
+        window_seconds=900,
+        message="登录尝试过于频繁，请稍后再试",
+    )
+    check_rate_limit(
+        session,
+        key=rate_limit_key("email_login_account", email),
+        limit=10,
+        window_seconds=900,
+        message="该账号登录尝试过于频繁，请稍后再试",
+    )
     user = session.scalar(select(User).where(User.email == email))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(
@@ -290,6 +348,13 @@ def resend_verification(
     session: Annotated[Session, Depends(get_session)],
     user: Annotated[User, Depends(get_current_user)],
 ) -> ResendVerificationResponse:
+    check_rate_limit(
+        session,
+        key=rate_limit_key("resend_verification", str(user.id)),
+        limit=5,
+        window_seconds=3600,
+        message="验证邮件发送过于频繁，请稍后再试",
+    )
     if user.email is None:
         raise HTTPException(status_code=400, detail="当前账号没有邮箱")
     if user.email_verified_at is not None:
@@ -314,9 +379,24 @@ def resend_verification(
 )
 def forgot_password(
     payload: ForgotPasswordRequest,
+    request: Request,
     session: Annotated[Session, Depends(get_session)],
 ) -> ForgotPasswordResponse:
     email = str(payload.email).strip().lower()
+    check_rate_limit(
+        session,
+        key=rate_limit_key("forgot_ip", client_ip(request)),
+        limit=20,
+        window_seconds=3600,
+        message="请求过于频繁，请稍后再试",
+    )
+    check_rate_limit(
+        session,
+        key=rate_limit_key("forgot_email", email),
+        limit=5,
+        window_seconds=3600,
+        message="该邮箱请求过于频繁，请稍后再试",
+    )
     user = session.scalar(select(User).where(User.email == email))
     dev_token: str | None = None
     if user is not None and user.password_hash:

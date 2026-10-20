@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W13 邮箱验证 + 密码重置 |
+| 阶段 | ✅ W14 频率限制 + 邀请码 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码后台 / 订单后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，64 个测试 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，67 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -227,7 +227,17 @@ STOCKLAB_DATABASE_URL="postgresql+psycopg://..." \
 - 忘记密码：邮件重置链接 30 分钟有效；重置后 `token_version` 递增，旧密码和所有旧 JWT 立即失效。
 - 手机号 + 6 位验证码登录保留；短信服务接入前，生产环境设置 `STOCKLAB_AUTH_DEV_MODE=false` 后该接口返回 503。
 - 开发模式不连 SMTP，验证/重置 token 直接返回给前端，便于本地联调。
-- 生产环境支持 `smtp` / `resend` / `brevo` 三种发信方式；Railway 若无法访问 SMTP 465，用 `STOCKLAB_EMAIL_PROVIDER=resend` 走 HTTPS API。
+- 生产环境必须配置 `STOCKLAB_SMTP_*` 或 `STOCKLAB_EMAIL_PROVIDER=resend|brevo`，否则注册返回 503。
+- 注册、登录、忘记密码、重发验证均有频率限制（`rate_limit_events` 表），超限返回 429。
+- 可选邀请码：设置 `STOCKLAB_REGISTRATION_INVITE_CODE` 后，注册必须携带 `invite_code`。
+
+| 动作 | 限制 |
+|---|---|
+| 注册 | 20 次/小时/IP，3 次/小时/邮箱 |
+| 邮箱登录 | 30 次/15 分钟/IP，10 次/15 分钟/账号 |
+| 忘记密码 | 20 次/小时/IP，5 次/小时/邮箱 |
+| 重发验证 | 5 次/小时/用户 |
+| 短信验证码 | 5 次/小时/手机号 |
 
 ## 目录结构
 
