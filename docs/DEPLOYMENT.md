@@ -302,6 +302,7 @@ expired invites: 3
 - [ ] 退出登录 → 忘记密码 → 收到重置邮件 → 设置新密码 → 旧密码失效
 - [ ] Vercel 域名加入 CORS
 - [ ] 手机号验证码登录在短信服务接入前应返回 503（`AUTH_DEV_MODE=false`）
+- [ ] 页脚可打开用户协议、隐私政策、免责声明
 - [ ] 备份 Railway PostgreSQL（每日自动备份需在 Railway 开启）
 
 ---

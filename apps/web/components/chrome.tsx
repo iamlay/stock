@@ -127,6 +127,18 @@ export function SiteFooter() {
                 联系我们
               </a>
             </div>
+            <div className="space-y-2">
+              <p className="font-medium text-ink">法律</p>
+              <Link href="/legal/terms" className="block text-muted hover:text-ink">
+                用户协议
+              </Link>
+              <Link href="/legal/privacy" className="block text-muted hover:text-ink">
+                隐私政策
+              </Link>
+              <Link href="/legal/disclaimer" className="block text-muted hover:text-ink">
+                免责声明
+              </Link>
+            </div>
           </div>
         </div>
         <div className="mt-8 border-t border-line pt-5 text-xs leading-6 text-muted">

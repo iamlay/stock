@@ -52,7 +52,15 @@ export default function LoginPage() {
           </div>
 
           <p className="mt-6 text-xs leading-6 text-muted">
-            登录即表示同意《用户协议》与《隐私政策》。我们仅收集邮箱/手机号用于账号识别。
+            登录即表示同意
+            <Link href="/legal/terms" className="mx-1 text-jade-deep hover:underline">
+              《用户协议》
+            </Link>
+            与
+            <Link href="/legal/privacy" className="mx-1 text-jade-deep hover:underline">
+              《隐私政策》
+            </Link>
+            。我们仅收集邮箱/手机号用于账号识别。
           </p>
         </section>
       </main>
