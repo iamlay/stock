@@ -121,8 +121,10 @@ export default function AccountPage() {
 
       <section className="grid gap-4 sm:grid-cols-3">
         <div className="card p-5">
-          <p className="text-xs text-muted">手机号</p>
-          <p className="tnum mt-2 text-lg font-medium text-ink">{me.phone}</p>
+          <p className="text-xs text-muted">账号</p>
+          <p className="mt-2 break-all text-lg font-medium text-ink">
+            {me.email ?? me.phone ?? "—"}
+          </p>
         </div>
         <div className="card p-5">
           <p className="text-xs text-muted">会员状态</p>

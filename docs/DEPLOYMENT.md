@@ -46,7 +46,7 @@ GitHub Actions ──(公网 DATABASE_URL)──► Railway PostgreSQL
 | `STOCKLAB_CORS_ORIGIN_REGEX` | `https://.*\.vercel\.app`（可选，放行 Preview） |
 | `STOCKLAB_JWT_SECRET` | 随机 32 字节以上 |
 | `STOCKLAB_OTP_SECRET` | 另一条随机 32 字节 |
-| `STOCKLAB_AUTH_DEV_MODE` | 私测可 `true`；公开必须 `false` |
+| `STOCKLAB_AUTH_DEV_MODE` | `false`（邮箱登录不受影响；手机号验证码会返回 503） |
 | `STOCKLAB_SMS_PROVIDER` | `none`（接入短信后改） |
 | `STOCKLAB_GUEST_DAILY_LIMIT` | `20` |
 | `STOCKLAB_FREE_DAILY_LIMIT` | `50` |
@@ -171,9 +171,9 @@ python -m etl.cli sync-all --start 2016-01-01 --delay 0.2 && python -m etl.cli s
 - [ ] GitHub Actions 手动跑一次 `full=true`，`etl.cli status` 有数据
 - [ ] 创建管理员：本地或 CI 执行
       `STOCKLAB_DATABASE_URL=... python -m app.cli create-admin --phone 139xxxxxxxx`
-- [ ] 登录 → 个人中心 → 生成兑换码 → 兑换 → 回测 → 历史
+- [ ] 用邮箱注册/登录 → 个人中心 → 生成兑换码 → 兑换 → 回测 → 历史
 - [ ] Vercel 域名加入 CORS
-- [ ] `STOCKLAB_AUTH_DEV_MODE=false` 前先接短信，否则登录会 503
+- [ ] 手机号验证码登录在短信服务接入前应返回 503（`AUTH_DEV_MODE=false`）
 - [ ] 备份 Railway PostgreSQL（每日自动备份需在 Railway 开启）
 
 ---

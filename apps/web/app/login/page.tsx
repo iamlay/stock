@@ -12,17 +12,17 @@ export default function LoginPage() {
       <SiteHeader />
       <main className="mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-[0.9fr_1.1fr]">
         <section className="hidden rounded-sm bg-ink p-8 text-paper lg:block">
-          <p className="text-xs uppercase tracking-[0.18em] text-jade">Invite Only</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-jade">Email First</p>
           <h1 className="mt-6 font-serif text-3xl leading-snug">
-            内测阶段，
+            邮箱注册，
             <br />
-            邀请码即门票。
+            兑换码开通会员。
           </h1>
           <p className="mt-4 text-sm leading-6 text-paper/70">
-            当前不开放公开注册，也不接入微信登录。使用手机号登录后，可用兑换码开通会员。
+            当前使用邮箱和密码注册登录，不接入微信登录。注册后可用兑换码开通会员；手机号验证码登录保留，待短信服务接入后开放。
           </p>
           <ul className="mt-10 space-y-4 text-sm text-paper/80">
-            {["手机号 + 验证码，无密码", "游客每日 20 次回测", "兑换码开通会员与历史"].map(
+            {["邮箱 + 密码，无需验证码", "游客每日 20 次回测", "兑换码开通会员与历史"].map(
               (item) => (
                 <li key={item} className="flex items-center gap-3 border-b border-white/10 pb-4">
                   <span className="h-1.5 w-1.5 rounded-full bg-jade" />
@@ -32,14 +32,14 @@ export default function LoginPage() {
             )}
           </ul>
           <p className="mt-10 text-xs leading-6 text-paper/50">
-            开发模式下验证码会直接显示在表单里；生产环境接入短信服务商后关闭。
+            手机号验证码登录仍在代码中保留，生产环境默认关闭，后续接入短信服务商即可启用。
           </p>
         </section>
 
         <section className="mx-auto w-full max-w-md">
           <p className="text-xs text-muted">StockLab 工作台</p>
-          <h2 className="mt-2 font-serif text-3xl text-ink">登录</h2>
-          <p className="mt-2 text-sm text-muted">使用手机号接收验证码。</p>
+          <h2 className="mt-2 font-serif text-3xl text-ink">登录 / 注册</h2>
+          <p className="mt-2 text-sm text-muted">使用邮箱和密码，或手机号验证码。</p>
 
           <LoginForm />
 
@@ -52,7 +52,7 @@ export default function LoginPage() {
           </div>
 
           <p className="mt-6 text-xs leading-6 text-muted">
-            登录即表示同意《用户协议》与《隐私政策》。我们仅收集手机号用于账号识别。
+            登录即表示同意《用户协议》与《隐私政策》。我们仅收集邮箱/手机号用于账号识别。
           </p>
         </section>
       </main>

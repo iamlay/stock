@@ -12,7 +12,7 @@ export function TickerStrip() {
             <span className={`tnum ${trendClass(item.change)}`}>{fmtPct(item.change)}</span>
           </div>
         ))}
-        <span className="ml-auto hidden shrink-0 text-muted lg:block">示例数据 · 非实时行情</span>
+        <span className="ml-auto hidden shrink-0 text-muted lg:block">日线数据 · 非实时行情</span>
       </div>
     </div>
   );

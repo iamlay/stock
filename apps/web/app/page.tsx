@@ -43,7 +43,7 @@ export default function HomePage() {
             <div>
               <p className="inline-flex items-center gap-2 rounded-sm border border-line bg-surface px-2.5 py-1 text-xs text-muted">
                 <span className="h-1.5 w-1.5 rounded-full bg-jade" />
-                Sprint 0 演示版 · 数据为示例数据
+                Sprint 0 演示版 · 产品演示，非实时行情
               </p>
               <h1 className="mt-6 font-serif text-[36px] leading-[1.15] tracking-tight text-ink sm:text-[52px] lg:text-[56px]">
                 先把回撤想清楚，
@@ -118,7 +118,7 @@ export default function HomePage() {
                 </div>
               </div>
               <div className="absolute -bottom-4 -left-4 hidden rounded-sm border border-line bg-surface px-3 py-2 text-[11px] text-muted shadow-sm sm:block">
-                示例数据 · 非实时行情
+                回测示意 · 非实时行情
               </div>
             </div>
           </div>

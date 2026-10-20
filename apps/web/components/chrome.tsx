@@ -130,7 +130,7 @@ export function SiteFooter() {
         </div>
         <div className="mt-8 border-t border-line pt-5 text-xs leading-6 text-muted">
           <p>市场有风险，投资需谨慎。所有回测均为历史规则推演，不代表未来收益，不构成任何投资建议。</p>
-          <p className="mt-1">© {new Date().getFullYear()} StockLab · 演示版本，数据为示例数据。</p>
+          <p className="mt-1">© {new Date().getFullYear()} StockLab · 历史回测不代表未来收益。</p>
         </div>
       </div>
     </footer>

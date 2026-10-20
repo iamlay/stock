@@ -4,13 +4,21 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import get_session
 from app.db.models import User
-from app.security import create_access_token, generate_code, get_current_user, verify_code
+from app.security import (
+    create_access_token,
+    generate_code,
+    get_current_user,
+    hash_password,
+    verify_code,
+    verify_password,
+)
 from app.services.membership import is_member, redeem_code
 from app.settings import settings
 
@@ -32,9 +40,20 @@ class LoginRequest(BaseModel):
     code: str = Field(min_length=6, max_length=6)
 
 
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+
+
+class EmailLoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+
+
 class UserOut(BaseModel):
     id: int
-    phone: str
+    phone: str | None
+    email: str | None
     role: str
     plan: str
     plan_expires_at: str | None
@@ -62,11 +81,16 @@ def _user_out(user: User) -> UserOut:
     return UserOut(
         id=user.id,
         phone=user.phone,
+        email=user.email,
         role=user.role,
         plan=user.plan,
         plan_expires_at=user.plan_expires_at.isoformat() if user.plan_expires_at else None,
         is_member=is_member(user),
     )
+
+
+def _token_response(user: User) -> TokenResponse:
+    return TokenResponse(access_token=create_access_token(user), user=_user_out(user))
 
 
 @router.post("/auth/sms-code", response_model=SmsResponse, summary="发送登录验证码")
@@ -105,10 +129,52 @@ def login(
     session.commit()
     session.refresh(user)
 
-    return TokenResponse(
-        access_token=create_access_token(user),
-        user=_user_out(user),
+    return _token_response(user)
+
+
+@router.post("/auth/register", response_model=TokenResponse, summary="邮箱注册")
+def register(
+    payload: RegisterRequest,
+    session: Annotated[Session, Depends(get_session)],
+) -> TokenResponse:
+    email = str(payload.email).strip().lower()
+    existing = session.scalar(select(User).where(User.email == email))
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="该邮箱已注册")
+
+    user = User(
+        email=email,
+        password_hash=hash_password(payload.password),
+        role="member",
+        plan="free",
+        last_login_at=datetime.now(UTC),
     )
+    session.add(user)
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        raise HTTPException(status_code=409, detail="该邮箱已注册") from exc
+    session.refresh(user)
+    return _token_response(user)
+
+
+@router.post("/auth/login/email", response_model=TokenResponse, summary="邮箱密码登录")
+def login_email(
+    payload: EmailLoginRequest,
+    session: Annotated[Session, Depends(get_session)],
+) -> TokenResponse:
+    email = str(payload.email).strip().lower()
+    user = session.scalar(select(User).where(User.email == email))
+    if user is None or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="邮箱或密码错误",
+        )
+    user.last_login_at = datetime.now(UTC)
+    session.commit()
+    session.refresh(user)
+    return _token_response(user)
 
 
 @router.post("/redeem", response_model=RedeemResponse, summary="兑换码开通会员")

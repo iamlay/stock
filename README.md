@@ -36,7 +36,7 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 | 决策 | 结论 |
 |---|---|
 | 范围 | **MVP 只做 ETF**，个股延至 V2 |
-| 登录 | **手机号 + 验证码**，不接微信登录、不接第三方 OAuth |
+| 登录 | **邮箱 + 密码**；手机号验证码保留，待短信服务接入后启用 |
 | 支付 | **站内不收款**，不接微信支付/支付宝；第三方平台代收 + 兑换码 |
 | 主体 | 暂无；个体户按需注册，仅用于备案与开票 |
 
@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W11 部署配置（Vercel + Railway + Actions） |
+| 阶段 | ✅ W12 邮箱注册登录 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
-| Web | ✅ 登录 / 兑换 / 历史 / 兑换码后台 / 订单后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，54 个测试 |
+| Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码后台 / 订单后台 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，60 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -107,8 +107,10 @@ python -m etl.cli quality --limit 20
 | `GET /api/v1/etfs/{code}` | 详情 + 120 根日线 + 1/3/12 月收益 |
 | `GET /api/v1/market/overview` | 重点 ETF 等权涨跌、涨跌家数、成交额、领涨/领跌 |
 | `GET /api/v1/data/status` | 行数、最新交易日、份额快照、最近任务 |
+| `POST /api/v1/auth/register` | 邮箱 + 密码注册，返回 JWT |
+| `POST /api/v1/auth/login/email` | 邮箱 + 密码登录 |
 | `POST /api/v1/auth/sms-code` | 发送验证码；**dev 模式返回 code** |
-| `POST /api/v1/auth/login` | 手机号 + 验证码换 JWT |
+| `POST /api/v1/auth/login` | 手机号 + 验证码换 JWT（保留） |
 | `GET /api/v1/me` | 当前用户（Bearer） |
 
 前端通过 `API_BASE_URL` 服务端拉取；API 不可用时自动回退到示例数据。
@@ -191,13 +193,13 @@ POST /api/v1/redeem   {"code":"SLXXXXXXXXXX"}
 
 接口：`POST/GET /api/v1/admin/orders`、`POST /api/v1/admin/orders/{order_no}/refund`。
 
-## 登录（W4 骨架）
+## 登录（W12）
 
-- 手机号 + 6 位验证码，换取 JWT（HS256，默认 12 小时）。
-- `STOCKLAB_AUTH_DEV_MODE=true` 时，`/auth/sms-code` 直接返回 `dev_code`，仅用于本地开发。
-- 生产环境需要接短信服务商：`STOCKLAB_SMS_PROVIDER` 配置前，接口返回 503，不会静默放行。
-- 当前受保护接口：`/api/v1/me`、`/api/v1/redeem`、会员历史；行情接口保持公开，便于 SEO 与内测。
-- 登录页已接真实 API；`users.plan` 默认 `free`，兑换码开通后变 `member`。
+- 主路径：**邮箱 + 密码**注册/登录，密码用 `scrypt` 加盐哈希存储。
+- 手机号 + 6 位验证码登录保留，代码未删除；短信服务接入前，生产环境设置 `STOCKLAB_AUTH_DEV_MODE=false` 后该接口返回 503。
+- 登录换取 JWT（HS256，默认 12 小时），受保护接口：`/api/v1/me`、`/api/v1/redeem`、会员历史。
+- `users.plan` 默认 `free`，兑换码开通后变 `member`；邮箱用户与手机号用户共用同一套会员体系。
+- 暂不支持邮箱验证与密码找回，公开注册前需补这两项。
 
 ## 目录结构
 

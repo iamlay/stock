@@ -5,7 +5,8 @@ const TOKEN_KEY = "stocklab.token";
 
 export type Me = {
   id: number;
-  phone: string;
+  phone: string | null;
+  email: string | null;
   role: string;
   plan: string;
   plan_expires_at: string | null;
@@ -129,6 +130,27 @@ export async function login(phone: string, code: string): Promise<Me> {
   const result = await request<{ access_token: string; user: Me }>("/api/v1/auth/login", {
     method: "POST",
     body: JSON.stringify({ phone, code }),
+  });
+  setToken(result.access_token);
+  return result.user;
+}
+
+export async function emailLogin(email: string, password: string): Promise<Me> {
+  const result = await request<{ access_token: string; user: Me }>(
+    "/api/v1/auth/login/email",
+    {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    },
+  );
+  setToken(result.access_token);
+  return result.user;
+}
+
+export async function registerEmail(email: string, password: string): Promise<Me> {
+  const result = await request<{ access_token: string; user: Me }>("/api/v1/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
   });
   setToken(result.access_token);
   return result.user;

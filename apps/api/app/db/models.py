@@ -165,7 +165,13 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    phone: Mapped[str] = mapped_column(String(20), nullable=False, unique=True, index=True)
+    phone: Mapped[str | None] = mapped_column(
+        String(20), nullable=True, unique=True, index=True
+    )
+    email: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, unique=True, index=True
+    )
+    password_hash: Mapped[str | None] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(16), nullable=False, default="member")
     plan: Mapped[str] = mapped_column(String(16), nullable=False, default="free")
     plan_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -38,7 +38,7 @@ export function EquityCurve({
       viewBox={`0 0 ${width} ${height}`}
       className={className ?? "block h-auto w-full max-w-full"}
       role="img"
-      aria-label="策略净值曲线（示例数据）"
+      aria-label="策略净值曲线"
     >
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">

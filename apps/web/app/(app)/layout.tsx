@@ -14,7 +14,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <div className="ml-1 hidden h-5 w-px shrink-0 bg-line sm:block" />
           <AppNav />
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
-            <span className="hidden text-xs text-muted lg:block">演示环境 · 示例数据</span>
+            <span className="hidden text-xs text-muted lg:block">ETF 投研工作台</span>
             <Link
               href="/account"
               className="hidden rounded-sm border border-line px-3 py-1.5 text-xs text-ink-soft hover:border-ink hover:text-ink sm:block"
