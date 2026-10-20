@@ -4,7 +4,10 @@ import { EquityCurve } from "@/components/equity-curve";
 import { EtfTable } from "@/components/etf-table";
 import { SiteFooter, SiteHeader } from "@/components/chrome";
 import { TickerStrip } from "@/components/ticker-strip";
+import { fetchEtf, fetchEtfs, fetchStrategySummaries, toEtf } from "@/lib/api";
 import { etfs, strategies } from "@/lib/mock";
+
+export const revalidate = 60;
 
 const features = [
   {
@@ -27,14 +30,61 @@ const features = [
   },
 ];
 
-export default function HomePage() {
-  const featured = etfs.slice(0, 6);
-  const flagship = strategies.find((item) => item.slug === "deviation") ?? strategies[0];
+export default async function HomePage() {
+  const [apiEtfs, heroApi, strategySummary] = await Promise.all([
+    fetchEtfs(),
+    fetchEtf("510300"),
+    fetchStrategySummaries("510300"),
+  ]);
+  const live = Boolean(apiEtfs?.length);
+  const list = apiEtfs && apiEtfs.length > 0 ? apiEtfs.map(toEtf) : etfs;
+  const featured = [...list]
+    .sort((a, b) => (b.aum ?? 0) - (a.aum ?? 0))
+    .slice(0, 6);
+  const tickerItems = list.slice(0, 6).map((item) => ({
+    name: item.name,
+    value: item.price,
+    change: item.change,
+  }));
+
+  const flagshipItem =
+    strategySummary?.items.find((item) => item.slug === "deviation") ??
+    strategySummary?.items[0];
+  const flagship = flagshipItem
+    ? {
+        name: flagshipItem.name,
+        totalReturn: flagshipItem.total_return,
+        maxDrawdown: flagshipItem.max_drawdown,
+        sharpe: flagshipItem.sharpe,
+        trades: flagshipItem.trades,
+        curve: flagshipItem.curve,
+        tag: "实测",
+      }
+    : (() => {
+        const fallback =
+          strategies.find((item) => item.slug === "deviation") ?? strategies[0];
+        return {
+          name: fallback.name,
+          totalReturn: fallback.totalReturn,
+          maxDrawdown: fallback.maxDrawdown,
+          sharpe: fallback.sharpe,
+          trades: fallback.trades,
+          curve: fallback.curve,
+          tag: fallback.tag,
+        };
+      })();
+
+  const heroPercentile = heroApi?.pe_percentile ?? null;
+  const heroCurve =
+    heroApi && heroApi.bars.length > 1
+      ? heroApi.bars.map((bar) => bar.close)
+      : [100, 97, 101, 99, 104, 108, 106, 111, 109, 114, 118, 115, 121, 119, 124, 128, 126, 131, 129, 134];
+  const heroDate = heroApi?.trade_date ?? null;
 
   return (
     <div className="min-h-screen">
       <SiteHeader />
-      <TickerStrip />
+      <TickerStrip items={tickerItems} />
 
       <main>
         <section className="relative overflow-hidden border-b border-line">
@@ -43,7 +93,7 @@ export default function HomePage() {
             <div>
               <p className="inline-flex items-center gap-2 rounded-sm border border-line bg-surface px-2.5 py-1 text-xs text-muted">
                 <span className="h-1.5 w-1.5 rounded-full bg-jade" />
-                Sprint 0 演示版 · 产品演示，非实时行情
+                {live ? `真实数据 · ${heroDate ?? "日线"}` : "产品演示 · 非实时行情"}
               </p>
               <h1 className="mt-6 font-serif text-[36px] leading-[1.15] tracking-tight text-ink sm:text-[52px] lg:text-[56px]">
                 先把回撤想清楚，
@@ -70,7 +120,7 @@ export default function HomePage() {
               <dl className="mt-10 grid max-w-lg grid-cols-2 gap-x-8 gap-y-4 border-t border-line pt-6 sm:grid-cols-4">
                 {[
                   ["20", "重点 ETF"],
-                  ["9", "规则策略"],
+                  ["8", "规则策略"],
                   ["10 年", "日线回测"],
                   ["18:30", "每日更新"],
                 ].map(([value, label]) => (
@@ -86,9 +136,10 @@ export default function HomePage() {
               <div className="card p-5 shadow-[0_24px_60px_-40px_rgba(18,24,31,0.5)]">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-xs text-muted">沪深 300 · 估值位置</p>
+                    <p className="text-xs text-muted">沪深300ETF · 估值位置</p>
                     <p className="tnum mt-1 text-3xl font-semibold text-ink">
-                      38<span className="ml-0.5 text-base font-normal text-muted">%</span>
+                      {heroPercentile === null ? "—" : heroPercentile}
+                      <span className="ml-0.5 text-base font-normal text-muted">%</span>
                     </p>
                   </div>
                   <span className="rounded-sm bg-jade-soft px-2 py-1 text-[11px] text-jade-deep">
@@ -98,27 +149,37 @@ export default function HomePage() {
                 <div className="mt-4">
                   <EquityCurve
                     id="hero-curve"
-                    points={[100, 97, 101, 99, 104, 108, 106, 111, 109, 114, 118, 115, 121, 119, 124, 128, 126, 131, 129, 134]}
+                    points={heroCurve}
                     height={150}
                   />
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-3 border-t border-line pt-4 text-xs">
                   <div>
                     <p className="text-muted">PE（TTM）</p>
-                    <p className="tnum mt-1 text-sm font-medium text-ink">12.4</p>
+                    <p className="tnum mt-1 text-sm font-medium text-ink">
+                      {heroApi?.pe == null ? "—" : heroApi.pe.toFixed(2)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-muted">股息率</p>
-                    <p className="tnum mt-1 text-sm font-medium text-ink">2.1%</p>
+                    <p className="tnum mt-1 text-sm font-medium text-ink">
+                      {heroApi?.dividend_yield == null
+                        ? "—"
+                        : `${heroApi.dividend_yield.toFixed(2)}%`}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-muted">股债利差</p>
-                    <p className="tnum mt-1 text-sm font-medium text-ink">5.42%</p>
+                    <p className="text-muted">近 1 年</p>
+                    <p className="tnum mt-1 text-sm font-medium text-ink">
+                      {heroApi?.return_1y == null
+                        ? "—"
+                        : `${heroApi.return_1y >= 0 ? "+" : ""}${heroApi.return_1y.toFixed(1)}%`}
+                    </p>
                   </div>
                 </div>
               </div>
               <div className="absolute -bottom-4 -left-4 hidden rounded-sm border border-line bg-surface px-3 py-2 text-[11px] text-muted shadow-sm sm:block">
-                回测示意 · 非实时行情
+                日线 · 非实时行情
               </div>
             </div>
           </div>
@@ -167,7 +228,9 @@ export default function HomePage() {
               <EtfTable rows={featured} />
             </div>
             <p className="mt-3 text-xs text-muted">
-              演示数据：数值为界面占位，接入真实行情后替换。估值分位为近 5 年 PE 分位。
+              {live
+                ? `按最新规模排序，行情更新至 ${apiEtfs?.[0]?.trade_date ?? "最近交易日"}；估值分位为近 5 年 PE 分位。`
+                : "演示数据：API 未连接时使用界面占位，连通后自动替换。"}
             </p>
           </div>
         </section>
@@ -182,7 +245,7 @@ export default function HomePage() {
                 结果才值得信。
               </h2>
               <p className="mt-4 max-w-md text-sm leading-6 text-paper/70">
-                9 个规则策略，参数可改、成交可查。信号在 T 日收盘后计算，T+1 开盘成交，杜绝"收盘信号、收盘成交"的未来函数。
+                8 个规则策略，参数可改、成交可查。信号在 T 日收盘后计算，T+1 开盘成交，杜绝"收盘信号、收盘成交"的未来函数。
               </p>
               <Link
                 href="/strategies"
@@ -196,7 +259,8 @@ export default function HomePage() {
                 <div>
                   <p className="text-sm text-paper/60">{flagship.name}</p>
                   <p className="tnum mt-1 text-2xl font-semibold text-paper">
-                    +{flagship.totalReturn.toFixed(1)}%
+                    {flagship.totalReturn >= 0 ? "+" : ""}
+                    {flagship.totalReturn.toFixed(1)}%
                     <span className="ml-2 text-xs font-normal text-paper/50">累计收益</span>
                   </p>
                 </div>
@@ -264,7 +328,9 @@ export default function HomePage() {
         <section className="border-b border-line bg-jade-soft/40">
           <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-6 py-8 text-sm sm:flex-row sm:items-center">
             <p className="leading-6 text-ink-soft">
-              本项目处于开发阶段，页面数据均为示例。所有策略为历史规则推演，不构成投资建议。
+              {live
+                ? "行情与回测来自本地数据管道；所有策略为历史规则推演，不构成投资建议。"
+                : "API 未连接，页面部分数据为示例；所有策略为历史规则推演，不构成投资建议。"}
             </p>
             <Link href="/login" className="shrink-0 text-jade-deep hover:underline">
               已有邀请码？去登录 →
