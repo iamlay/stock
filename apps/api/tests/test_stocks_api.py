@@ -150,3 +150,41 @@ def test_admin_can_exclude_stock(session) -> None:
         assert listed.json()["total"] == 1
     finally:
         app.dependency_overrides.clear()
+
+
+def test_stock_watchlist_roundtrip(session) -> None:
+    _seed(session)
+    client = _client(session)
+    try:
+        headers = _headers(session, role="user")
+        added = client.post(
+            "/api/v1/stock-watchlist",
+            json={"code": "600519"},
+            headers=headers,
+        )
+        assert added.status_code == 200
+        assert added.json()["saved"] is True
+
+        duplicate = client.post(
+            "/api/v1/stock-watchlist",
+            json={"code": "600519"},
+            headers=headers,
+        )
+        assert duplicate.json()["saved"] is False
+
+        listed = client.get("/api/v1/stock-watchlist", headers=headers)
+        assert listed.status_code == 200
+        assert [item["code"] for item in listed.json()] == ["600519"]
+
+        missing = client.post(
+            "/api/v1/stock-watchlist",
+            json={"code": "999999"},
+            headers=headers,
+        )
+        assert missing.status_code == 404
+
+        removed = client.delete("/api/v1/stock-watchlist/600519", headers=headers)
+        assert removed.json()["removed"] is True
+        assert client.get("/api/v1/stock-watchlist", headers=headers).json() == []
+    finally:
+        app.dependency_overrides.clear()

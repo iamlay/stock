@@ -163,6 +163,12 @@ export default function AccountPage() {
               >
                 邀请码
               </Link>
+              <Link
+                href="/admin/stocks"
+                className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"
+              >
+                个股管理
+              </Link>
             </>
           ) : null}
           <button

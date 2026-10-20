@@ -1,4 +1,5 @@
 import type { ApiEtf, BacktestResult } from "@/lib/api";
+import type { Stock } from "@/lib/stocks";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 const TOKEN_KEY = "stocklab.token";
@@ -350,6 +351,63 @@ export async function removeWatchlist(
 ): Promise<{ code: string; removed: boolean }> {
   return request<{ code: string; removed: boolean }>(`/api/v1/watchlist/${code}`, {
     method: "DELETE",
+  });
+}
+
+export type AdminStock = Stock & { status: string };
+
+export type AdminStockPage = {
+  items: AdminStock[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export async function fetchStockWatchlist(): Promise<Stock[]> {
+  return request<Stock[]>("/api/v1/stock-watchlist");
+}
+
+export async function addStockWatchlist(
+  code: string,
+): Promise<{ code: string; saved: boolean }> {
+  return request<{ code: string; saved: boolean }>("/api/v1/stock-watchlist", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function removeStockWatchlist(
+  code: string,
+): Promise<{ code: string; removed: boolean }> {
+  return request<{ code: string; removed: boolean }>(
+    `/api/v1/stock-watchlist/${code}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function adminListStocks(params: {
+  q?: string;
+  page?: number;
+}): Promise<AdminStockPage> {
+  const search = new URLSearchParams();
+  if (params.q) search.set("q", params.q);
+  search.set("page", String(params.page ?? 1));
+  return request<AdminStockPage>(`/api/v1/admin/stocks?${search.toString()}`);
+}
+
+export async function adminUpdateStockStatus(
+  code: string,
+  status: "active" | "excluded",
+): Promise<AdminStock> {
+  return request<AdminStock>(`/api/v1/admin/stocks/${code}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function adminSyncStock(code: string): Promise<AdminStock> {
+  return request<AdminStock>(`/api/v1/admin/stocks/${code}/sync`, {
+    method: "POST",
   });
 }
 
