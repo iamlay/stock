@@ -34,6 +34,28 @@ export type ApiEtfDetail = ApiEtf & {
   bars: { date: string; close: number }[];
 };
 
+export type ComparePoint = {
+  date: string;
+  value: number;
+};
+
+export type CompareItem = {
+  code: string;
+  name: string;
+  category: string;
+  total_return: number;
+  max_drawdown: number;
+  volatility: number;
+  series: ComparePoint[];
+};
+
+export type CompareResponse = {
+  start: string;
+  end: string;
+  days: number;
+  items: CompareItem[];
+};
+
 export type ApiOverview = {
   trade_date: string | null;
   demo: boolean;
@@ -147,6 +169,15 @@ export async function fetchEtfs(): Promise<ApiEtf[] | null> {
 
 export async function fetchEtf(code: string): Promise<ApiEtfDetail | null> {
   return fetchJson<ApiEtfDetail>(`/api/v1/etfs/${code}`);
+}
+
+export async function fetchCompare(
+  codes: string[],
+  days = 250,
+): Promise<CompareResponse | null> {
+  return fetchJson<CompareResponse>(
+    `/api/v1/etfs/compare?codes=${encodeURIComponent(codes.join(","))}&days=${days}`,
+  );
 }
 
 export async function fetchOverview(): Promise<ApiOverview | null> {

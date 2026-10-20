@@ -30,9 +30,17 @@ export default async function EtfListPage({
           <h1 className="font-serif text-3xl text-ink">ETF 数据</h1>
           <p className="mt-1 text-sm text-muted">20 只重点标的 · 红利 / 现金流 / 跨境 / 宽基 / 行业</p>
         </div>
-        <p className="tnum text-xs text-muted">
-          {rows.length} 只 · 合计规模 {totalAum.toFixed(0)} 亿 · {live ? `数据 ${dataDate}` : "示例数据"}
-        </p>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/etf/compare"
+            className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"
+          >
+            对比
+          </Link>
+          <p className="tnum text-xs text-muted">
+            {rows.length} 只 · 合计规模 {totalAum.toFixed(0)} 亿 · {live ? `数据 ${dataDate}` : "示例数据"}
+          </p>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">

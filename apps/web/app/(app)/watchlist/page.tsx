@@ -50,12 +50,20 @@ export default function WatchlistPage() {
           <h1 className="font-serif text-3xl text-ink">我的自选</h1>
           <p className="mt-1 text-sm text-muted">跟踪你关注的 ETF，共 {items.length} 只</p>
         </div>
-        <Link
-          href="/etf"
-          className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"
-        >
-          去 ETF 列表添加
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/etf/compare"
+            className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"
+          >
+            去对比
+          </Link>
+          <Link
+            href="/etf"
+            className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"
+          >
+            去 ETF 列表添加
+          </Link>
+        </div>
       </div>
 
       {error ? <p className="text-xs text-loss">{error}</p> : null}

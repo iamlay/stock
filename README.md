@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W23 ETF 自选 |
+| 阶段 | ✅ W24 ETF 对比 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码 / 订单 / 用户 / 邀请码后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单、自选，80 个测试 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单、自选、对比，81 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -128,6 +128,18 @@ python -m etl.cli quality --limit 20
 - 表 `watchlist_items`，唯一约束 `(user_id, code)`；用户删除时级联清理。
 
 接口：`GET/POST /api/v1/watchlist`、`DELETE /api/v1/watchlist/{code}`。
+
+## ETF 对比（W24）
+
+`/etf/compare?codes=510300,510500&days=250`：
+
+- 选择 2–5 只 ETF；
+- 同一时间窗口归一化到 100；
+- 展示累计收益、最大回撤、年化波动；
+- 多线 SVG 图 + 指标表，可跳转详情；
+- 支持近 3 月 / 6 月 / 1 年 / 2 年。
+
+接口：`GET /api/v1/etfs/compare?codes=...&days=250`。
 
 ## 回测引擎（W5）
 

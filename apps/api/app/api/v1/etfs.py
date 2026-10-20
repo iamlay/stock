@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from math import sqrt
+from statistics import pstdev
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -49,6 +51,28 @@ class EtfDetail(EtfSummary):
     return_3m: float | None
     return_1y: float | None
     bars: list[Bar]
+
+
+class ComparePoint(BaseModel):
+    date: str
+    value: float
+
+
+class CompareItem(BaseModel):
+    code: str
+    name: str
+    category: str
+    total_return: float
+    max_drawdown: float
+    volatility: float
+    series: list[ComparePoint]
+
+
+class CompareResponse(BaseModel):
+    start: str
+    end: str
+    days: int
+    items: list[CompareItem]
 
 
 def _latest_shares(session: Session) -> dict[str, EtfShareDaily]:
@@ -157,6 +181,76 @@ def list_etfs(
     ] = None,
 ) -> list[EtfSummary]:
     return _summaries(session, category)
+
+
+@router.get("/compare", response_model=CompareResponse, summary="ETF 归一化对比")
+def compare_etfs(
+    session: Annotated[Session, Depends(get_session)],
+    codes: Annotated[str, Query(description="逗号分隔的 2-5 个 ETF 代码")],
+    days: Annotated[int, Query(ge=30, le=1000)] = 250,
+) -> CompareResponse:
+    requested = list(dict.fromkeys(code.strip() for code in codes.split(",") if code.strip()))
+    if len(requested) < 2 or len(requested) > 5:
+        raise HTTPException(status_code=400, detail="请选择 2-5 只 ETF")
+    records = session.execute(
+        select(Instrument, EtfProfile)
+        .join(EtfProfile, EtfProfile.code == Instrument.code, isouter=True)
+        .where(Instrument.code.in_(requested), Instrument.is_active.is_(True))
+    ).all()
+    if len(records) != len(requested):
+        raise HTTPException(status_code=404, detail="存在未知 ETF")
+    by_code = {instrument.code: (instrument, profile) for instrument, profile in records}
+
+    closes = load_recent_closes(session, requested, limit=max(days * 2, 400))
+    close_maps = {
+        code: {point.trade_date: float(point.close) for point in points}
+        for code, points in closes.items()
+    }
+    if any(not close_maps.get(code) for code in requested):
+        raise HTTPException(status_code=400, detail="部分 ETF 没有行情数据")
+    common_dates = sorted(set.intersection(*(set(close_maps[code]) for code in requested)))
+    common_dates = common_dates[-days:]
+    if len(common_dates) < 2:
+        raise HTTPException(status_code=400, detail="共同交易日不足")
+
+    items: list[CompareItem] = []
+    for code in requested:
+        instrument, profile = by_code[code]
+        raw = [close_maps[code][day] for day in common_dates]
+        base = raw[0]
+        values = [round(value / base * 100, 3) for value in raw]
+        peak = values[0]
+        max_drawdown = 0.0
+        for value in values:
+            peak = max(peak, value)
+            max_drawdown = min(max_drawdown, (value / peak - 1) * 100)
+        daily_returns = [
+            raw[index] / raw[index - 1] - 1 for index in range(1, len(raw))
+        ]
+        volatility = (
+            pstdev(daily_returns) * sqrt(252) * 100 if len(daily_returns) > 1 else 0.0
+        )
+        items.append(
+            CompareItem(
+                code=code,
+                name=instrument.name,
+                category=profile.category if profile else "未分类",
+                total_return=round((raw[-1] / base - 1) * 100, 2),
+                max_drawdown=round(max_drawdown, 2),
+                volatility=round(volatility, 2),
+                series=[
+                    ComparePoint(date=day.isoformat(), value=value)
+                    for day, value in zip(common_dates, values, strict=False)
+                ],
+            )
+        )
+
+    return CompareResponse(
+        start=common_dates[0].isoformat(),
+        end=common_dates[-1].isoformat(),
+        days=len(common_dates),
+        items=items,
+    )
 
 
 @router.get("/{code}", response_model=EtfDetail, summary="ETF 详情")
