@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W28 首页真实数据 |
+| 阶段 | ✅ W29 5 分钟最新报价 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码 / 订单 / 用户 / 邀请码后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单、自选、对比，82 个测试 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单、自选、对比，83 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -78,6 +78,7 @@ alembic -c apps/api/alembic.ini upgrade head
 python -m etl.cli seed
 python -m etl.cli sync-all --start 2016-01-01 --delay 0.2
 python -m etl.cli sync-shares
+python -m etl.cli sync-quotes
 python -m etl.cli sync-valuation
 python -m etl.cli status
 python -m etl.cli quality --limit 20
@@ -98,6 +99,22 @@ python -m etl.cli quality --limit 20
 | 校验 | OHLC、重复、顺序、正价格、成交量、份额、新鲜度 |
 
 详见 [etl/README.md](etl/README.md)。
+
+## 5 分钟最新报价（W29）
+
+- 新增表 `realtime_quotes`，只存最新价、昨收、涨跌、成交额、报价时间；
+- ETL `sync-quotes` 用腾讯批量行情刷新 20 只 ETF，不覆盖 `market_daily`；
+- 交易时段守卫：周末、非交易时间、非交易日自动跳过；
+- API `/etfs`、`/etfs/{code}`、`/market/overview` 优先使用最新报价，并返回 `quote_time`；
+- 前端显示「更新 HH:MM」，日线指标与回测仍按日频。
+
+Railway Cron 每 5 分钟执行：
+
+```bash
+python -m etl.cli sync-quotes
+```
+
+手动测试可加 `--force` 跳过交易时段限制。
 
 ## W3 API
 

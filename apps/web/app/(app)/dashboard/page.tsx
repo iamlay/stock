@@ -118,13 +118,20 @@ export default async function DashboardPage() {
         <div>
           <h1 className="font-serif text-3xl text-ink">今日市场</h1>
           <p className="mt-1 text-sm text-muted">
-            {overview?.trade_date ?? "2026-10-19"} 收盘 · {live ? "真实数据" : "示例数据"}
+            {overview?.quote_time
+              ? `最新报价 ${overview.quote_time.slice(11, 16)}`
+              : `${overview?.trade_date ?? "2026-10-19"} 收盘`}{" "}
+            · {live ? "真实数据" : "示例数据"}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted">
-          <span className="rounded-sm border border-line bg-surface px-2.5 py-1">日频</span>
-          <span className="rounded-sm border border-line bg-surface px-2.5 py-1">18:30 更新</span>
-        </div>
+          <div className="flex items-center gap-2 text-xs text-muted">
+            <span className="rounded-sm border border-line bg-surface px-2.5 py-1">日频</span>
+            <span className="rounded-sm border border-line bg-surface px-2.5 py-1">
+              {overview?.quote_time
+                ? `更新 ${overview.quote_time.slice(11, 16)}`
+                : "18:30 更新"}
+            </span>
+          </div>
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

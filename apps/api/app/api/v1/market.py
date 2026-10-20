@@ -20,6 +20,7 @@ class Mover(BaseModel):
 
 class MarketOverview(BaseModel):
     trade_date: str | None
+    quote_time: str | None
     demo: bool
     etf_count: int
     avg_change_pct: float | None
@@ -35,6 +36,7 @@ def _overview(summaries: list[EtfSummary]) -> MarketOverview:
     if not summaries:
         return MarketOverview(
             trade_date=None,
+            quote_time=None,
             demo=True,
             etf_count=0,
             avg_change_pct=None,
@@ -50,6 +52,10 @@ def _overview(summaries: list[EtfSummary]) -> MarketOverview:
     turnover = sum(item.turnover or 0 for item in summaries) / 100_000_000
     return MarketOverview(
         trade_date=max(item.trade_date or "" for item in summaries),
+        quote_time=max(
+            (item.quote_time for item in summaries if item.quote_time),
+            default=None,
+        ),
         demo=False,
         etf_count=len(summaries),
         avg_change_pct=round(sum(item.change_pct for item in summaries) / len(summaries), 2),
@@ -64,7 +70,7 @@ def _overview(summaries: list[EtfSummary]) -> MarketOverview:
             Mover(code=item.code, name=item.name, change_pct=item.change_pct)
             for item in ordered[-5:][::-1]
         ],
-        note="重点 ETF 等权统计，非全市场；成交额来自日线数据。",
+        note="重点 ETF 等权统计，非全市场；成交额优先使用最新报价。",
     )
 
 

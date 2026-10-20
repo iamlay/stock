@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from etl import pipeline
 from etl.sources.tencent_quote import EtfQuote, parse_quote_line
@@ -12,6 +12,7 @@ def make_quote(code: str, price: float = 4.0, aum: float = 1200.0) -> EtfQuote:
         code=code,
         name=code,
         trade_date=date(2026, 10, 19),
+        quote_time=datetime(2026, 10, 19, 14, 30),
         price=price,
         prev_close=price - 0.1,
         open=price - 0.05,

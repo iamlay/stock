@@ -22,6 +22,7 @@ export default async function EtfListPage({
   const rows = active ? all.filter((etf) => etf.category === active) : all;
   const totalAum = rows.reduce((sum, etf) => sum + (etf.aum ?? 0), 0);
   const dataDate = apiEtfs?.[0]?.trade_date ?? null;
+  const quoteTime = apiEtfs?.[0]?.quote_time ?? null;
 
   return (
     <div className="space-y-6">
@@ -38,7 +39,10 @@ export default async function EtfListPage({
             对比
           </Link>
           <p className="tnum text-xs text-muted">
-            {rows.length} 只 · 合计规模 {totalAum.toFixed(0)} 亿 · {live ? `数据 ${dataDate}` : "示例数据"}
+            {rows.length} 只 · 合计规模 {totalAum.toFixed(0)} 亿 ·{" "}
+            {live
+              ? `数据 ${dataDate}${quoteTime ? ` · 更新 ${quoteTime.slice(11, 16)}` : ""}`
+              : "示例数据"}
           </p>
         </div>
       </div>

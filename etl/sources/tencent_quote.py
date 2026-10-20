@@ -3,7 +3,7 @@ from __future__ import annotations
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 
 API = "https://qt.gtimg.cn/q="
 USER_AGENT = "Mozilla/5.0 (compatible; StockLabETL/0.1)"
@@ -14,6 +14,7 @@ class EtfQuote:
     code: str
     name: str
     trade_date: date
+    quote_time: datetime
     price: float
     prev_close: float
     open: float
@@ -50,14 +51,24 @@ def parse_quote_line(code: str, body: str) -> EtfQuote | None:
     stamp = fields[30] if len(fields) > 30 else ""
     try:
         trade_date = date(int(stamp[0:4]), int(stamp[4:6]), int(stamp[6:8]))
+        quote_time = datetime(
+            int(stamp[0:4]),
+            int(stamp[4:6]),
+            int(stamp[6:8]),
+            int(stamp[8:10]),
+            int(stamp[10:12]),
+            int(stamp[12:14]),
+        )
     except (ValueError, IndexError):
         trade_date = date.today()
+        quote_time = datetime.now()
 
     aum = _to_float(fields[44])
     return EtfQuote(
         code=code,
         name=fields[1] or code,
         trade_date=trade_date,
+        quote_time=quote_time,
         price=price,
         prev_close=_to_float(fields[4]),
         open=_to_float(fields[5]),

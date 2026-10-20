@@ -24,6 +24,7 @@ export type ApiEtf = {
   pb: number | null;
   pe_percentile: number | null;
   dividend_yield: number | null;
+  quote_time: string | null;
 };
 
 export type ApiEtfDetail = ApiEtf & {
@@ -58,6 +59,7 @@ export type CompareResponse = {
 
 export type ApiOverview = {
   trade_date: string | null;
+  quote_time: string | null;
   demo: boolean;
   etf_count: number;
   avg_change_pct: number | null;

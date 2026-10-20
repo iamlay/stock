@@ -3,6 +3,7 @@ from __future__ import annotations
 from math import sqrt
 from statistics import pstdev
 from typing import Annotated
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -10,7 +11,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_session
-from app.db.models import EtfProfile, EtfShareDaily, IndexValuation, Instrument
+from app.db.models import (
+    EtfProfile,
+    EtfShareDaily,
+    IndexValuation,
+    Instrument,
+    RealtimeQuote,
+)
 from app.services.indicators import compute_indicators, load_recent_closes
 
 router = APIRouter(prefix="/etfs", tags=["etfs"])
@@ -38,6 +45,7 @@ class EtfSummary(BaseModel):
     pb: float | None
     pe_percentile: float | None
     dividend_yield: float | None
+    quote_time: str | None
 
 
 class Bar(BaseModel):
@@ -114,6 +122,23 @@ def _latest_valuations(
     return {row.index_code: row for row in rows}
 
 
+def _quote_time(value) -> str | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=ZoneInfo("UTC"))
+    return value.astimezone(ZoneInfo("Asia/Shanghai")).isoformat(timespec="minutes")
+
+
+def _latest_quotes(session: Session, codes: list[str]) -> dict[str, RealtimeQuote]:
+    if not codes:
+        return {}
+    rows = session.scalars(
+        select(RealtimeQuote).where(RealtimeQuote.code.in_(codes))
+    ).all()
+    return {row.code: row for row in rows}
+
+
 def _summaries(session: Session, category: str | None = None) -> list[EtfSummary]:
     stmt = (
         select(Instrument, EtfProfile)
@@ -127,6 +152,7 @@ def _summaries(session: Session, category: str | None = None) -> list[EtfSummary
     records = session.execute(stmt).all()
     codes = [instrument.code for instrument, _ in records]
     closes = load_recent_closes(session, codes, limit=260)
+    quotes = _latest_quotes(session, codes)
     shares = _latest_shares(session)
     index_codes = sorted(
         {profile.valuation_index for _, profile in records if profile and profile.valuation_index}
@@ -140,6 +166,7 @@ def _summaries(session: Session, category: str | None = None) -> list[EtfSummary
         if indicator is None:
             continue
         share = shares.get(instrument.code)
+        quote = quotes.get(instrument.code)
         valuation = valuations.get(profile.valuation_index) if profile else None
         summaries.append(
             EtfSummary(
@@ -147,9 +174,11 @@ def _summaries(session: Session, category: str | None = None) -> list[EtfSummary
                 name=instrument.name,
                 category=profile.category if profile else "未分类",
                 tracked_index=profile.tracked_index if profile else None,
-                trade_date=points[-1].trade_date.isoformat(),
-                price=indicator.last_close,
-                change_pct=indicator.change_pct,
+                trade_date=(
+                    quote.trade_date.isoformat() if quote else points[-1].trade_date.isoformat()
+                ),
+                price=float(quote.price) if quote else indicator.last_close,
+                change_pct=float(quote.change_pct) if quote else indicator.change_pct,
                 ma5=indicator.ma5,
                 ma20=indicator.ma20,
                 ma60=indicator.ma60,
@@ -159,7 +188,7 @@ def _summaries(session: Session, category: str | None = None) -> list[EtfSummary
                 low_52w=indicator.low_52w,
                 aum=float(share.aum) if share else None,
                 shares=float(share.shares) if share else None,
-                turnover=indicator.last_amount,
+                turnover=float(quote.amount) if quote else indicator.last_amount,
                 pe=float(valuation.pe) if valuation else None,
                 pb=float(valuation.pb) if valuation else None,
                 pe_percentile=round(float(valuation.pe_percentile) * 100, 1)
@@ -168,6 +197,7 @@ def _summaries(session: Session, category: str | None = None) -> list[EtfSummary
                 dividend_yield=round(float(valuation.dividend_yield) * 100, 2)
                 if valuation
                 else None,
+                quote_time=_quote_time(quote.quote_time) if quote else None,
             )
         )
     return summaries
@@ -272,6 +302,7 @@ def get_etf(
         raise HTTPException(status_code=404, detail=f"no price data for {code}")
 
     share = _latest_shares(session).get(code)
+    quote = _latest_quotes(session, [code]).get(code)
     valuation = (
         _latest_valuations(session, [profile.valuation_index]).get(profile.valuation_index)
         if profile and profile.valuation_index
@@ -282,9 +313,11 @@ def get_etf(
         name=instrument.name,
         category=profile.category if profile else "未分类",
         tracked_index=profile.tracked_index if profile else None,
-        trade_date=points[-1].trade_date.isoformat(),
-        price=indicator.last_close,
-        change_pct=indicator.change_pct,
+        trade_date=(
+            quote.trade_date.isoformat() if quote else points[-1].trade_date.isoformat()
+        ),
+        price=float(quote.price) if quote else indicator.last_close,
+        change_pct=float(quote.change_pct) if quote else indicator.change_pct,
         ma5=indicator.ma5,
         ma20=indicator.ma20,
         ma60=indicator.ma60,
@@ -294,11 +327,12 @@ def get_etf(
         low_52w=indicator.low_52w,
         aum=float(share.aum) if share else None,
         shares=float(share.shares) if share else None,
-        turnover=indicator.last_amount,
+        turnover=float(quote.amount) if quote else indicator.last_amount,
         pe=float(valuation.pe) if valuation else None,
         pb=float(valuation.pb) if valuation else None,
         pe_percentile=round(float(valuation.pe_percentile) * 100, 1) if valuation else None,
         dividend_yield=round(float(valuation.dividend_yield) * 100, 2) if valuation else None,
+        quote_time=_quote_time(quote.quote_time) if quote else None,
         fee_rate=float(profile.fee_rate) if profile and profile.fee_rate else None,
         return_1m=indicator.return_1m,
         return_3m=indicator.return_3m,

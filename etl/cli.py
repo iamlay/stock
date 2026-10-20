@@ -10,10 +10,12 @@ from app.services.status import collect_status
 from sqlalchemy import desc, select
 
 from etl.pipeline import (
+    is_trading_session,
     seed_universe,
     sync_all,
     sync_calendar,
     sync_code,
+    sync_quotes,
     sync_shares,
     sync_valuation,
 )
@@ -103,6 +105,18 @@ def cmd_sync_shares(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_sync_quotes(args: argparse.Namespace) -> int:
+    codes = [item.strip() for item in args.codes.split(",") if item.strip()] if args.codes else None
+    with SessionLocal() as session:
+        seed_universe(session)
+        if not args.force and not is_trading_session(session):
+            print("skip: outside A-share trading session")
+            return 0
+        result = sync_quotes(session, codes)
+    print(f"quotes rows={result['quotes']} latest={result['latest']}")
+    return 0
+
+
 def cmd_sync_valuation(_: argparse.Namespace) -> int:
     with SessionLocal() as session:
         seed_universe(session)
@@ -158,6 +172,11 @@ def build_parser() -> argparse.ArgumentParser:
     shares = sub.add_parser("sync-shares", help="snapshot ETF shares/AUM from Tencent")
     shares.add_argument("--codes", default="", help="comma separated codes; default: all")
     shares.set_defaults(func=cmd_sync_shares)
+
+    quotes = sub.add_parser("sync-quotes", help="refresh latest ETF quotes")
+    quotes.add_argument("--codes", default="", help="comma separated codes; default: all")
+    quotes.add_argument("--force", action="store_true", help="ignore trading session guard")
+    quotes.set_defaults(func=cmd_sync_quotes)
 
     valuation = sub.add_parser("sync-valuation", help="snapshot index PE/PB percentiles")
     valuation.set_defaults(func=cmd_sync_valuation)

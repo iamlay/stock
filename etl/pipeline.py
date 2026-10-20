@@ -3,6 +3,8 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from datetime import time as clock_time
+from zoneinfo import ZoneInfo
 
 from app.db.models import (
     DataJob,
@@ -12,6 +14,7 @@ from app.db.models import (
     IndexValuation,
     Instrument,
     MarketDaily,
+    RealtimeQuote,
     TradingCalendar,
 )
 from sqlalchemy import delete, select
@@ -255,6 +258,74 @@ def sync_shares(session: Session, codes: list[str] | None = None) -> dict:
             failed.status = "failed"
             failed.error = str(exc)[:2000]
             failed.finished_at = datetime.now(UTC)
+            session.commit()
+        raise
+
+
+def is_trading_session(session: Session, now: datetime | None = None) -> bool:
+    """True during A-share sessions and on a known trading day."""
+    local = (now or datetime.now(UTC)).astimezone(ZoneInfo("Asia/Shanghai"))
+    if local.weekday() >= 5:
+        return False
+    traded = session.scalar(
+        select(TradingCalendar.trade_date).where(TradingCalendar.trade_date == local.date())
+    )
+    if traded is None:
+        return False
+    current = local.time()
+    return (clock_time(9, 30) <= current <= clock_time(11, 30)) or (
+        clock_time(13, 0) <= current <= clock_time(15, 0)
+    )
+
+
+def sync_quotes(session: Session, codes: list[str] | None = None) -> dict:
+    """Refresh the latest quote snapshot without touching daily bars."""
+    targets = codes or [seed.code for seed in ETF_UNIVERSE]
+    job = DataJob(
+        job_name="realtime_quotes",
+        status="running",
+        params={"codes": targets},
+    )
+    session.add(job)
+    session.commit()
+    session.refresh(job)
+
+    try:
+        quotes = fetch_quotes(targets)
+        if not quotes:
+            raise ValueError("no quotes returned")
+
+        for quote in quotes:
+            quoted_at = quote.quote_time.replace(
+                tzinfo=ZoneInfo("Asia/Shanghai")
+            ).astimezone(UTC)
+            row = session.get(RealtimeQuote, quote.code)
+            if row is None:
+                row = RealtimeQuote(code=quote.code)
+                session.add(row)
+            row.price = quote.price
+            row.prev_close = quote.prev_close
+            row.change_pct = quote.change_pct
+            row.amount = quote.amount
+            row.trade_date = quote.trade_date
+            row.quote_time = quoted_at
+            row.source = "tencent"
+
+        job.status = "success"
+        job.rows_written = len(quotes)
+        job.finished_at = datetime.now(UTC)
+        session.commit()
+        return {
+            "quotes": len(quotes),
+            "latest": max(quote.quote_time for quote in quotes).isoformat(),
+        }
+    except Exception as exc:
+        session.rollback()
+        job = session.get(DataJob, job.id)
+        if job is not None:
+            job.status = "failed"
+            job.error = str(exc)[:500]
+            job.finished_at = datetime.now(UTC)
             session.commit()
         raise
 

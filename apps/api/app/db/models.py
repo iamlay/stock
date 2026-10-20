@@ -113,6 +113,24 @@ class MarketDaily(Base):
     )
 
 
+class RealtimeQuote(Base):
+    __tablename__ = "realtime_quotes"
+
+    code: Mapped[str] = mapped_column(
+        String(16), ForeignKey("instruments.code", ondelete="CASCADE"), primary_key=True
+    )
+    price: Mapped[float] = mapped_column(Numeric(12, 4), nullable=False)
+    prev_close: Mapped[float] = mapped_column(Numeric(12, 4), nullable=False)
+    change_pct: Mapped[float] = mapped_column(Numeric(8, 4), nullable=False)
+    amount: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False, default=0)
+    trade_date: Mapped[date] = mapped_column(Date, nullable=False)
+    quote_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="tencent")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 class EtfShareDaily(Base):
     __tablename__ = "etf_share_daily"
     __table_args__ = (Index("ix_etf_share_daily_trade_date", "trade_date"),)

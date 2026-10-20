@@ -270,6 +270,44 @@ expired invites: 3
 
 > 后台打开邀请码列表、批次、导出时也会惰性执行过期标记；Cron 只是保证没人访问时状态也能更新。
 
+## 3.7 5 分钟最新报价 Cron（Railway）
+
+1. 同一项目 → **New → GitHub Repo** → 选同一个仓库；
+2. 服务设置：
+   - Root Directory：仓库根目录
+   - Builder：Dockerfile
+   - Dockerfile Path：`etl/Dockerfile`
+3. **Settings → Deploy → Custom Start Command**：
+
+```bash
+python -m etl.cli sync-quotes
+```
+
+4. **Settings → Cron Schedule**：
+
+```text
+*/5 1-7 * * 1-5
+```
+
+- UTC 01:00–07:59 覆盖北京时间 09:00–15:59；
+- 脚本内部会跳过午休、非交易日和收盘后；
+- 不需要公网域名。
+
+5. 变量：
+
+```text
+STOCKLAB_DATABASE_URL=${{Postgres.DATABASE_URL}}
+```
+
+日志应出现：
+
+```text
+quotes rows=20 latest=2026-10-20T14:35:00
+```
+
+> 手动测试加 `--force` 可跳过交易时段守卫：
+> `python -m etl.cli sync-quotes --force`。
+
 ---
 
 ## 4. GitHub Actions：ETL
