@@ -9,6 +9,20 @@ def test_postgres_scheme_is_normalized() -> None:
     assert settings.database_url == "postgresql+psycopg://user:pass@host:5432/db"
 
 
+def test_quoted_url_is_cleaned() -> None:
+    settings = Settings(database_url=' "postgresql://user:pass@host:5432/db" ')
+    assert settings.database_url == "postgresql+psycopg://user:pass@host:5432/db"
+
+
+def test_unresolved_reference_is_rejected() -> None:
+    try:
+        Settings(database_url="${{Postgres.DATABASE_URL}}")
+    except ValueError as exc:
+        assert "unresolved" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")
+
+
 def test_explicit_psycopg_scheme_is_kept() -> None:
     url = "postgresql+psycopg://user:pass@host:5432/db?sslmode=require"
     assert Settings(database_url=url).database_url == url

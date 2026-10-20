@@ -34,12 +34,21 @@ class Settings(BaseSettings):
     @field_validator("database_url", mode="before")
     @classmethod
     def _normalize_database_url(cls, value: str) -> str:
-        """Railway/Heroku expose postgres:// URLs; SQLAlchemy needs the driver name."""
-        if isinstance(value, str):
-            if value.startswith("postgres://"):
-                return "postgresql+psycopg://" + value[len("postgres://") :]
-            if value.startswith("postgresql://"):
-                return "postgresql+psycopg://" + value[len("postgresql://") :]
+        """Accept Railway/Heroku URLs and reject unresolved reference strings."""
+        if not isinstance(value, str):
+            return value
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1].strip()
+        if "${{" in value or value == "":
+            raise ValueError(
+                "STOCKLAB_DATABASE_URL is empty or contains an unresolved "
+                "Railway reference; use Add Reference or a literal URL"
+            )
+        if value.startswith("postgres://"):
+            return "postgresql+psycopg://" + value[len("postgres://") :]
+        if value.startswith("postgresql://"):
+            return "postgresql+psycopg://" + value[len("postgresql://") :]
         return value
 
     @property
