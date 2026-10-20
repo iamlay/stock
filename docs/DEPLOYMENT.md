@@ -231,7 +231,9 @@ python -m etl.cli sync-all --start 2016-01-01 --delay 0.2 && python -m etl.cli s
 
 > 该方案不需要 `DATABASE_PUBLIC_URL`，也不需要 GitHub Secret。
 
-## 3.6 邀请码过期 Cron（Railway）
+## 3.6 邀请码过期 Cron（可选）
+
+> 如果按 3.7 建一个 5 分钟维护 Cron，用 `etl.cli cron` 会同时处理邀请码过期，**不需要单独建本服务**。
 
 每天把过期但未使用的邀请码标记为 `expired`。
 
@@ -280,8 +282,14 @@ expired invites: 3
 3. **Settings → Deploy → Custom Start Command**：
 
 ```bash
-python -m etl.cli sync-quotes
+python -m etl.cli cron
 ```
+
+`cron` 每次会：
+
+1. 把过期未用邀请码标记为 `expired`；
+2. 交易时段内刷新最新报价；
+3. 非交易时段跳过报价，只做邀请码过期。
 
 4. **Settings → Cron Schedule**：
 
@@ -302,11 +310,11 @@ STOCKLAB_DATABASE_URL=${{Postgres.DATABASE_URL}}
 日志应出现：
 
 ```text
-quotes rows=20 latest=2026-10-20T14:35:00
+cron: quotes=20 latest=2026-10-20T14:35:00 expired_invites=0
 ```
 
 > 手动测试加 `--force` 可跳过交易时段守卫：
-> `python -m etl.cli sync-quotes --force`。
+> `python -m etl.cli cron --force`。
 
 ---
 

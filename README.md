@@ -44,7 +44,7 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W29 5 分钟最新报价 |
+| 阶段 | ✅ W30 合并定时任务 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码 / 订单 / 用户 / 邀请码后台 |
@@ -108,11 +108,13 @@ python -m etl.cli quality --limit 20
 - API `/etfs`、`/etfs/{code}`、`/market/overview` 优先使用最新报价，并返回 `quote_time`；
 - 前端显示「更新 HH:MM」，日线指标与回测仍按日频。
 
-Railway Cron 每 5 分钟执行：
+Railway Cron 每 5 分钟执行一个统一入口：
 
 ```bash
-python -m etl.cli sync-quotes
+python -m etl.cli cron
 ```
+
+它会先处理邀请码过期，再在交易时段刷新最新报价；不需要为每个任务单独建 Cron 服务。
 
 手动测试可加 `--force` 跳过交易时段限制。
 

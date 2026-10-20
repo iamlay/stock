@@ -6,6 +6,7 @@ from datetime import date, timedelta
 
 from app.db.models import DataJob, DataQualityCheck
 from app.db.session import SessionLocal
+from app.services.invites import expire_invites
 from app.services.status import collect_status
 from sqlalchemy import desc, select
 
@@ -117,6 +118,24 @@ def cmd_sync_quotes(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_cron(args: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        seed_universe(session)
+        expired = expire_invites(session)
+        quotes = None
+        if args.force or is_trading_session(session):
+            quotes = sync_quotes(session)
+
+    if quotes is None:
+        print(f"cron: quotes skipped, expired_invites={expired}")
+    else:
+        print(
+            f"cron: quotes={quotes['quotes']} latest={quotes['latest']} "
+            f"expired_invites={expired}"
+        )
+    return 0
+
+
 def cmd_sync_valuation(_: argparse.Namespace) -> int:
     with SessionLocal() as session:
         seed_universe(session)
@@ -177,6 +196,10 @@ def build_parser() -> argparse.ArgumentParser:
     quotes.add_argument("--codes", default="", help="comma separated codes; default: all")
     quotes.add_argument("--force", action="store_true", help="ignore trading session guard")
     quotes.set_defaults(func=cmd_sync_quotes)
+
+    cron = sub.add_parser("cron", help="5-minute maintenance: quotes + invite expiry")
+    cron.add_argument("--force", action="store_true", help="ignore trading session guard")
+    cron.set_defaults(func=cmd_cron)
 
     valuation = sub.add_parser("sync-valuation", help="snapshot index PE/PB percentiles")
     valuation.set_defaults(func=cmd_sync_valuation)
