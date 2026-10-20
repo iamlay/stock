@@ -258,20 +258,24 @@ def test_admin_user_detail_aggregates(session) -> None:
             headers=headers,
         ).json()
 
-        session.add(
-            BacktestRun(
-                user_id=target.id,
-                code="510300",
-                strategy="dual-ma",
-                params={},
-                initial_cash=100000,
-                status="success",
-                metrics={"total_return": 12.5},
-                result={"trades": [{"side": "buy"}, {"side": "sell"}]},
-            )
+        backtest = BacktestRun(
+            user_id=target.id,
+            code="510300",
+            strategy="dual-ma",
+            params={},
+            initial_cash=100000,
+            status="success",
+            metrics={"total_return": 12.5},
+            result={
+                "code": "510300",
+                "strategy": "dual-ma",
+                "equity": [],
+                "trades": [{"side": "buy"}, {"side": "sell"}],
+            },
         )
+        session.add(backtest)
         session.commit()
-
+        session.refresh(backtest)
         detail = client.get(f"/api/v1/admin/users/{target.id}", headers=headers)
         assert detail.status_code == 200
         body = detail.json()
@@ -286,6 +290,49 @@ def test_admin_user_detail_aggregates(session) -> None:
         assert body["orders_total"] == 1
         assert body["codes_total"] == 1
         assert body["backtests_total"] == 1
+
+        run = client.get(
+            f"/api/v1/admin/users/{target.id}/backtests/{backtest.id}",
+            headers=headers,
+        )
+        assert run.status_code == 200
+        assert run.json()["result"]["code"] == "510300"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_admin_order_links_by_email(session) -> None:
+    client = _client(session)
+    try:
+        headers = _headers(session)
+        target = User(
+            email="buyer@example.com",
+            role="member",
+            plan="free",
+            email_verified_at=datetime.now(UTC),
+        )
+        session.add(target)
+        session.commit()
+        session.refresh(target)
+
+        order = client.post(
+            "/api/v1/admin/orders",
+            json={
+                "platform": "manual",
+                "buyer_email": "buyer@example.com",
+                "amount": 88,
+                "days": 30,
+                "product": "member-30",
+            },
+            headers=headers,
+        )
+        assert order.status_code == 200
+        body = order.json()
+        assert body["buyer_email"] == "buyer@example.com"
+        assert body["user_id"] == target.id
+
+        detail = client.get(f"/api/v1/admin/users/{target.id}", headers=headers)
+        assert detail.json()["orders_total"] == 1
     finally:
         app.dependency_overrides.clear()
 

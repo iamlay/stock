@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     auth_dev_mode: bool = True
     sms_provider: str = "none"
     registration_invite_code: str = ""
+    registration_invite_required: bool = False
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = ""

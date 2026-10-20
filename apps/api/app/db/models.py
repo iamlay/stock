@@ -194,6 +194,7 @@ class PaymentOrder(Base):
     platform: Mapped[str] = mapped_column(String(32), nullable=False, default="manual")
     external_order_id: Mapped[str | None] = mapped_column(String(64), index=True)
     buyer_phone: Mapped[str | None] = mapped_column(String(20))
+    buyer_email: Mapped[str | None] = mapped_column(String(255), index=True)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     product: Mapped[str] = mapped_column(String(32), nullable=False)
     amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
@@ -238,6 +239,22 @@ class RateLimitEvent(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     key: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class InviteCode(Base):
+    __tablename__ = "invite_codes"
+    __table_args__ = (Index("ix_invite_codes_status", "status"),)
+
+    code: Mapped[str] = mapped_column(String(24), primary_key=True)
+    batch_id: Mapped[str | None] = mapped_column(String(36))
+    max_uses: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    used_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="issued")
+    note: Mapped[str | None] = mapped_column(String(128))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -70,6 +70,7 @@ export type AdminOrder = {
   platform: string;
   external_order_id: string | null;
   buyer_phone: string | null;
+  buyer_email: string | null;
   user_id: number | null;
   product: string;
   amount: number;
@@ -134,6 +135,39 @@ export type AdminBacktestPage = {
   total: number;
   page: number;
   page_size: number;
+};
+
+export type AdminBacktestDetail = {
+  id: number;
+  created_at: string;
+  result: BacktestResult;
+};
+
+export type AdminInvite = {
+  code: string;
+  batch_id: string | null;
+  max_uses: number;
+  used_count: number;
+  status: string;
+  note: string | null;
+  expires_at: string | null;
+  created_at: string;
+};
+
+export type AdminInviteStats = {
+  total: number;
+  issued: number;
+  redeemed: number;
+  expired: number;
+  revoked: number;
+};
+
+export type AdminInviteBatch = {
+  batch_id: string;
+  total: number;
+  issued: number;
+  redeemed: number;
+  created_at: string;
 };
 
 export function getToken(): string | null {
@@ -366,6 +400,7 @@ export async function adminCreateOrder(payload: {
   platform: string;
   external_order_id?: string;
   buyer_phone?: string;
+  buyer_email?: string;
   amount: number;
   days: number;
   plan: string;
@@ -462,4 +497,59 @@ export async function adminUserBacktests(
   return request<AdminBacktestPage>(
     `/api/v1/admin/users/${id}/backtests?page=${page}&page_size=10`,
   );
+}
+
+export async function adminUserBacktestDetail(
+  userId: number,
+  runId: number,
+): Promise<AdminBacktestDetail> {
+  return request<AdminBacktestDetail>(
+    `/api/v1/admin/users/${userId}/backtests/${runId}`,
+  );
+}
+
+export async function adminListInvites(params: {
+  status?: string;
+  batch_id?: string;
+  q?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<{
+  items: AdminInvite[];
+  stats: AdminInviteStats;
+  total: number;
+  page: number;
+  page_size: number;
+}> {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request(`/api/v1/admin/invites${suffix}`);
+}
+
+export async function adminListInviteBatches(): Promise<AdminInviteBatch[]> {
+  return request<AdminInviteBatch[]>("/api/v1/admin/invites/batches");
+}
+
+export async function adminGenerateInvites(payload: {
+  count: number;
+  max_uses: number;
+  valid_days: number;
+  note?: string;
+}): Promise<{ batch_id: string; codes: AdminInvite[] }> {
+  return request<{ batch_id: string; codes: AdminInvite[] }>(
+    "/api/v1/admin/invites",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function adminRevokeInvite(code: string): Promise<AdminInvite> {
+  return request<AdminInvite>(`/api/v1/admin/invites/${code}/revoke`, {
+    method: "POST",
+  });
 }

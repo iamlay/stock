@@ -29,6 +29,7 @@ from app.services.email import (
     send_password_reset_email,
     send_verification_email,
 )
+from app.services.invites import consume_invite_code
 from app.services.membership import is_member, redeem_code
 from app.services.rate_limit import check_rate_limit, client_ip, rate_limit_key
 from app.settings import settings
@@ -248,15 +249,26 @@ def register(
         window_seconds=3600,
         message="该邮箱注册过于频繁，请稍后再试",
     )
-    if settings.registration_invite_code:
-        if not payload.invite_code or not hmac.compare_digest(
-            payload.invite_code, settings.registration_invite_code
-        ):
-            raise HTTPException(status_code=403, detail="邀请码无效")
-
     existing = session.scalar(select(User).where(User.email == email))
     if existing is not None:
         raise HTTPException(status_code=409, detail="该邮箱已注册")
+
+    invite_ok = False
+    if payload.invite_code:
+        if settings.registration_invite_code and hmac.compare_digest(
+            payload.invite_code, settings.registration_invite_code
+        ):
+            invite_ok = True
+        else:
+            try:
+                consume_invite_code(session, payload.invite_code)
+                invite_ok = True
+            except ValueError as exc:
+                raise HTTPException(status_code=403, detail=str(exc)) from exc
+    if settings.registration_invite_required and not invite_ok:
+        raise HTTPException(status_code=403, detail="需要邀请码")
+    if settings.registration_invite_code and not invite_ok:
+        raise HTTPException(status_code=403, detail="邀请码无效")
 
     user = User(
         email=email,

@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W18 用户详情分页 |
+| 阶段 | ✅ W19 回测详情 + 邮箱订单 + 邀请码批次 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
-| Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码后台 / 订单后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，70 个测试 |
+| Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码 / 订单 / 用户 / 邀请码后台 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，73 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -214,8 +214,8 @@ STOCKLAB_DATABASE_URL="postgresql+psycopg://..." \
 
 `/admin/orders`：
 
-- 登记第三方平台订单（知识星球 / 小鹅通 / 手动），填写外部单号、买家手机号、金额；
-- 登记即生成一张绑定订单的兑换码；买家手机号已注册时自动绑定账号；
+- 登记第三方平台订单（知识星球 / 小鹅通 / 手动），填写外部单号、买家手机号或邮箱、金额；
+- 登记即生成一张绑定订单的兑换码；买家手机号/邮箱已注册时自动绑定账号；
 - 订单列表分页、按平台/状态/关键词筛选，统计已交付收入与客单价；
 - 退款：订单置为 refunded，未使用的兑换码同步作废。
 
@@ -231,12 +231,31 @@ STOCKLAB_DATABASE_URL="postgresql+psycopg://..." \
 - 取消会员：置为 `free`，清空到期日；
 - 所有操作写入 `admin_audit_logs`，不能封禁自己。
 - 点击账号进入 `/admin/users/{id}`，聚合该用户的：
-  - 订单（按 `user_id` 或买家手机号匹配）；
+  - 订单（按 `user_id`、买家手机号或买家邮箱匹配）；
   - 兑换码（绑定、兑换、关联订单）；
-  - 回测历史（策略、标的、收益、交易数）。
+  - 回测历史（策略、标的、收益、交易数），点「查看」弹窗展示净值曲线与交易明细。
 - 三个区块各自分页，10 条/页，接口返回 `total` 与 `page`。
 
 接口：`GET /api/v1/admin/users`、`PATCH /api/v1/admin/users/{id}`、`GET /api/v1/admin/users/{id}`、`/orders`、`/codes`、`/backtests`。
+
+## 邀请码批次
+
+`/admin/invites`：
+
+- 批量生成：数量、每码可用次数、有效期、备注；
+- 统计：总数 / 未使用 / 已用完 / 已过期 / 已作废；
+- 按批次、状态筛选，单码作废，一键复制；
+- 注册时校验并原子扣减使用次数。
+
+接口：`GET/POST /api/v1/admin/invites`、`/batches`、`/{code}/revoke`。
+
+启用强制邀请：
+
+```text
+STOCKLAB_REGISTRATION_INVITE_REQUIRED=true
+```
+
+`STOCKLAB_REGISTRATION_INVITE_CODE` 仍可作为固定的环境变量邀请码保留。
 
 ## 登录（W15）
 
@@ -249,6 +268,7 @@ STOCKLAB_DATABASE_URL="postgresql+psycopg://..." \
 - 生产环境必须配置 `STOCKLAB_SMTP_*` 或 `STOCKLAB_EMAIL_PROVIDER=resend|brevo`，否则注册返回 503。
 - 注册、登录、忘记密码、重发验证均有频率限制（`rate_limit_events` 表），超限返回 429。
 - 可选邀请码：设置 `STOCKLAB_REGISTRATION_INVITE_CODE` 后，注册必须携带 `invite_code`。
+- 邀请码批次：`/admin/invites` 生成、查看、作废；设置 `STOCKLAB_REGISTRATION_INVITE_REQUIRED=true` 后，注册必须使用有效邀请码。
 
 | 动作 | 限制 |
 |---|---|

@@ -38,6 +38,7 @@ export default function AdminOrdersPage() {
   const [platform, setPlatform] = useState("zhishixingqiu");
   const [externalId, setExternalId] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [amount, setAmount] = useState(199);
   const [days, setDays] = useState(365);
   const [product, setProduct] = useState("member-365");
@@ -94,6 +95,7 @@ export default function AdminOrdersPage() {
         platform,
         external_order_id: externalId || undefined,
         buyer_phone: phone || undefined,
+        buyer_email: email || undefined,
         amount,
         days,
         plan: "member",
@@ -104,6 +106,7 @@ export default function AdminOrdersPage() {
       setMessage(`订单 ${order.order_no} 已登记，兑换码 ${order.code}`);
       setExternalId("");
       setPhone("");
+      setEmail("");
       setNote("");
       await load(1);
     } catch (err) {
@@ -211,6 +214,16 @@ export default function AdminOrdersPage() {
               className="rounded-sm border border-line bg-surface px-2 py-2 text-sm"
             />
           </label>
+          <label className="flex w-48 flex-col gap-1">
+            <span className="text-xs text-muted">买家邮箱</span>
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="选填，用于绑定账号"
+              className="rounded-sm border border-line bg-surface px-2 py-2 text-sm"
+            />
+          </label>
           <label className="flex w-24 flex-col gap-1">
             <span className="text-xs text-muted">金额</span>
             <input
@@ -315,7 +328,9 @@ export default function AdminOrdersPage() {
                   <td className="tnum py-2 text-xs">{order.order_no}</td>
                   <td className="py-2 text-xs">{order.platform}</td>
                   <td className="py-2 text-xs text-muted">{order.external_order_id ?? "—"}</td>
-                  <td className="py-2 text-xs">{order.buyer_phone ?? "—"}</td>
+                  <td className="py-2 text-xs">
+                    {order.buyer_email ?? order.buyer_phone ?? "—"}
+                  </td>
                   <td className="tnum py-2 text-right">¥{order.amount.toFixed(2)}</td>
                   <td className="py-2">
                     <span

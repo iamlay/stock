@@ -7,13 +7,21 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db import get_session
-from app.db.models import AdminAuditLog, BacktestRun, PaymentOrder, RedeemCode, User
+from app.db.models import (
+    AdminAuditLog,
+    BacktestRun,
+    InviteCode,
+    PaymentOrder,
+    RedeemCode,
+    User,
+)
 from app.security import get_current_admin
+from app.services.invites import generate_invites
 from app.services.membership import activate_membership, new_code
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -94,6 +102,7 @@ class OrderRequest(BaseModel):
     platform: str = Field(default="manual", max_length=32)
     external_order_id: str | None = Field(default=None, max_length=64)
     buyer_phone: str | None = Field(default=None, pattern=r"^1[3-9]\d{9}$")
+    buyer_email: EmailStr | None = None
     amount: float = Field(ge=0, le=1_000_000)
     days: int = Field(default=365, ge=1, le=3650)
     plan: str = Field(default="member", pattern="^(member|trial)$")
@@ -107,6 +116,7 @@ class OrderOut(BaseModel):
     platform: str
     external_order_id: str | None
     buyer_phone: str | None
+    buyer_email: str | None
     user_id: int | None
     product: str
     amount: float
@@ -194,6 +204,59 @@ class AdminBacktestPage(BaseModel):
     page_size: int
 
 
+class AdminBacktestDetail(BaseModel):
+    id: int
+    created_at: str
+    result: dict
+
+
+class InviteOut(BaseModel):
+    code: str
+    batch_id: str | None
+    max_uses: int
+    used_count: int
+    status: str
+    note: str | None
+    expires_at: str | None
+    created_at: str
+
+
+class InviteStats(BaseModel):
+    total: int
+    issued: int
+    redeemed: int
+    expired: int
+    revoked: int
+
+
+class InviteList(BaseModel):
+    items: list[InviteOut]
+    stats: InviteStats
+    total: int
+    page: int
+    page_size: int
+
+
+class InviteGenerateRequest(BaseModel):
+    count: int = Field(default=10, ge=1, le=500)
+    max_uses: int = Field(default=1, ge=1, le=1000)
+    valid_days: int = Field(default=90, ge=1, le=3650)
+    note: str | None = Field(default=None, max_length=128)
+
+
+class InviteGenerateResponse(BaseModel):
+    batch_id: str
+    codes: list[InviteOut]
+
+
+class InviteBatchOut(BaseModel):
+    batch_id: str
+    total: int
+    issued: int
+    redeemed: int
+    created_at: str
+
+
 def _code_out(row: RedeemCode) -> CodeOut:
     return CodeOut(
         code=row.code,
@@ -218,6 +281,7 @@ def _order_out(row: PaymentOrder, code: str | None) -> OrderOut:
         platform=row.platform,
         external_order_id=row.external_order_id,
         buyer_phone=row.buyer_phone,
+        buyer_email=row.buyer_email,
         user_id=row.user_id,
         product=row.product,
         amount=float(row.amount),
@@ -599,15 +663,17 @@ def update_user(
     return _admin_user_out(user)
 
 
-def _order_conditions(user: User) -> list:
+def _order_conditions(user: User):
     conditions = [PaymentOrder.user_id == user.id]
     if user.phone:
         conditions.append(PaymentOrder.buyer_phone == user.phone)
-    return conditions
+    if user.email:
+        conditions.append(PaymentOrder.buyer_email == user.email)
+    return or_(*conditions)
 
 
 def _code_conditions(user: User):
-    order_ids = select(PaymentOrder.id).where(or_(*_order_conditions(user)))
+    order_ids = select(PaymentOrder.id).where(_order_conditions(user))
     return or_(
         RedeemCode.bound_user_id == user.id,
         RedeemCode.redeemed_by == user.id,
@@ -639,11 +705,11 @@ def get_user_detail(
 
     order_conditions = _order_conditions(user)
     orders_total = session.scalar(
-        select(func.count()).select_from(PaymentOrder).where(*order_conditions)
+        select(func.count()).select_from(PaymentOrder).where(order_conditions)
     ) or 0
     orders = session.scalars(
         select(PaymentOrder)
-        .where(*order_conditions)
+        .where(order_conditions)
         .order_by(PaymentOrder.created_at.desc())
         .limit(10)
     ).all()
@@ -698,11 +764,11 @@ def get_user_orders(
         raise HTTPException(status_code=404, detail="用户不存在")
     conditions = _order_conditions(user)
     total = session.scalar(
-        select(func.count()).select_from(PaymentOrder).where(*conditions)
+        select(func.count()).select_from(PaymentOrder).where(conditions)
     ) or 0
     rows = session.scalars(
         select(PaymentOrder)
-        .where(*conditions)
+        .where(conditions)
         .order_by(PaymentOrder.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
@@ -792,6 +858,179 @@ def get_user_backtests(
     )
 
 
+@router.get(
+    "/users/{user_id}/backtests/{run_id}",
+    response_model=AdminBacktestDetail,
+    summary="回测详情",
+)
+def get_user_backtest_detail(
+    user_id: int,
+    run_id: int,
+    session: Annotated[Session, Depends(get_session)],
+    _admin: Annotated[User, Depends(get_current_admin)],
+) -> AdminBacktestDetail:
+    row = session.get(BacktestRun, run_id)
+    if row is None or row.user_id != user_id:
+        raise HTTPException(status_code=404, detail="回测不存在")
+    return AdminBacktestDetail(
+        id=row.id,
+        created_at=row.created_at.isoformat(),
+        result=row.result or {},
+    )
+
+
+def _invite_out(row: InviteCode) -> InviteOut:
+    return InviteOut(
+        code=row.code,
+        batch_id=row.batch_id,
+        max_uses=row.max_uses,
+        used_count=row.used_count,
+        status=row.status,
+        note=row.note,
+        expires_at=row.expires_at.isoformat() if row.expires_at else None,
+        created_at=row.created_at.isoformat(),
+    )
+
+
+def _invite_stats(session: Session) -> InviteStats:
+    rows = dict(
+        session.execute(
+            select(InviteCode.status, func.count()).group_by(InviteCode.status)
+        ).all()
+    )
+    return InviteStats(
+        total=sum(rows.values()),
+        issued=rows.get("issued", 0),
+        redeemed=rows.get("redeemed", 0),
+        expired=rows.get("expired", 0),
+        revoked=rows.get("revoked", 0),
+    )
+
+
+@router.get("/invites", response_model=InviteList, summary="邀请码列表")
+def list_invites(
+    session: Annotated[Session, Depends(get_session)],
+    _admin: Annotated[User, Depends(get_current_admin)],
+    status: str | None = Query(default=None),
+    batch_id: str | None = Query(default=None),
+    q: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+) -> InviteList:
+    conditions = []
+    if status:
+        conditions.append(InviteCode.status == status)
+    if batch_id:
+        conditions.append(InviteCode.batch_id == batch_id)
+    if q:
+        conditions.append(InviteCode.code.ilike(f"%{q.strip().upper()}%"))
+    total = session.scalar(
+        select(func.count()).select_from(InviteCode).where(*conditions)
+    ) or 0
+    rows = session.scalars(
+        select(InviteCode)
+        .where(*conditions)
+        .order_by(InviteCode.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all()
+    return InviteList(
+        items=[_invite_out(row) for row in rows],
+        stats=_invite_stats(session),
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get("/invites/batches", response_model=list[InviteBatchOut], summary="邀请码批次")
+def list_invite_batches(
+    session: Annotated[Session, Depends(get_session)],
+    _admin: Annotated[User, Depends(get_current_admin)],
+) -> list[InviteBatchOut]:
+    rows = session.execute(
+        select(
+            InviteCode.batch_id,
+            func.count(),
+            func.sum(case((InviteCode.status == "issued", 1), else_=0)),
+            func.sum(case((InviteCode.status == "redeemed", 1), else_=0)),
+            func.min(InviteCode.created_at),
+        )
+        .where(InviteCode.batch_id.is_not(None))
+        .group_by(InviteCode.batch_id)
+        .order_by(func.min(InviteCode.created_at).desc())
+        .limit(100)
+    ).all()
+    return [
+        InviteBatchOut(
+            batch_id=row[0],
+            total=row[1],
+            issued=int(row[2] or 0),
+            redeemed=int(row[3] or 0),
+            created_at=row[4].isoformat(),
+        )
+        for row in rows
+    ]
+
+
+@router.post("/invites", response_model=InviteGenerateResponse, summary="生成邀请码")
+def create_invites(
+    payload: InviteGenerateRequest,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    admin: Annotated[User, Depends(get_current_admin)],
+) -> InviteGenerateResponse:
+    batch_id, rows = generate_invites(
+        session,
+        count=payload.count,
+        max_uses=payload.max_uses,
+        valid_days=payload.valid_days,
+        note=payload.note,
+    )
+    _audit(
+        session,
+        admin,
+        request,
+        action="generate_invites",
+        target_type="invite_batch",
+        target_id=batch_id,
+        detail={
+            "count": len(rows),
+            "max_uses": payload.max_uses,
+            "valid_days": payload.valid_days,
+        },
+    )
+    return InviteGenerateResponse(
+        batch_id=batch_id, codes=[_invite_out(row) for row in rows]
+    )
+
+
+@router.post("/invites/{code}/revoke", response_model=InviteOut, summary="作废邀请码")
+def revoke_invite(
+    code: str,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    admin: Annotated[User, Depends(get_current_admin)],
+) -> InviteOut:
+    row = session.get(InviteCode, code.strip().upper())
+    if row is None:
+        raise HTTPException(status_code=404, detail="邀请码不存在")
+    if row.status != "issued":
+        raise HTTPException(status_code=400, detail="只有未使用的邀请码可以作废")
+    row.status = "revoked"
+    session.commit()
+    _audit(
+        session,
+        admin,
+        request,
+        action="revoke_invite",
+        target_type="invite_code",
+        target_id=row.code,
+        detail={"batch_id": row.batch_id},
+    )
+    return _invite_out(row)
+
+
 def _order_no() -> str:
     return "SO" + datetime.now(UTC).strftime("%Y%m%d") + secrets.token_hex(3).upper()
 
@@ -804,16 +1043,21 @@ def create_order(
     admin: Annotated[User, Depends(get_current_admin)],
 ) -> OrderOut:
     now = datetime.now(UTC)
-    buyer = (
-        session.scalar(select(User).where(User.phone == payload.buyer_phone))
-        if payload.buyer_phone
-        else None
-    )
+    buyer = None
+    if payload.buyer_phone:
+        buyer = session.scalar(select(User).where(User.phone == payload.buyer_phone))
+    if buyer is None and payload.buyer_email:
+        buyer = session.scalar(
+            select(User).where(User.email == str(payload.buyer_email).strip().lower())
+        )
     order = PaymentOrder(
         order_no=_order_no(),
         platform=payload.platform,
         external_order_id=payload.external_order_id,
         buyer_phone=payload.buyer_phone,
+        buyer_email=(
+            str(payload.buyer_email).strip().lower() if payload.buyer_email else None
+        ),
         user_id=buyer.id if buyer else None,
         product=payload.product,
         amount=payload.amount,
@@ -872,6 +1116,7 @@ def list_orders(
             (PaymentOrder.order_no.ilike(like))
             | (PaymentOrder.external_order_id.ilike(like))
             | (PaymentOrder.buyer_phone.ilike(like))
+            | (PaymentOrder.buyer_email.ilike(like))
         )
 
     total = session.scalar(

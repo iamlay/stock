@@ -50,7 +50,8 @@ GitHub Actions ──(公网 DATABASE_URL)──► Railway PostgreSQL
 | `STOCKLAB_SMS_PROVIDER` | `none`（接入短信后改） |
 | `STOCKLAB_GUEST_DAILY_LIMIT` | `20` |
 | `STOCKLAB_FREE_DAILY_LIMIT` | `50` |
-| `STOCKLAB_REGISTRATION_INVITE_CODE` | 可选；设置后注册必须填写邀请码 |
+| `STOCKLAB_REGISTRATION_INVITE_CODE` | 可选；固定邀请码 |
+| `STOCKLAB_REGISTRATION_INVITE_REQUIRED` | `true` 时注册必须使用有效邀请码 |
 | `STOCKLAB_SMTP_HOST` | SMTP 主机，例如 `smtp.qq.com` |
 | `STOCKLAB_SMTP_PORT` | `465`（SSL）或 `587`（STARTTLS） |
 | `STOCKLAB_SMTP_USERNAME` | SMTP 登录名，通常是邮箱 |

@@ -4,13 +4,16 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { EquityCurve } from "@/components/equity-curve";
 import {
   adminGetUserDetail,
+  adminUserBacktestDetail,
   adminUserBacktests,
   adminUserCodes,
   adminUserOrders,
   fetchMe,
   getToken,
+  type AdminBacktestDetail,
   type AdminBacktestSummary,
   type AdminCode,
   type AdminOrder,
@@ -77,6 +80,8 @@ export default function AdminUserDetailPage() {
   const [ordersPage, setOrdersPage] = useState(1);
   const [codesPage, setCodesPage] = useState(1);
   const [backtestsPage, setBacktestsPage] = useState(1);
+  const [runDetail, setRunDetail] = useState<AdminBacktestDetail | null>(null);
+  const [runLoading, setRunLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -143,6 +148,18 @@ export default function AdminUserDetailPage() {
       setBacktestsPage(result.page);
     } catch (err) {
       setError(err instanceof Error ? err.message : "加载回测失败");
+    }
+  }
+
+  async function openRun(run: AdminBacktestSummary) {
+    setRunLoading(true);
+    setError(null);
+    try {
+      setRunDetail(await adminUserBacktestDetail(id, run.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "加载回测失败");
+    } finally {
+      setRunLoading(false);
     }
   }
 
@@ -337,7 +354,8 @@ export default function AdminUserDetailPage() {
                 <th className="py-2 pr-3 text-right font-medium">累计收益</th>
                 <th className="py-2 pr-3 text-right font-medium">交易数</th>
                 <th className="py-2 pr-3 font-medium">状态</th>
-                <th className="py-2 font-medium">时间</th>
+                <th className="py-2 pr-3 font-medium">时间</th>
+                <th className="py-2 text-right font-medium">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -355,7 +373,18 @@ export default function AdminUserDetailPage() {
                   </td>
                   <td className="tnum py-2 pr-3 text-right text-xs">{run.trades}</td>
                   <td className="py-2 pr-3 text-xs">{run.status}</td>
-                  <td className="py-2 text-xs text-muted">{fmtDateTime(run.created_at)}</td>
+                  <td className="py-2 pr-3 text-xs text-muted">
+                    {fmtDateTime(run.created_at)}
+                  </td>
+                  <td className="py-2 text-right">
+                    <button
+                      type="button"
+                      onClick={() => openRun(run)}
+                      className="text-xs text-jade-deep hover:underline"
+                    >
+                      查看
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -366,6 +395,95 @@ export default function AdminUserDetailPage() {
         ) : null}
         <Pager page={backtestsPage} total={backtestsTotal} onChange={loadBacktests} />
       </section>
+
+      {runDetail || runLoading ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/40 p-4">
+          <div className="my-8 w-full max-w-3xl rounded-sm bg-surface p-6 shadow-lg">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="font-serif text-xl text-ink">回测详情</h2>
+                <p className="mt-1 text-xs text-muted">
+                  {runDetail
+                    ? `#${runDetail.id} · ${fmtDateTime(runDetail.created_at)}`
+                    : "加载中…"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRunDetail(null)}
+                className="text-xs text-muted hover:text-ink"
+              >
+                关闭
+              </button>
+            </div>
+
+            {runLoading ? (
+              <p className="py-10 text-center text-sm text-muted">加载中…</p>
+            ) : null}
+
+            {runDetail ? (
+              <>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                  {[
+                    ["策略", runDetail.result.strategy],
+                    ["标的", runDetail.result.code],
+                    ["累计收益", `${runDetail.result.metrics.total_return.toFixed(2)}%`],
+                    ["最大回撤", `${runDetail.result.metrics.max_drawdown.toFixed(2)}%`],
+                    ["年化", `${runDetail.result.metrics.annualized_return.toFixed(2)}%`],
+                    ["夏普", runDetail.result.metrics.sharpe.toFixed(2)],
+                    ["交易数", String(runDetail.result.metrics.trades)],
+                    ["期末权益", runDetail.result.metrics.final_equity.toFixed(2)],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-sm border border-line p-3">
+                      <p className="text-[11px] text-muted">{label}</p>
+                      <p className="tnum mt-1 text-sm text-ink">{value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4">
+                  <EquityCurve
+                    id={`admin-run-${runDetail.id}`}
+                    points={runDetail.result.equity.map((point) => point.equity)}
+                    height={180}
+                  />
+                </div>
+
+                <div className="mt-4 max-h-64 overflow-auto">
+                  <table className="w-full min-w-[560px] text-sm">
+                    <thead>
+                      <tr className="border-b border-line text-left text-xs text-muted">
+                        <th className="py-2 pr-3 font-medium">日期</th>
+                        <th className="py-2 pr-3 font-medium">方向</th>
+                        <th className="py-2 pr-3 text-right font-medium">价格</th>
+                        <th className="py-2 pr-3 text-right font-medium">份额</th>
+                        <th className="py-2 text-right font-medium">费用</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {runDetail.result.trades.slice(0, 100).map((trade) => (
+                        <tr key={`${trade.date}-${trade.side}-${trade.shares}`} className="border-b border-line/60">
+                          <td className="py-2 pr-3 text-xs">{trade.date}</td>
+                          <td className="py-2 pr-3 text-xs">{trade.side}</td>
+                          <td className="tnum py-2 pr-3 text-right text-xs">
+                            {trade.price.toFixed(3)}
+                          </td>
+                          <td className="tnum py-2 pr-3 text-right text-xs">
+                            {trade.shares}
+                          </td>
+                          <td className="tnum py-2 text-right text-xs">
+                            {trade.fee.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

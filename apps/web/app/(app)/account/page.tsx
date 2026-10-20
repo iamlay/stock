@@ -135,6 +135,12 @@ export default function AccountPage() {
               >
                 用户管理
               </Link>
+              <Link
+                href="/admin/invites"
+                className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"
+              >
+                邀请码
+              </Link>
             </>
           ) : null}
           <button
