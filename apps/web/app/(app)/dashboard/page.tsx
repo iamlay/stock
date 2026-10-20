@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { EtfTable } from "@/components/etf-table";
-import { fetchEtfs, fetchOverview, toEtf } from "@/lib/api";
-import { etfs, sectors, strategies } from "@/lib/mock";
+import { fetchEtfs, fetchOverview, fetchStrategySummaries, toEtf } from "@/lib/api";
+import { etfs, strategies } from "@/lib/mock";
 import { fmtPct, trendBg, trendClass } from "@/lib/format";
 
 export const metadata: Metadata = { title: "今日市场" };
@@ -17,7 +17,11 @@ const fallbackStats = [
 ];
 
 export default async function DashboardPage() {
-  const [apiEtfs, overview] = await Promise.all([fetchEtfs(), fetchOverview()]);
+  const [apiEtfs, overview, strategySummary] = await Promise.all([
+    fetchEtfs(),
+    fetchOverview(),
+    fetchStrategySummaries("510300"),
+  ]);
   const live = Boolean(apiEtfs?.length && overview && !overview.demo);
   const list = apiEtfs && apiEtfs.length > 0 ? apiEtfs.map(toEtf) : etfs;
   const top = [...list].sort((a, b) => (b.aum ?? 0) - (a.aum ?? 0)).slice(0, 8);
@@ -55,6 +59,59 @@ export default async function DashboardPage() {
         ]
       : fallbackStats;
 
+  const categoryMap = new Map<string, { sum: number; count: number }>();
+  for (const etf of list) {
+    const current = categoryMap.get(etf.category) ?? { sum: 0, count: 0 };
+    current.sum += etf.change;
+    current.count += 1;
+    categoryMap.set(etf.category, current);
+  }
+  const heat = Array.from(categoryMap.entries())
+    .map(([name, value]) => ({
+      name,
+      change: value.sum / value.count,
+      count: value.count,
+    }))
+    .sort((a, b) => b.change - a.change);
+
+  const breadth =
+    overview && overview.advancing + overview.declining > 0
+      ? overview.advancing / (overview.advancing + overview.declining)
+      : 0.5;
+  const temperature = overview
+    ? Math.max(
+        0,
+        Math.min(
+          100,
+          Math.round(50 + (overview.avg_change_pct ?? 0) * 8 + (breadth - 0.5) * 40),
+        ),
+      )
+    : 50;
+  const temperatureLabel =
+    temperature >= 70
+      ? "偏热"
+      : temperature >= 55
+        ? "偏暖"
+        : temperature >= 45
+          ? "中性"
+          : temperature >= 30
+            ? "偏冷"
+            : "寒冷";
+
+  const quickStrategies =
+    strategySummary?.items.slice(0, 5).map((item) => ({
+      slug: item.slug,
+      name: item.name,
+      totalReturn: item.total_return,
+      maxDrawdown: item.max_drawdown,
+    })) ??
+    strategies.slice(1, 6).map((item) => ({
+      slug: item.slug,
+      name: item.name,
+      totalReturn: item.totalReturn,
+      maxDrawdown: item.maxDrawdown,
+    }));
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -84,13 +141,15 @@ export default async function DashboardPage() {
         <section className="card p-5">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-medium text-ink">板块热力</h2>
-              <p className="mt-0.5 text-xs text-muted">申万一级行业 · 当日涨跌幅（示例）</p>
+              <h2 className="text-base font-medium text-ink">ETF 分类热力</h2>
+              <p className="mt-0.5 text-xs text-muted">
+                重点 ETF 按分类等权 · 当日涨跌幅
+              </p>
             </div>
             <span className="text-xs text-muted">红涨绿跌</span>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
-            {sectors.map((sector) => (
+            {heat.map((sector) => (
               <div
                 key={sector.name}
                 className="flex h-20 flex-col justify-between rounded-sm border border-line/60 p-2.5"
@@ -104,7 +163,9 @@ export default async function DashboardPage() {
             ))}
           </div>
           <p className="mt-3 text-xs text-muted">
-            颜色越深表示涨跌幅越大；示例数据，接入申万行业日线后替换。
+            {live
+              ? `基于 ${list.length} 只重点 ETF 分类等权，非申万全行业。`
+              : "当前为示例数据；API 连通后自动切换为真实 ETF 分类涨跌。"}
           </p>
         </section>
 
@@ -113,27 +174,40 @@ export default async function DashboardPage() {
             <h2 className="text-base font-medium text-ink">市场温度</h2>
             <div className="mt-4 flex items-end justify-between">
               <p className="tnum text-4xl font-semibold text-ink">
-                62<span className="ml-1 text-sm font-normal text-muted">/ 100</span>
+                {temperature}
+                <span className="ml-1 text-sm font-normal text-muted">/ 100</span>
               </p>
-              <span className="rounded-sm bg-amber-soft px-2 py-1 text-[11px] text-amber">偏暖</span>
+              <span className="rounded-sm bg-amber-soft px-2 py-1 text-[11px] text-amber">
+                {temperatureLabel}
+              </span>
             </div>
             <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-line">
-              <div className="h-full w-[62%] rounded-full bg-gradient-to-r from-jade to-amber" />
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-jade to-amber"
+                style={{ width: `${temperature}%` }}
+              />
             </div>
             <p className="mt-3 text-xs leading-5 text-muted">
-              综合成交额、涨跌分布、涨停家数与估值分位。温度高不代表该追，只代表情绪偏热。
+              基于重点 ETF 等权涨跌与涨跌家数估算，非全市场温度。温度高不代表该追，只代表情绪偏热。
             </p>
           </div>
 
           <div className="card p-5">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-medium text-ink">策略速览</h2>
-              <Link href="/strategies" className="text-xs text-jade-deep hover:underline">
-                全部 →
-              </Link>
+              <div className="flex items-center gap-2">
+                {strategySummary ? null : (
+                  <span className="rounded-sm bg-[#f1efe8] px-1.5 py-0.5 text-[10px] text-ink-soft">
+                    示例
+                  </span>
+                )}
+                <Link href="/strategies" className="text-xs text-jade-deep hover:underline">
+                  全部 →
+                </Link>
+              </div>
             </div>
             <ul className="mt-3 divide-y divide-line">
-              {strategies.slice(1).map((strategy) => (
+              {quickStrategies.map((strategy) => (
                 <li key={strategy.slug} className="flex items-center justify-between py-2.5">
                   <div>
                     <p className="text-sm text-ink">{strategy.name}</p>
@@ -141,8 +215,13 @@ export default async function DashboardPage() {
                       回撤 {strategy.maxDrawdown.toFixed(1)}%
                     </p>
                   </div>
-                  <span className="tnum text-sm font-medium text-loss">
-                    +{strategy.totalReturn.toFixed(1)}%
+                  <span
+                    className={`tnum text-sm font-medium ${
+                      strategy.totalReturn >= 0 ? "text-gain" : "text-loss"
+                    }`}
+                  >
+                    {strategy.totalReturn >= 0 ? "+" : ""}
+                    {strategy.totalReturn.toFixed(1)}%
                   </span>
                 </li>
               ))}
@@ -170,8 +249,10 @@ export default async function DashboardPage() {
 
       <section className="rounded-sm border border-amber/20 bg-amber-soft/60 p-4 text-xs leading-6 text-amber">
         {live
-          ? `行情与规模来自本地数据管道，更新至 ${overview?.trade_date}；板块热力与策略速览仍为示例。`
-          : "当前为示例数据：启动 API、执行 W2 数据同步后，本页会自动切换到真实行情。"}
+          ? `行情与规模来自本地数据管道，更新至 ${overview?.trade_date}；分类热力基于重点 ETF，市场温度为估算${
+              strategySummary ? "，策略速览为真实回测" : "，策略速览暂为示例"
+            }。`
+          : "当前为示例数据：检查 Web 服务的 API_BASE_URL 是否指向 Railway API。"}
       </section>
     </div>
   );

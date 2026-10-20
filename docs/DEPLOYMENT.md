@@ -362,6 +362,17 @@ INFO:     Uvicorn running on http://0.0.0.0:8000
 
 见第 3 节的 pnpm workspace 配置。
 
+### 页面仍显示「示例数据」
+
+API 已返回真实数据，但 Next.js 服务端组件连不上 API，通常是 Web 服务缺少：
+
+```text
+API_BASE_URL=https://你的-api.up.railway.app
+```
+
+`NEXT_PUBLIC_API_BASE_URL` 只影响浏览器，服务端组件用的是 `API_BASE_URL`。
+检查变量没有末尾 `/`，保存后重新部署 Web。
+
 ---
 
 ## 8. 已知限制
