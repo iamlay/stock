@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W31 策略列表切换回测标的 |
+| 阶段 | ✅ W32 个股 Phase 1 灰度 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码 / 订单 / 用户 / 邀请码后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单、自选、对比，83 个测试 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单、自选、对比，93 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -396,6 +396,7 @@ stock/
 | [个股股息率模块计划](docs/STOCK_MODULE_PLAN.md) | V2：股票池、股息率排序、数据模型与排期 |
 | [个股 Phase 0 报告](docs/STOCK_PHASE0_REPORT.md) | 全市场列表/分红/日线数据源验证结果 |
 | [个股行业 Phase 0 报告](docs/STOCK_INDUSTRY_PHASE0_REPORT.md) | 行业字段来源、覆盖率与补全策略 |
+| [个股 Phase 1 报告](docs/STOCK_PHASE1_REPORT.md) | 500 只灰度、7,181 条分红、431 只股息率 |
 | [ADR-0008](docs/adr/0008-monetization-without-entity.md) | 登录与商业化的决策记录 |
 | [页面地图](docs/DEVELOPMENT_PLAN.md#附录-a页面地图) | 全部路由与权限 |
 

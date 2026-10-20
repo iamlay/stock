@@ -354,3 +354,77 @@ class BacktestRun(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class StockProfile(TimestampMixin, Base):
+    __tablename__ = "stock_profiles"
+
+    code: Mapped[str] = mapped_column(
+        String(16), ForeignKey("instruments.code", ondelete="CASCADE"), primary_key=True
+    )
+    industry: Mapped[str | None] = mapped_column(String(32))
+    industry_path: Mapped[str | None] = mapped_column(String(128))
+    industry_source: Mapped[str | None] = mapped_column(String(16))
+    market: Mapped[str | None] = mapped_column(String(16))
+    is_st: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    list_date: Mapped[date | None] = mapped_column(Date)
+    total_shares: Mapped[float | None] = mapped_column(Numeric(20, 4))
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+
+
+class StockDividend(Base):
+    __tablename__ = "stock_dividends"
+    __table_args__ = (
+        UniqueConstraint("code", "ex_date", "plan", name="uq_stock_dividends_code_ex_plan"),
+        Index("ix_stock_dividends_code_ex", "code", "ex_date"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(
+        String(16), ForeignKey("instruments.code", ondelete="CASCADE"), nullable=False
+    )
+    ex_date: Mapped[date] = mapped_column(Date, nullable=False)
+    fiscal_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    cash_per_share: Mapped[float] = mapped_column(Numeric(12, 6), nullable=False)
+    plan: Mapped[str] = mapped_column(String(128), nullable=False)
+    is_special: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="eastmoney")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class StockMetric(Base):
+    __tablename__ = "stock_metrics"
+    __table_args__ = (
+        Index("ix_stock_metrics_yield", "dividend_yield_ttm"),
+        Index("ix_stock_metrics_market_cap", "market_cap"),
+    )
+
+    code: Mapped[str] = mapped_column(
+        String(16), ForeignKey("instruments.code", ondelete="CASCADE"), primary_key=True
+    )
+    price: Mapped[float | None] = mapped_column(Numeric(12, 4))
+    change_pct: Mapped[float | None] = mapped_column(Numeric(8, 4))
+    market_cap: Mapped[float | None] = mapped_column(Numeric(18, 2))
+    pe_ttm: Mapped[float | None] = mapped_column(Numeric(12, 4))
+    pb: Mapped[float | None] = mapped_column(Numeric(12, 4))
+    dividend_yield_ttm: Mapped[float | None] = mapped_column(Numeric(8, 4))
+    dividend_yield_fy: Mapped[float | None] = mapped_column(Numeric(8, 4))
+    last_ex_date: Mapped[date | None] = mapped_column(Date)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class StockWatchlist(TimestampMixin, Base):
+    __tablename__ = "stock_watchlist"
+    __table_args__ = (UniqueConstraint("user_id", "code", name="uq_stock_watchlist_user_code"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    code: Mapped[str] = mapped_column(
+        String(16), ForeignKey("instruments.code", ondelete="CASCADE"), nullable=False
+    )

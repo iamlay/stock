@@ -188,7 +188,7 @@ def ttm_dividend_yield(
     today = as_of or date.today()
     cutoff = today - timedelta(days=365)
     cash = sum(
-        record.cash_per_share
+        float(record.cash_per_share)
         for record in records
         if cutoff < record.ex_date <= today
     )
@@ -206,7 +206,7 @@ def latest_fiscal_year_yield(
         return None
     year = max(years)
     cash = sum(
-        record.cash_per_share
+        float(record.cash_per_share)
         for record in records
         if record.fiscal_year == year and record.ex_date <= today
     )

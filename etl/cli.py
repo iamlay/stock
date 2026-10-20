@@ -5,11 +5,17 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
-from app.db.models import DataJob, DataQualityCheck
+from app.db.models import (
+    DataJob,
+    DataQualityCheck,
+    StockDividend,
+    StockMetric,
+    StockProfile,
+)
 from app.db.session import SessionLocal
 from app.services.invites import expire_invites
 from app.services.status import collect_status
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 
 from etl.industry_phase0 import print_report as print_industry_report
 from etl.industry_phase0 import run_probe as run_industry_probe
@@ -23,6 +29,14 @@ from etl.pipeline import (
     sync_quotes,
     sync_shares,
     sync_valuation,
+)
+from etl.sources.sina_stock import fetch_stock_universe as fetch_sina_stocks
+from etl.stocks import (
+    refresh_stock_metrics,
+    sync_stock_dividends,
+    sync_stock_pilot,
+    sync_stock_quote,
+    upsert_stock_universe,
 )
 from etl.universe import ETF_BY_CODE, ETF_UNIVERSE
 
@@ -163,6 +177,99 @@ def cmd_stock_industry_probe(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_stock_universe(args: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        total, rows = fetch_sina_stocks()
+        codes = upsert_stock_universe(session, rows, limit=args.limit)
+    print(f"stocks universe={total} stored={len(codes)} limit={args.limit}")
+    return 0
+
+
+def cmd_stock_dividends(args: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        query = (
+            select(StockProfile.code)
+            .join(StockMetric, StockMetric.code == StockProfile.code)
+            .where(StockProfile.status == "active")
+            .order_by(StockMetric.market_cap.desc())
+        )
+        if args.limit:
+            query = query.limit(args.limit)
+        codes = list(session.scalars(query).all())
+        result = sync_stock_dividends(session, codes, delay=args.delay)
+        refreshed = refresh_stock_metrics(session, codes)
+    print(
+        f"stock dividends codes={result['codes']} written={result['written']} "
+        f"errors={len(result['errors'])} metrics={refreshed}"
+    )
+    return 1 if result["errors"] and args.strict else 0
+
+
+def cmd_stock_metrics(args: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        codes = None
+        if args.limit:
+            codes = list(
+                session.scalars(
+                    select(StockMetric.code)
+                    .order_by(StockMetric.market_cap.desc())
+                    .limit(args.limit)
+                ).all()
+            )
+        refreshed = refresh_stock_metrics(session, codes)
+    print(f"stock metrics refreshed={refreshed}")
+    return 0
+
+
+def cmd_stock_sync(args: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        result = sync_stock_quote(session, args.code)
+    print(f"stock sync {args.code} dividends={result['written']} errors={len(result['errors'])}")
+    return 1 if result["errors"] else 0
+
+
+def cmd_stock_pilot(args: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        result = sync_stock_pilot(
+            session,
+            limit=args.limit,
+            dividend_limit=args.dividend_limit,
+            delay=args.delay,
+        )
+    print(
+        f"stock pilot universe={result['universe']} stored={result['stored']} "
+        f"dividend_codes={result['dividend_codes']} dividends={result['dividends']} "
+        f"errors={len(result['errors'])} metrics={result['metrics']}"
+    )
+    return 0
+
+
+def cmd_stock_status(_: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        profiles = session.scalar(select(func.count()).select_from(StockProfile)) or 0
+        metrics = session.scalar(select(func.count()).select_from(StockMetric)) or 0
+        dividends = session.scalar(select(func.count()).select_from(StockDividend)) or 0
+        with_yield = (
+            session.scalar(
+                select(func.count())
+                .select_from(StockMetric)
+                .where(StockMetric.dividend_yield_ttm.is_not(None))
+            )
+            or 0
+        )
+        st_count = (
+            session.scalar(
+                select(func.count()).select_from(StockProfile).where(StockProfile.is_st.is_(True))
+            )
+            or 0
+        )
+    print(
+        f"stocks profiles={profiles} metrics={metrics} dividends={dividends} "
+        f"with_yield={with_yield} st={st_count}"
+    )
+    return 0
+
+
 def cmd_sync_valuation(_: argparse.Namespace) -> int:
     with SessionLocal() as session:
         seed_universe(session)
@@ -243,6 +350,34 @@ def build_parser() -> argparse.ArgumentParser:
     industry.add_argument("--max-nodes", type=int, default=None)
     industry.add_argument("--out", default="etl/out/stock_industry_phase0.json")
     industry.set_defaults(func=cmd_stock_industry_probe)
+
+    stock_universe = sub.add_parser("stock-universe", help="sync A-share stock list")
+    stock_universe.add_argument("--limit", type=int, default=None)
+    stock_universe.set_defaults(func=cmd_stock_universe)
+
+    stock_dividends = sub.add_parser("stock-dividends", help="sync stock dividends")
+    stock_dividends.add_argument("--limit", type=int, default=None)
+    stock_dividends.add_argument("--delay", type=float, default=0.2)
+    stock_dividends.add_argument("--strict", action="store_true")
+    stock_dividends.set_defaults(func=cmd_stock_dividends)
+
+    stock_metrics = sub.add_parser("stock-metrics", help="recompute stock yields")
+    stock_metrics.add_argument("--limit", type=int, default=None)
+    stock_metrics.set_defaults(func=cmd_stock_metrics)
+
+    stock_sync = sub.add_parser("stock-sync", help="sync one stock on demand")
+    stock_sync.add_argument("--code", required=True)
+    stock_sync.set_defaults(func=cmd_stock_sync)
+
+    stock_pilot = sub.add_parser("stock-pilot", help="seed and sync a pilot universe")
+    stock_pilot.add_argument("--limit", type=int, default=500)
+    stock_pilot.add_argument("--dividend-limit", type=int, default=100)
+    stock_pilot.add_argument("--delay", type=float, default=0.2)
+    stock_pilot.set_defaults(func=cmd_stock_pilot)
+
+    sub.add_parser("stock-status", help="stock module row counts").set_defaults(
+        func=cmd_stock_status
+    )
 
     valuation = sub.add_parser("sync-valuation", help="snapshot index PE/PB percentiles")
     valuation.set_defaults(func=cmd_sync_valuation)
