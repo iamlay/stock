@@ -13,11 +13,19 @@ from app.db import get_session
 from app.db.models import User
 from app.security import (
     create_access_token,
+    create_action_token,
+    decode_action_token,
     generate_code,
     get_current_user,
     hash_password,
     verify_code,
     verify_password,
+)
+from app.services.email import (
+    EmailNotConfigured,
+    EmailSendError,
+    send_password_reset_email,
+    send_verification_email,
 )
 from app.services.membership import is_member, redeem_code
 from app.settings import settings
@@ -54,6 +62,7 @@ class UserOut(BaseModel):
     id: int
     phone: str | None
     email: str | None
+    email_verified: bool
     role: str
     plan: str
     plan_expires_at: str | None
@@ -64,6 +73,40 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+    verification_sent: bool = False
+    dev_verification_token: str | None = None
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=10)
+
+
+class VerifyEmailResponse(BaseModel):
+    verified: bool
+    email: EmailStr
+
+
+class ResendVerificationResponse(BaseModel):
+    sent: bool
+    dev_verification_token: str | None = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ForgotPasswordResponse(BaseModel):
+    sent: bool
+    dev_reset_token: str | None = None
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=10)
+    password: str = Field(min_length=8, max_length=128)
+
+
+class ResetPasswordResponse(BaseModel):
+    reset: bool
 
 
 class RedeemRequest(BaseModel):
@@ -82,6 +125,7 @@ def _user_out(user: User) -> UserOut:
         id=user.id,
         phone=user.phone,
         email=user.email,
+        email_verified=user.email_verified_at is not None,
         role=user.role,
         plan=user.plan,
         plan_expires_at=user.plan_expires_at.isoformat() if user.plan_expires_at else None,
@@ -89,8 +133,29 @@ def _user_out(user: User) -> UserOut:
     )
 
 
-def _token_response(user: User) -> TokenResponse:
-    return TokenResponse(access_token=create_access_token(user), user=_user_out(user))
+def _token_response(
+    user: User,
+    *,
+    verification_sent: bool = False,
+    dev_verification_token: str | None = None,
+) -> TokenResponse:
+    return TokenResponse(
+        access_token=create_access_token(user),
+        user=_user_out(user),
+        verification_sent=verification_sent,
+        dev_verification_token=dev_verification_token,
+    )
+
+
+def _send_verification(user: User) -> tuple[bool, str | None]:
+    if not user.email:
+        return False, None
+    token = create_action_token(user, "verify_email", 60 * 24)
+    try:
+        send_verification_email(user.email, token)
+    except (EmailNotConfigured, EmailSendError):
+        return False, None
+    return True, token if settings.auth_dev_mode else None
 
 
 @router.post("/auth/sms-code", response_model=SmsResponse, summary="发送登录验证码")
@@ -156,7 +221,15 @@ def register(
         session.rollback()
         raise HTTPException(status_code=409, detail="该邮箱已注册") from exc
     session.refresh(user)
-    return _token_response(user)
+
+    sent, dev_token = _send_verification(user)
+    if not sent:
+        session.delete(user)
+        session.commit()
+        raise HTTPException(status_code=503, detail="邮箱服务未配置，暂时无法注册")
+    return _token_response(
+        user, verification_sent=True, dev_verification_token=dev_token
+    )
 
 
 @router.post("/auth/login/email", response_model=TokenResponse, summary="邮箱密码登录")
@@ -175,6 +248,80 @@ def login_email(
     session.commit()
     session.refresh(user)
     return _token_response(user)
+
+
+@router.post("/auth/verify-email", response_model=VerifyEmailResponse, summary="验证邮箱")
+def verify_email(
+    payload: VerifyEmailRequest,
+    session: Annotated[Session, Depends(get_session)],
+) -> VerifyEmailResponse:
+    data = decode_action_token(payload.token, "verify_email")
+    user = session.get(User, int(data["sub"]))
+    if user is None or not user.email:
+        raise HTTPException(status_code=400, detail="链接无效或已过期")
+    if user.email_verified_at is None:
+        user.email_verified_at = datetime.now(UTC)
+        session.commit()
+    return VerifyEmailResponse(verified=True, email=user.email)
+
+
+@router.post(
+    "/auth/resend-verification",
+    response_model=ResendVerificationResponse,
+    summary="重发验证邮件",
+)
+def resend_verification(
+    session: Annotated[Session, Depends(get_session)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> ResendVerificationResponse:
+    if user.email is None:
+        raise HTTPException(status_code=400, detail="当前账号没有邮箱")
+    if user.email_verified_at is not None:
+        raise HTTPException(status_code=400, detail="邮箱已验证")
+    sent, dev_token = _send_verification(user)
+    if not sent:
+        raise HTTPException(status_code=503, detail="邮件发送失败，请稍后再试")
+    return ResendVerificationResponse(sent=True, dev_verification_token=dev_token)
+
+
+@router.post(
+    "/auth/forgot-password",
+    response_model=ForgotPasswordResponse,
+    summary="发送密码重置邮件",
+)
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    session: Annotated[Session, Depends(get_session)],
+) -> ForgotPasswordResponse:
+    email = str(payload.email).strip().lower()
+    user = session.scalar(select(User).where(User.email == email))
+    dev_token: str | None = None
+    if user is not None and user.password_hash:
+        token = create_action_token(user, "reset_password", 30)
+        try:
+            send_password_reset_email(email, token)
+        except (EmailNotConfigured, EmailSendError):
+            # Do not reveal whether the address exists; the response stays generic.
+            pass
+        else:
+            if settings.auth_dev_mode:
+                dev_token = token
+    return ForgotPasswordResponse(sent=True, dev_reset_token=dev_token)
+
+
+@router.post("/auth/reset-password", response_model=ResetPasswordResponse, summary="重置密码")
+def reset_password(
+    payload: ResetPasswordRequest,
+    session: Annotated[Session, Depends(get_session)],
+) -> ResetPasswordResponse:
+    data = decode_action_token(payload.token, "reset_password")
+    user = session.get(User, int(data["sub"]))
+    if user is None or int(data.get("ver", 0)) != user.token_version:
+        raise HTTPException(status_code=400, detail="链接无效或已过期")
+    user.password_hash = hash_password(payload.password)
+    user.token_version += 1
+    session.commit()
+    return ResetPasswordResponse(reset=True)
 
 
 @router.post("/redeem", response_model=RedeemResponse, summary="兑换码开通会员")

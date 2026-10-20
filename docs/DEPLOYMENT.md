@@ -50,8 +50,42 @@ GitHub Actions ──(公网 DATABASE_URL)──► Railway PostgreSQL
 | `STOCKLAB_SMS_PROVIDER` | `none`（接入短信后改） |
 | `STOCKLAB_GUEST_DAILY_LIMIT` | `20` |
 | `STOCKLAB_FREE_DAILY_LIMIT` | `50` |
+| `STOCKLAB_SMTP_HOST` | SMTP 主机，例如 `smtp.qq.com` |
+| `STOCKLAB_SMTP_PORT` | `465`（SSL）或 `587`（STARTTLS） |
+| `STOCKLAB_SMTP_USERNAME` | SMTP 登录名，通常是邮箱 |
+| `STOCKLAB_SMTP_PASSWORD` | SMTP 授权码 / API Key，不是邮箱登录密码 |
+| `STOCKLAB_SMTP_FROM` | 发件人，例如 `StockLab <hi@yourdomain.com>` |
+| `STOCKLAB_SMTP_STARTTLS` | `true`（587 端口） |
+| `STOCKLAB_SMTP_SSL` | `true`（465 端口） |
+| `STOCKLAB_FRONTEND_URL` | 前端公网地址，用于拼接验证/重置链接 |
 
 > `postgres://` / `postgresql://` 会被自动规范化为 `postgresql+psycopg://`，不需要手改。
+
+### 2.2.1 邮箱服务（验证 + 重置密码）
+
+生产环境必须配置 SMTP。常用免费方案：
+
+| 服务 | 主机 | 端口 | 说明 |
+|---|---|---|---|
+| QQ 邮箱 | `smtp.qq.com` | `465` | `SMTP_SSL=true`，密码填授权码 |
+| 163 邮箱 | `smtp.163.com` | `465` | 同上 |
+| Gmail | `smtp.gmail.com` | `587` | `STARTTLS=true`，使用应用专用密码 |
+| Resend | `smtp.resend.com` | `587` | 用户名 `resend`，密码 API Key，发件域名需验证 |
+
+示例（QQ 邮箱）：
+
+```text
+STOCKLAB_SMTP_HOST=smtp.qq.com
+STOCKLAB_SMTP_PORT=465
+STOCKLAB_SMTP_USERNAME=your@qq.com
+STOCKLAB_SMTP_PASSWORD=授权码
+STOCKLAB_SMTP_FROM=StockLab <your@qq.com>
+STOCKLAB_SMTP_SSL=true
+STOCKLAB_SMTP_STARTTLS=false
+STOCKLAB_FRONTEND_URL=https://stocklabweb-production.up.railway.app
+```
+
+未配置 SMTP 且 `AUTH_DEV_MODE=false` 时，注册会返回 503，不会创建无法验证的账号。
 
 ### 2.3 生成域名
 
@@ -172,6 +206,8 @@ python -m etl.cli sync-all --start 2016-01-01 --delay 0.2 && python -m etl.cli s
 - [ ] 创建管理员：本地或 CI 执行
       `STOCKLAB_DATABASE_URL=... python -m app.cli create-admin --phone 139xxxxxxxx`
 - [ ] 用邮箱注册/登录 → 个人中心 → 生成兑换码 → 兑换 → 回测 → 历史
+- [ ] 收到验证邮件，点击链接后个人中心显示“已验证”
+- [ ] 退出登录 → 忘记密码 → 收到重置邮件 → 设置新密码 → 旧密码失效
 - [ ] Vercel 域名加入 CORS
 - [ ] 手机号验证码登录在短信服务接入前应返回 503（`AUTH_DEV_MODE=false`）
 - [ ] 备份 Railway PostgreSQL（每日自动备份需在 Railway 开启）

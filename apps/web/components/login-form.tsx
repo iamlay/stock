@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -53,12 +54,20 @@ export function LoginForm() {
       setSubmitting(true);
       try {
         if (registering) {
-          await registerEmail(email, password);
+          const result = await registerEmail(email, password);
+          if (result.devVerificationToken) {
+            router.push(
+              `/verify-email?token=${encodeURIComponent(result.devVerificationToken)}`,
+            );
+          } else {
+            router.push("/account");
+          }
+          router.refresh();
         } else {
           await emailLogin(email, password);
+          router.push("/account");
+          router.refresh();
         }
-        router.push("/account");
-        router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "登录失败");
       } finally {
@@ -130,9 +139,19 @@ export function LoginForm() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="text-xs font-medium text-ink">
-                密码
-              </label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="password" className="text-xs font-medium text-ink">
+                  密码
+                </label>
+                {!registering ? (
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs text-jade-deep hover:underline"
+                  >
+                    忘记密码？
+                  </Link>
+                ) : null}
+              </div>
               <input
                 id="password"
                 type="password"
@@ -161,8 +180,8 @@ export function LoginForm() {
             ) : null}
             <p className="text-xs leading-6 text-muted">
               {registering
-                ? "注册即创建免费账号，不需要邮箱验证码；会员通过兑换码开通。"
-                : "使用邮箱和密码登录。忘记密码暂不支持自助找回。"}
+                ? "注册后会发送验证邮件，验证后账号更安全；会员仍通过兑换码开通。"
+                : "使用邮箱和密码登录。忘记密码可通过邮箱重置。"}
             </p>
           </>
         ) : (

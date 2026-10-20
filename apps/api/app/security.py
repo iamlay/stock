@@ -89,9 +89,34 @@ def create_access_token(user: User) -> str:
         "sub": str(user.id),
         "phone": user.phone,
         "role": user.role,
+        "ver": user.token_version,
         "exp": expires,
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+
+
+def create_action_token(user: User, purpose: str, ttl_minutes: int) -> str:
+    expires = datetime.now(UTC) + timedelta(minutes=ttl_minutes)
+    payload = {
+        "sub": str(user.id),
+        "purpose": purpose,
+        "ver": user.token_version,
+        "exp": expires,
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+
+
+def decode_action_token(token: str, purpose: str) -> dict:
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
+    except jwt.PyJWTError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="链接无效或已过期",
+        ) from exc
+    if payload.get("purpose") != purpose:
+        raise HTTPException(status_code=400, detail="链接无效或已过期")
+    return payload
 
 
 def decode_token(token: str) -> dict:
@@ -117,6 +142,8 @@ def get_current_user(
     user = session.get(User, int(payload["sub"]))
     if user is None or user.status != "active":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="user unavailable")
+    if int(payload.get("ver", 0)) != user.token_version:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="session expired")
     return user
 
 
@@ -128,7 +155,11 @@ def get_optional_user(
         return None
     payload = decode_token(credentials.credentials)
     user = session.get(User, int(payload["sub"]))
-    return user if user is not None and user.status == "active" else None
+    if user is None or user.status != "active":
+        return None
+    if int(payload.get("ver", 0)) != user.token_version:
+        return None
+    return user
 
 
 def get_current_admin(user: Annotated[User, Depends(get_current_user)]) -> User:

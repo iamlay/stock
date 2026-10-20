@@ -172,6 +172,10 @@ class User(Base):
         String(255), nullable=True, unique=True, index=True
     )
     password_hash: Mapped[str | None] = mapped_column(String(255))
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    token_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     role: Mapped[str] = mapped_column(String(16), nullable=False, default="member")
     plan: Mapped[str] = mapped_column(String(16), nullable=False, default="free")
     plan_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

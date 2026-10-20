@@ -28,8 +28,20 @@ class Settings(BaseSettings):
     otp_secret: str = "dev-only-change-me-please-32-bytes-min"
     auth_dev_mode: bool = True
     sms_provider: str = "none"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_starttls: bool = True
+    smtp_ssl: bool = False
+    frontend_url: str = "http://localhost:3000"
     guest_daily_limit: int = 20
     free_daily_limit: int = 50
+
+    @property
+    def email_configured(self) -> bool:
+        return bool(self.smtp_host and self.smtp_from)
 
     @field_validator("database_url", mode="before")
     @classmethod

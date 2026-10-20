@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W12 邮箱注册登录 |
+| 阶段 | ✅ W13 邮箱验证 + 密码重置 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码后台 / 订单后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，60 个测试 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，64 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -107,8 +107,12 @@ python -m etl.cli quality --limit 20
 | `GET /api/v1/etfs/{code}` | 详情 + 120 根日线 + 1/3/12 月收益 |
 | `GET /api/v1/market/overview` | 重点 ETF 等权涨跌、涨跌家数、成交额、领涨/领跌 |
 | `GET /api/v1/data/status` | 行数、最新交易日、份额快照、最近任务 |
-| `POST /api/v1/auth/register` | 邮箱 + 密码注册，返回 JWT |
+| `POST /api/v1/auth/register` | 邮箱 + 密码注册，返回 JWT 并发送验证邮件 |
 | `POST /api/v1/auth/login/email` | 邮箱 + 密码登录 |
+| `POST /api/v1/auth/verify-email` | 验证邮箱 token |
+| `POST /api/v1/auth/resend-verification` | 重发验证邮件（需登录） |
+| `POST /api/v1/auth/forgot-password` | 发送密码重置邮件 |
+| `POST /api/v1/auth/reset-password` | 用 token 设置新密码 |
 | `POST /api/v1/auth/sms-code` | 发送验证码；**dev 模式返回 code** |
 | `POST /api/v1/auth/login` | 手机号 + 验证码换 JWT（保留） |
 | `GET /api/v1/me` | 当前用户（Bearer） |
@@ -193,13 +197,14 @@ POST /api/v1/redeem   {"code":"SLXXXXXXXXXX"}
 
 接口：`POST/GET /api/v1/admin/orders`、`POST /api/v1/admin/orders/{order_no}/refund`。
 
-## 登录（W12）
+## 登录（W13）
 
 - 主路径：**邮箱 + 密码**注册/登录，密码用 `scrypt` 加盐哈希存储。
-- 手机号 + 6 位验证码登录保留，代码未删除；短信服务接入前，生产环境设置 `STOCKLAB_AUTH_DEV_MODE=false` 后该接口返回 503。
-- 登录换取 JWT（HS256，默认 12 小时），受保护接口：`/api/v1/me`、`/api/v1/redeem`、会员历史。
-- `users.plan` 默认 `free`，兑换码开通后变 `member`；邮箱用户与手机号用户共用同一套会员体系。
-- 暂不支持邮箱验证与密码找回，公开注册前需补这两项。
+- 注册后发送验证邮件，24 小时内有效；个人中心可重发。
+- 忘记密码：邮件重置链接 30 分钟有效；重置后 `token_version` 递增，旧密码和所有旧 JWT 立即失效。
+- 手机号 + 6 位验证码登录保留；短信服务接入前，生产环境设置 `STOCKLAB_AUTH_DEV_MODE=false` 后该接口返回 503。
+- 开发模式不连 SMTP，验证/重置 token 直接返回给前端，便于本地联调。
+- 生产环境必须配置 `STOCKLAB_SMTP_*`，否则注册返回 503。
 
 ## 目录结构
 

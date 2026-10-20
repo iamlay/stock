@@ -13,6 +13,7 @@ import {
   fetchMe,
   getToken,
   redeem,
+  resendVerification,
   type HistoryItem,
   type Me,
 } from "@/lib/auth";
@@ -33,6 +34,9 @@ export default function AccountPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [redeeming, setRedeeming] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
+  const [devVerifyToken, setDevVerifyToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -81,6 +85,21 @@ export default function AccountPage() {
     }
   }
 
+  async function onResend() {
+    setError(null);
+    setVerifyMessage(null);
+    setResending(true);
+    try {
+      const result = await resendVerification();
+      setVerifyMessage("验证邮件已发送，请检查收件箱。");
+      setDevVerifyToken(result.dev_verification_token);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "发送失败");
+    } finally {
+      setResending(false);
+    }
+  }
+
   function onLogout() {
     clearToken();
     router.push("/login");
@@ -125,6 +144,38 @@ export default function AccountPage() {
           <p className="mt-2 break-all text-lg font-medium text-ink">
             {me.email ?? me.phone ?? "—"}
           </p>
+          {me.email ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              {me.email_verified ? (
+                <span className="rounded-sm bg-jade-soft px-1.5 py-0.5 text-jade-deep">
+                  已验证
+                </span>
+              ) : (
+                <>
+                  <span className="text-loss">邮箱未验证</span>
+                  <button
+                    type="button"
+                    onClick={onResend}
+                    disabled={resending}
+                    className="text-jade-deep hover:underline disabled:opacity-50"
+                  >
+                    {resending ? "发送中…" : "重发验证邮件"}
+                  </button>
+                </>
+              )}
+            </div>
+          ) : null}
+          {verifyMessage ? (
+            <p className="mt-2 text-xs text-jade-deep">{verifyMessage}</p>
+          ) : null}
+          {devVerifyToken ? (
+            <Link
+              href={`/verify-email?token=${encodeURIComponent(devVerifyToken)}`}
+              className="mt-1 block text-xs text-jade-deep hover:underline"
+            >
+              开发模式：打开验证链接
+            </Link>
+          ) : null}
         </div>
         <div className="card p-5">
           <p className="text-xs text-muted">会员状态</p>

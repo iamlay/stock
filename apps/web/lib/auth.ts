@@ -7,6 +7,7 @@ export type Me = {
   id: number;
   phone: string | null;
   email: string | null;
+  email_verified: boolean;
   role: string;
   plan: string;
   plan_expires_at: string | null;
@@ -147,13 +148,69 @@ export async function emailLogin(email: string, password: string): Promise<Me> {
   return result.user;
 }
 
-export async function registerEmail(email: string, password: string): Promise<Me> {
-  const result = await request<{ access_token: string; user: Me }>("/api/v1/auth/register", {
+export async function registerEmail(
+  email: string,
+  password: string,
+): Promise<{
+  user: Me;
+  verificationSent: boolean;
+  devVerificationToken: string | null;
+}> {
+  const result = await request<{
+    access_token: string;
+    user: Me;
+    verification_sent: boolean;
+    dev_verification_token: string | null;
+  }>("/api/v1/auth/register", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
   setToken(result.access_token);
-  return result.user;
+  return {
+    user: result.user,
+    verificationSent: result.verification_sent,
+    devVerificationToken: result.dev_verification_token,
+  };
+}
+
+export async function verifyEmail(token: string): Promise<{ verified: boolean; email: string }> {
+  return request<{ verified: boolean; email: string }>("/api/v1/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
+export async function resendVerification(): Promise<{
+  sent: boolean;
+  dev_verification_token: string | null;
+}> {
+  return request<{ sent: boolean; dev_verification_token: string | null }>(
+    "/api/v1/auth/resend-verification",
+    { method: "POST" },
+  );
+}
+
+export async function forgotPassword(email: string): Promise<{
+  sent: boolean;
+  dev_reset_token: string | null;
+}> {
+  return request<{ sent: boolean; dev_reset_token: string | null }>(
+    "/api/v1/auth/forgot-password",
+    {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    },
+  );
+}
+
+export async function resetPassword(
+  token: string,
+  password: string,
+): Promise<{ reset: boolean }> {
+  return request<{ reset: boolean }>("/api/v1/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, password }),
+  });
 }
 
 export async function fetchMe(): Promise<Me> {
