@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W17 用户详情聚合 |
+| 阶段 | ✅ W18 用户详情分页 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码后台 / 订单后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，69 个测试 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，70 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -234,8 +234,9 @@ STOCKLAB_DATABASE_URL="postgresql+psycopg://..." \
   - 订单（按 `user_id` 或买家手机号匹配）；
   - 兑换码（绑定、兑换、关联订单）；
   - 回测历史（策略、标的、收益、交易数）。
+- 三个区块各自分页，10 条/页，接口返回 `total` 与 `page`。
 
-接口：`GET /api/v1/admin/users`、`PATCH /api/v1/admin/users/{id}`、`GET /api/v1/admin/users/{id}`。
+接口：`GET /api/v1/admin/users`、`PATCH /api/v1/admin/users/{id}`、`GET /api/v1/admin/users/{id}`、`/orders`、`/codes`、`/backtests`。
 
 ## 登录（W15）
 

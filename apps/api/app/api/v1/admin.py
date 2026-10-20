@@ -168,6 +168,30 @@ class AdminUserDetail(BaseModel):
     orders: list[OrderOut]
     codes: list[CodeOut]
     backtests: list[BacktestSummary]
+    orders_total: int
+    codes_total: int
+    backtests_total: int
+
+
+class AdminOrderPage(BaseModel):
+    items: list[OrderOut]
+    total: int
+    page: int
+    page_size: int
+
+
+class AdminCodePage(BaseModel):
+    items: list[CodeOut]
+    total: int
+    page: int
+    page_size: int
+
+
+class AdminBacktestPage(BaseModel):
+    items: list[BacktestSummary]
+    total: int
+    page: int
+    page_size: int
 
 
 def _code_out(row: RedeemCode) -> CodeOut:
@@ -575,6 +599,34 @@ def update_user(
     return _admin_user_out(user)
 
 
+def _order_conditions(user: User) -> list:
+    conditions = [PaymentOrder.user_id == user.id]
+    if user.phone:
+        conditions.append(PaymentOrder.buyer_phone == user.phone)
+    return conditions
+
+
+def _code_conditions(user: User):
+    order_ids = select(PaymentOrder.id).where(or_(*_order_conditions(user)))
+    return or_(
+        RedeemCode.bound_user_id == user.id,
+        RedeemCode.redeemed_by == user.id,
+        RedeemCode.order_id.in_(order_ids),
+    )
+
+
+def _backtest_out(row: BacktestRun) -> BacktestSummary:
+    return BacktestSummary(
+        id=row.id,
+        code=row.code,
+        strategy=row.strategy,
+        total_return=float(row.metrics.get("total_return", 0)),
+        trades=len((row.result or {}).get("trades") or []),
+        status=row.status,
+        created_at=row.created_at.isoformat(),
+    )
+
+
 @router.get("/users/{user_id}", response_model=AdminUserDetail, summary="用户详情")
 def get_user_detail(
     user_id: int,
@@ -585,56 +637,158 @@ def get_user_detail(
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
 
-    order_conditions = [PaymentOrder.user_id == user.id]
-    if user.phone:
-        order_conditions.append(PaymentOrder.buyer_phone == user.phone)
+    order_conditions = _order_conditions(user)
+    orders_total = session.scalar(
+        select(func.count()).select_from(PaymentOrder).where(*order_conditions)
+    ) or 0
     orders = session.scalars(
         select(PaymentOrder)
-        .where(or_(*order_conditions))
+        .where(*order_conditions)
         .order_by(PaymentOrder.created_at.desc())
-        .limit(50)
+        .limit(10)
     ).all()
-    order_ids = [row.id for row in orders]
 
-    code_conditions = [
-        RedeemCode.bound_user_id == user.id,
-        RedeemCode.redeemed_by == user.id,
-    ]
-    if order_ids:
-        code_conditions.append(RedeemCode.order_id.in_(order_ids))
+    code_conditions = _code_conditions(user)
+    codes_total = session.scalar(
+        select(func.count()).select_from(RedeemCode).where(code_conditions)
+    ) or 0
     codes = session.scalars(
         select(RedeemCode)
-        .where(or_(*code_conditions))
+        .where(code_conditions)
         .order_by(RedeemCode.created_at.desc())
-        .limit(50)
+        .limit(10)
     ).all()
-
     codes_by_order = {
         row.order_id: row.code for row in codes if row.order_id is not None
     }
+
+    backtests_total = session.scalar(
+        select(func.count())
+        .select_from(BacktestRun)
+        .where(BacktestRun.user_id == user.id)
+    ) or 0
     backtests = session.scalars(
         select(BacktestRun)
         .where(BacktestRun.user_id == user.id)
         .order_by(BacktestRun.created_at.desc())
-        .limit(50)
+        .limit(10)
     ).all()
 
     return AdminUserDetail(
         user=_admin_user_out(user),
         orders=[_order_out(row, codes_by_order.get(row.id)) for row in orders],
         codes=[_code_out(row) for row in codes],
-        backtests=[
-            BacktestSummary(
-                id=row.id,
-                code=row.code,
-                strategy=row.strategy,
-                total_return=float(row.metrics.get("total_return", 0)),
-                trades=len((row.result or {}).get("trades") or []),
-                status=row.status,
-                created_at=row.created_at.isoformat(),
-            )
-            for row in backtests
-        ],
+        backtests=[_backtest_out(row) for row in backtests],
+        orders_total=orders_total,
+        codes_total=codes_total,
+        backtests_total=backtests_total,
+    )
+
+
+@router.get("/users/{user_id}/orders", response_model=AdminOrderPage, summary="用户订单")
+def get_user_orders(
+    user_id: int,
+    session: Annotated[Session, Depends(get_session)],
+    _admin: Annotated[User, Depends(get_current_admin)],
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
+) -> AdminOrderPage:
+    user = session.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    conditions = _order_conditions(user)
+    total = session.scalar(
+        select(func.count()).select_from(PaymentOrder).where(*conditions)
+    ) or 0
+    rows = session.scalars(
+        select(PaymentOrder)
+        .where(*conditions)
+        .order_by(PaymentOrder.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all()
+    order_ids = [row.id for row in rows]
+    codes = (
+        dict(
+            session.execute(
+                select(RedeemCode.order_id, RedeemCode.code).where(
+                    RedeemCode.order_id.in_(order_ids)
+                )
+            ).all()
+        )
+        if order_ids
+        else {}
+    )
+    return AdminOrderPage(
+        items=[_order_out(row, codes.get(row.id)) for row in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get("/users/{user_id}/codes", response_model=AdminCodePage, summary="用户兑换码")
+def get_user_codes(
+    user_id: int,
+    session: Annotated[Session, Depends(get_session)],
+    _admin: Annotated[User, Depends(get_current_admin)],
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
+) -> AdminCodePage:
+    user = session.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    conditions = _code_conditions(user)
+    total = session.scalar(
+        select(func.count()).select_from(RedeemCode).where(conditions)
+    ) or 0
+    rows = session.scalars(
+        select(RedeemCode)
+        .where(conditions)
+        .order_by(RedeemCode.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all()
+    return AdminCodePage(
+        items=[_code_out(row) for row in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get(
+    "/users/{user_id}/backtests",
+    response_model=AdminBacktestPage,
+    summary="用户回测历史",
+)
+def get_user_backtests(
+    user_id: int,
+    session: Annotated[Session, Depends(get_session)],
+    _admin: Annotated[User, Depends(get_current_admin)],
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
+) -> AdminBacktestPage:
+    user = session.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    total = session.scalar(
+        select(func.count())
+        .select_from(BacktestRun)
+        .where(BacktestRun.user_id == user.id)
+    ) or 0
+    rows = session.scalars(
+        select(BacktestRun)
+        .where(BacktestRun.user_id == user.id)
+        .order_by(BacktestRun.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all()
+    return AdminBacktestPage(
+        items=[_backtest_out(row) for row in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
     )
 
 

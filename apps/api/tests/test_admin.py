@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 
-from app.db.models import BacktestRun, User
+from app.db.models import BacktestRun, PaymentOrder, User
 from app.db.session import get_session
 from app.main import app
 from app.security import create_access_token
@@ -283,5 +283,52 @@ def test_admin_user_detail_aggregates(session) -> None:
         assert len(body["backtests"]) == 1
         assert body["backtests"][0]["total_return"] == 12.5
         assert body["backtests"][0]["trades"] == 2
+        assert body["orders_total"] == 1
+        assert body["codes_total"] == 1
+        assert body["backtests_total"] == 1
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_admin_user_orders_paginate(session) -> None:
+    client = _client(session)
+    try:
+        headers = _headers(session)
+        target = User(
+            phone="13500000000",
+            email="paging@example.com",
+            role="member",
+            plan="free",
+            email_verified_at=datetime.now(UTC),
+        )
+        session.add(target)
+        session.commit()
+        session.refresh(target)
+        for index in range(3):
+            session.add(
+                PaymentOrder(
+                    order_no=f"SO-PAGE-{index}",
+                    platform="manual",
+                    buyer_phone=target.phone,
+                    user_id=target.id,
+                    product="member-365",
+                    amount=99,
+                    status="delivered",
+                )
+            )
+        session.commit()
+
+        first = client.get(
+            f"/api/v1/admin/users/{target.id}/orders?page=1&page_size=2",
+            headers=headers,
+        ).json()
+        assert first["total"] == 3
+        assert len(first["items"]) == 2
+
+        second = client.get(
+            f"/api/v1/admin/users/{target.id}/orders?page=2&page_size=2",
+            headers=headers,
+        ).json()
+        assert len(second["items"]) == 1
     finally:
         app.dependency_overrides.clear()

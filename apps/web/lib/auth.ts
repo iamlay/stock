@@ -110,6 +110,30 @@ export type AdminUserDetail = {
   orders: AdminOrder[];
   codes: AdminCode[];
   backtests: AdminBacktestSummary[];
+  orders_total: number;
+  codes_total: number;
+  backtests_total: number;
+};
+
+export type AdminOrderPage = {
+  items: AdminOrder[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export type AdminCodePage = {
+  items: AdminCode[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export type AdminBacktestPage = {
+  items: AdminBacktestSummary[];
+  total: number;
+  page: number;
+  page_size: number;
 };
 
 export function getToken(): string | null {
@@ -414,4 +438,28 @@ export async function adminUpdateUser(
 
 export async function adminGetUserDetail(id: number): Promise<AdminUserDetail> {
   return request<AdminUserDetail>(`/api/v1/admin/users/${id}`);
+}
+
+export async function adminUserOrders(
+  id: number,
+  page = 1,
+): Promise<AdminOrderPage> {
+  return request<AdminOrderPage>(
+    `/api/v1/admin/users/${id}/orders?page=${page}&page_size=10`,
+  );
+}
+
+export async function adminUserCodes(id: number, page = 1): Promise<AdminCodePage> {
+  return request<AdminCodePage>(
+    `/api/v1/admin/users/${id}/codes?page=${page}&page_size=10`,
+  );
+}
+
+export async function adminUserBacktests(
+  id: number,
+  page = 1,
+): Promise<AdminBacktestPage> {
+  return request<AdminBacktestPage>(
+    `/api/v1/admin/users/${id}/backtests?page=${page}&page_size=10`,
+  );
 }

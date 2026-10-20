@@ -6,10 +6,17 @@ import { useEffect, useState } from "react";
 
 import {
   adminGetUserDetail,
+  adminUserBacktests,
+  adminUserCodes,
+  adminUserOrders,
   fetchMe,
   getToken,
-  type AdminUserDetail,
+  type AdminBacktestSummary,
+  type AdminCode,
+  type AdminOrder,
 } from "@/lib/auth";
+
+const PAGE_SIZE = 10;
 
 function fmtDate(value: string | null): string {
   return value ? value.slice(0, 10) : "—";
@@ -19,11 +26,57 @@ function fmtDateTime(value: string | null): string {
   return value ? value.slice(0, 16).replace("T", " ") : "—";
 }
 
+function Pager({
+  page,
+  total,
+  onChange,
+}: {
+  page: number;
+  total: number;
+  onChange: (page: number) => void;
+}) {
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  return (
+    <div className="mt-3 flex items-center justify-between text-xs text-muted">
+      <span>
+        第 {page}/{pages} 页
+      </span>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={() => onChange(page - 1)}
+          className="rounded-sm border border-line px-2 py-1 disabled:opacity-40"
+        >
+          上一页
+        </button>
+        <button
+          type="button"
+          disabled={page >= pages}
+          onClick={() => onChange(page + 1)}
+          className="rounded-sm border border-line px-2 py-1 disabled:opacity-40"
+        >
+          下一页
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminUserDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = Number(params.id);
-  const [data, setData] = useState<AdminUserDetail | null>(null);
+  const [data, setData] = useState<Awaited<ReturnType<typeof adminGetUserDetail>> | null>(null);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [codes, setCodes] = useState<AdminCode[]>([]);
+  const [backtests, setBacktests] = useState<AdminBacktestSummary[]>([]);
+  const [ordersTotal, setOrdersTotal] = useState(0);
+  const [codesTotal, setCodesTotal] = useState(0);
+  const [backtestsTotal, setBacktestsTotal] = useState(0);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [codesPage, setCodesPage] = useState(1);
+  const [backtestsPage, setBacktestsPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,11 +97,54 @@ export default function AdminUserDetailPage() {
           setForbidden(true);
           return;
         }
-        setData(await adminGetUserDetail(id));
+        const detail = await adminGetUserDetail(id);
+        setData(detail);
+        setOrders(detail.orders);
+        setCodes(detail.codes);
+        setBacktests(detail.backtests);
+        setOrdersTotal(detail.orders_total);
+        setCodesTotal(detail.codes_total);
+        setBacktestsTotal(detail.backtests_total);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }, [id, router]);
+
+  async function loadOrders(page: number) {
+    setError(null);
+    try {
+      const result = await adminUserOrders(id, page);
+      setOrders(result.items);
+      setOrdersTotal(result.total);
+      setOrdersPage(result.page);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "加载订单失败");
+    }
+  }
+
+  async function loadCodes(page: number) {
+    setError(null);
+    try {
+      const result = await adminUserCodes(id, page);
+      setCodes(result.items);
+      setCodesTotal(result.total);
+      setCodesPage(result.page);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "加载兑换码失败");
+    }
+  }
+
+  async function loadBacktests(page: number) {
+    setError(null);
+    try {
+      const result = await adminUserBacktests(id, page);
+      setBacktests(result.items);
+      setBacktestsTotal(result.total);
+      setBacktestsPage(result.page);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "加载回测失败");
+    }
+  }
 
   if (loading) {
     return <p className="py-20 text-center text-sm text-muted">加载中…</p>;
@@ -67,7 +163,7 @@ export default function AdminUserDetailPage() {
     );
   }
 
-  const { user, orders, codes, backtests } = data;
+  const { user } = data;
 
   return (
     <div className="space-y-6">
@@ -142,7 +238,7 @@ export default function AdminUserDetailPage() {
       <section className="card p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-medium text-ink">订单</h2>
-          <span className="text-xs text-muted">最近 {orders.length} 条</span>
+          <span className="text-xs text-muted">共 {ordersTotal} 条</span>
         </div>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
@@ -177,12 +273,13 @@ export default function AdminUserDetailPage() {
         {orders.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted">暂无订单</p>
         ) : null}
+        <Pager page={ordersPage} total={ordersTotal} onChange={loadOrders} />
       </section>
 
       <section className="card p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-medium text-ink">兑换码</h2>
-          <span className="text-xs text-muted">最近 {codes.length} 条</span>
+          <span className="text-xs text-muted">共 {codesTotal} 条</span>
         </div>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
@@ -223,12 +320,13 @@ export default function AdminUserDetailPage() {
         {codes.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted">暂无兑换码</p>
         ) : null}
+        <Pager page={codesPage} total={codesTotal} onChange={loadCodes} />
       </section>
 
       <section className="card p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-medium text-ink">回测历史</h2>
-          <span className="text-xs text-muted">最近 {backtests.length} 条</span>
+          <span className="text-xs text-muted">共 {backtestsTotal} 条</span>
         </div>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
@@ -266,6 +364,7 @@ export default function AdminUserDetailPage() {
         {backtests.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted">暂无回测记录</p>
         ) : null}
+        <Pager page={backtestsPage} total={backtestsTotal} onChange={loadBacktests} />
       </section>
     </div>
   );
