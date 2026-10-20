@@ -1,15 +1,17 @@
 from datetime import date
 
 from etl.sources.eastmoney_stock import DividendRecord
+from etl.sources.industry import CompanyIndustry
 from etl.sources.sina_stock import SinaStockRow
 from etl.stocks import (
+    enrich_stock_industries,
     refresh_stock_metrics,
     sync_stock_dividends,
     sync_stock_pilot,
     upsert_stock_universe,
 )
 
-from app.db.models import StockDividend, StockMetric
+from app.db.models import StockDividend, StockMetric, StockProfile
 
 
 def make_row(code: str, name: str, cap: float) -> SinaStockRow:
@@ -69,3 +71,29 @@ def test_pilot_pipeline(session, monkeypatch) -> None:
     assert result["stored"] == 2
     assert result["metrics"] == 2
     assert session.query(StockMetric).count() == 2
+
+
+def test_enrich_industry_prefers_eastmoney(session, monkeypatch) -> None:
+    upsert_stock_universe(session, [make_row("600519", "贵州茅台", 18800)])
+    monkeypatch.setattr(
+        "etl.stocks.fetch_sina_industry_map",
+        lambda: ([], {"600519": "酿酒行业"}),
+    )
+    monkeypatch.setattr(
+        "etl.stocks.fetch_eastmoney_industry",
+        lambda code: CompanyIndustry(
+            code=code,
+            name="贵州茅台",
+            eastmoney_industry="食品饮料-饮料-白酒",
+            csrc_industry="制造业-酒",
+            board="上交所主板A股",
+            listing_date="2001-08-27",
+        ),
+    )
+    result = enrich_stock_industries(session, limit=1, delay=0)
+    profile = session.get(StockProfile, "600519")
+    assert result["eastmoney"] == 1
+    assert profile.industry == "食品饮料"
+    assert profile.industry_path == "食品饮料-饮料-白酒"
+    assert profile.industry_source == "eastmoney"
+    assert profile.list_date == date(2001, 8, 27)

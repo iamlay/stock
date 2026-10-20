@@ -32,6 +32,7 @@ from etl.pipeline import (
 )
 from etl.sources.sina_stock import fetch_stock_universe as fetch_sina_stocks
 from etl.stocks import (
+    enrich_stock_industries,
     refresh_stock_metrics,
     sync_stock_dividends,
     sync_stock_pilot,
@@ -270,6 +271,21 @@ def cmd_stock_status(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_stock_industry(args: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        result = enrich_stock_industries(
+            session,
+            limit=args.limit,
+            include_sina=not args.skip_sina,
+            delay=args.delay,
+        )
+    print(
+        f"stock industry selected={result['selected']} sina={result['sina']} "
+        f"eastmoney={result['eastmoney']} errors={len(result['errors'])}"
+    )
+    return 0
+
+
 def cmd_sync_valuation(_: argparse.Namespace) -> int:
     with SessionLocal() as session:
         seed_universe(session)
@@ -364,6 +380,12 @@ def build_parser() -> argparse.ArgumentParser:
     stock_metrics = sub.add_parser("stock-metrics", help="recompute stock yields")
     stock_metrics.add_argument("--limit", type=int, default=None)
     stock_metrics.set_defaults(func=cmd_stock_metrics)
+
+    stock_industry = sub.add_parser("stock-industry", help="enrich stock industries")
+    stock_industry.add_argument("--limit", type=int, default=500)
+    stock_industry.add_argument("--delay", type=float, default=0.2)
+    stock_industry.add_argument("--skip-sina", action="store_true")
+    stock_industry.set_defaults(func=cmd_stock_industry)
 
     stock_sync = sub.add_parser("stock-sync", help="sync one stock on demand")
     stock_sync.add_argument("--code", required=True)
