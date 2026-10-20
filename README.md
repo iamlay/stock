@@ -204,7 +204,7 @@ POST /api/v1/redeem   {"code":"SLXXXXXXXXXX"}
 - 忘记密码：邮件重置链接 30 分钟有效；重置后 `token_version` 递增，旧密码和所有旧 JWT 立即失效。
 - 手机号 + 6 位验证码登录保留；短信服务接入前，生产环境设置 `STOCKLAB_AUTH_DEV_MODE=false` 后该接口返回 503。
 - 开发模式不连 SMTP，验证/重置 token 直接返回给前端，便于本地联调。
-- 生产环境必须配置 `STOCKLAB_SMTP_*`，否则注册返回 503。
+- 生产环境支持 `smtp` / `resend` / `brevo` 三种发信方式；Railway 若无法访问 SMTP 465，用 `STOCKLAB_EMAIL_PROVIDER=resend` 走 HTTPS API。
 
 ## 目录结构
 

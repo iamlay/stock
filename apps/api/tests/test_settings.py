@@ -31,3 +31,25 @@ def test_explicit_psycopg_scheme_is_kept() -> None:
 def test_cors_origin_regex_is_optional() -> None:
     settings = Settings(cors_origin_regex=r"https://.*\.vercel\.app")
     assert settings.cors_origin_regex == r"https://.*\.vercel\.app"
+
+
+def test_email_provider_configuration() -> None:
+    assert not Settings(email_provider="smtp").email_configured
+
+    smtp = Settings(
+        email_provider="smtp",
+        smtp_host="smtp.example.com",
+        smtp_from="hi@example.com",
+    )
+    assert smtp.email_configured
+
+    resend = Settings(
+        email_provider="resend",
+        resend_api_key="re_test",
+        email_from="StockLab <hi@example.com>",
+    )
+    assert resend.email_configured
+    assert resend.from_address == "StockLab <hi@example.com>"
+
+    brevo = Settings(email_provider="brevo", brevo_api_key="brevo_test")
+    assert not brevo.email_configured

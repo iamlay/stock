@@ -87,6 +87,41 @@ STOCKLAB_FRONTEND_URL=https://stocklabweb-production.up.railway.app
 
 未配置 SMTP 且 `AUTH_DEV_MODE=false` 时，注册会返回 503，不会创建无法验证的账号。
 
+### 2.2.2 Railway 发不出邮件：改用 HTTPS API
+
+Railway 容器可能无法访问 `smtp.qq.com:465`，日志表现为：
+
+```text
+OSError: [Errno 101] Network is unreachable
+```
+
+这不是授权码问题，是出站网络限制。改用 HTTPS 邮件 API：
+
+**Resend（推荐，免费额度）**
+
+1. 注册 [resend.com](https://resend.com)，验证域名（如 `iamlay.com`）；
+2. 创建 API Key；
+3. Railway 变量：
+
+```text
+STOCKLAB_EMAIL_PROVIDER=resend
+STOCKLAB_RESEND_API_KEY=re_xxxxxxxx
+STOCKLAB_EMAIL_FROM=StockLab <noreply@iamlay.com>
+STOCKLAB_FRONTEND_URL=https://stock.iamlay.com
+STOCKLAB_AUTH_DEV_MODE=false
+```
+
+**Brevo（可验证单个发件邮箱，不一定要域名）**
+
+```text
+STOCKLAB_EMAIL_PROVIDER=brevo
+STOCKLAB_BREVO_API_KEY=xkeysib-xxxxxxxx
+STOCKLAB_EMAIL_FROM=StockLab <your@163.com>
+```
+
+> `EMAIL_FROM` 必须与 Resend 验证的域名或 Brevo 验证的发件人一致。
+> `FRONTEND_URL` 只能填一个地址，不能逗号并列。
+
 ### 2.3 生成域名
 
 API 服务 → **Settings → Networking → Generate Domain**，得到：
