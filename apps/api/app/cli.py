@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from app.db.models import RedeemCode, User
 from app.db.session import SessionLocal
+from app.services.invites import expire_invites
 
 ALPHABET = string.ascii_uppercase + string.digits
 
@@ -63,6 +64,13 @@ def cmd_create_admin(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_expire_invites(args: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        expired = expire_invites(session)
+    print(f"expired invites: {expired}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="stocklab-admin", description="StockLab admin CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -80,6 +88,9 @@ def build_parser() -> argparse.ArgumentParser:
     identity.add_argument("--phone", help="promote/create by phone")
     identity.add_argument("--email", help="promote an existing email account")
     admin.set_defaults(func=cmd_create_admin)
+
+    expire = sub.add_parser("expire-invites", help="mark expired invite codes")
+    expire.set_defaults(func=cmd_expire_invites)
 
     return parser
 

@@ -53,8 +53,31 @@ def generate_invites(
     return batch_id, rows
 
 
-def consume_invite_code(
-    session: Session,
+def expire_invites(session: Session) -> int:
+    """Mark issued codes past their expiry as expired."""
+    now = datetime.now(UTC)
+    rows = session.scalars(
+        select(InviteCode).where(
+            InviteCode.status == "issued",
+            InviteCode.expires_at.is_not(None),
+        )
+    ).all()
+    expired = 0
+    for row in rows:
+        expires = row.expires_at
+        if expires is None:
+            continue
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=UTC)
+        if expires < now:
+            row.status = "expired"
+            expired += 1
+    if expired:
+        session.commit()
+    return expired
+
+
+def consume_invite_code(    session: Session,
     raw_code: str,
     *,
     email: str | None = None,

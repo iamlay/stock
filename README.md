@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W21 手机号绑定 + 邀请码使用记录 |
+| 阶段 | ✅ W22 邀请码自动过期 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码 / 订单 / 用户 / 邀请码后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，78 个测试 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，79 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -249,7 +249,8 @@ STOCKLAB_DATABASE_URL="postgresql+psycopg://..." \
 - 按批次、状态筛选，单码/整批作废，一键复制；
 - 导出 CSV（可按状态/批次过滤）；
 - 每个邀请码可查看使用记录：邮箱、手机号、用户 ID、IP、时间；
-- 注册时校验绑定身份并原子扣减使用次数。
+- 注册时校验绑定身份并原子扣减使用次数；
+- 列表/批次/导出时自动把过期未用码标记为 `expired`；也可手动执行 `python -m app.cli expire-invites`。
 
 接口：`GET/POST /api/v1/admin/invites`、`/batches`、`/batches/{id}/revoke`、`/{code}/revoke`、`/{code}/usages`、`/export`。
 

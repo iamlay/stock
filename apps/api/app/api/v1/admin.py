@@ -22,7 +22,7 @@ from app.db.models import (
     User,
 )
 from app.security import get_current_admin
-from app.services.invites import generate_invites
+from app.services.invites import expire_invites, generate_invites
 from app.services.membership import activate_membership, new_code
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -948,6 +948,7 @@ def list_invites(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> InviteList:
+    expire_invites(session)
     conditions = []
     if status:
         conditions.append(InviteCode.status == status)
@@ -979,6 +980,7 @@ def list_invite_batches(
     session: Annotated[Session, Depends(get_session)],
     _admin: Annotated[User, Depends(get_current_admin)],
 ) -> list[InviteBatchOut]:
+    expire_invites(session)
     rows = session.execute(
         select(
             InviteCode.batch_id,
@@ -1080,6 +1082,7 @@ def export_invites(
     status: str | None = Query(default=None),
     batch_id: str | None = Query(default=None),
 ) -> Response:
+    expire_invites(session)
     statement = select(InviteCode).order_by(InviteCode.created_at.desc())
     if status:
         statement = statement.where(InviteCode.status == status)

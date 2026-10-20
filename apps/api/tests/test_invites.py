@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from fastapi.testclient import TestClient
 
 from app.db.models import InviteCode, User
@@ -251,5 +253,27 @@ def test_revoke_invite_batch(session) -> None:
 
         listed = client.get("/api/v1/admin/invites", headers=headers).json()
         assert listed["stats"]["revoked"] == 2
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_expired_invites_are_marked(session) -> None:
+    client = _client(session)
+    try:
+        headers = _admin_headers(session)
+        created = client.post(
+            "/api/v1/admin/invites",
+            json={"count": 1, "valid_days": 30},
+            headers=headers,
+        ).json()
+        code = created["codes"][0]["code"]
+        row = session.get(InviteCode, code)
+        assert row is not None
+        row.expires_at = datetime.now(UTC) - timedelta(days=1)
+        session.commit()
+
+        listed = client.get("/api/v1/admin/invites", headers=headers).json()
+        assert listed["stats"]["expired"] == 1
+        assert listed["items"][0]["status"] == "expired"
     finally:
         app.dependency_overrides.clear()
