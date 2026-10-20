@@ -250,7 +250,7 @@ STOCKLAB_DATABASE_URL="postgresql+psycopg://..." \
 - 导出 CSV（可按状态/批次过滤）；
 - 每个邀请码可查看使用记录：邮箱、手机号、用户 ID、IP、时间；
 - 注册时校验绑定身份并原子扣减使用次数；
-- 列表/批次/导出时自动把过期未用码标记为 `expired`；也可手动执行 `python -m app.cli expire-invites`。
+- 列表/批次/导出时自动把过期未用码标记为 `expired`；也可手动执行 `python -m app.cli expire-invites`，Railway Cron 每天 03:00（北京时间）自动跑一次。
 
 接口：`GET/POST /api/v1/admin/invites`、`/batches`、`/batches/{id}/revoke`、`/{code}/revoke`、`/{code}/usages`、`/export`。
 

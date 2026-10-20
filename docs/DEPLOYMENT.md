@@ -231,6 +231,45 @@ python -m etl.cli sync-all --start 2016-01-01 --delay 0.2 && python -m etl.cli s
 
 > 该方案不需要 `DATABASE_PUBLIC_URL`，也不需要 GitHub Secret。
 
+## 3.6 邀请码过期 Cron（Railway）
+
+每天把过期但未使用的邀请码标记为 `expired`。
+
+1. 同一项目 → **New → GitHub Repo** → 选同一个仓库；
+2. 服务设置：
+   - Root Directory：仓库根目录
+   - Builder：Dockerfile
+   - Dockerfile Path：`etl/Dockerfile`
+3. **Settings → Deploy → Custom Start Command**：
+
+```bash
+python -m app.cli expire-invites
+```
+
+4. **Settings → Cron Schedule**：
+
+```text
+0 19 * * *
+```
+
+Railway Cron 使用 UTC，`19:00 UTC` 即北京时间次日 `03:00`。
+
+5. 变量：
+
+```text
+STOCKLAB_DATABASE_URL=${{Postgres.DATABASE_URL}}
+```
+
+6. 不需要公网域名，也不需要额外 Secret。
+
+运行日志应出现：
+
+```text
+expired invites: 3
+```
+
+> 后台打开邀请码列表、批次、导出时也会惰性执行过期标记；Cron 只是保证没人访问时状态也能更新。
+
 ---
 
 ## 4. GitHub Actions：ETL
