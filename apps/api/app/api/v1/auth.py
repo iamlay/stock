@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -31,6 +32,7 @@ from app.services.membership import is_member, redeem_code
 from app.settings import settings
 
 router = APIRouter(tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 class SmsRequest(BaseModel):
@@ -153,7 +155,13 @@ def _send_verification(user: User) -> tuple[bool, str | None]:
     token = create_action_token(user, "verify_email", 60 * 24)
     try:
         send_verification_email(user.email, token)
-    except (EmailNotConfigured, EmailSendError):
+    except EmailNotConfigured:
+        logger.warning(
+            "SMTP not configured; set STOCKLAB_SMTP_HOST and STOCKLAB_SMTP_FROM"
+        )
+        return False, None
+    except EmailSendError:
+        logger.exception("verification email delivery failed for %s", user.email)
         return False, None
     return True, token if settings.auth_dev_mode else None
 
@@ -226,7 +234,15 @@ def register(
     if not sent:
         session.delete(user)
         session.commit()
-        raise HTTPException(status_code=503, detail="邮箱服务未配置，暂时无法注册")
+        if not settings.email_configured:
+            raise HTTPException(
+                status_code=503,
+                detail="邮箱服务未配置：请设置 STOCKLAB_SMTP_HOST 和 STOCKLAB_SMTP_FROM",
+            )
+        raise HTTPException(
+            status_code=503,
+            detail="验证邮件发送失败：请检查 SMTP 授权码、端口和发件人",
+        )
     return _token_response(
         user, verification_sent=True, dev_verification_token=dev_token
     )
@@ -280,7 +296,14 @@ def resend_verification(
         raise HTTPException(status_code=400, detail="邮箱已验证")
     sent, dev_token = _send_verification(user)
     if not sent:
-        raise HTTPException(status_code=503, detail="邮件发送失败，请稍后再试")
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "邮箱服务未配置：请设置 STOCKLAB_SMTP_HOST 和 STOCKLAB_SMTP_FROM"
+                if not settings.email_configured
+                else "验证邮件发送失败：请检查 SMTP 授权码、端口和发件人"
+            ),
+        )
     return ResendVerificationResponse(sent=True, dev_verification_token=dev_token)
 
 

@@ -26,8 +26,13 @@ def create_app() -> FastAPI:
     app.include_router(api_router, prefix="/api/v1")
 
     @app.get("/healthz", tags=["ops"], summary="健康检查")
-    def healthz() -> dict[str, str]:
-        return {"status": "ok", "service": "stocklab-api", "version": settings.version}
+    def healthz() -> dict[str, object]:
+        return {
+            "status": "ok",
+            "service": "stocklab-api",
+            "version": settings.version,
+            "email_configured": settings.email_configured,
+        }
 
     return app
 
