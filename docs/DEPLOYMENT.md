@@ -138,6 +138,21 @@ postgresql+psycopg://postgres:密码@xxx.proxy.rlwy.net:PORT/railway?sslmode=req
 
 6. 绑定自定义域名后，把新域名加入 Railway 的 `STOCKLAB_CORS_ORIGINS`（逗号分隔）。
 
+### 3.1 自定义域名（示例：stock.iamlay.com）
+
+前端绑定 `https://stock.iamlay.com` 后，API 侧同步改两个变量：
+
+```text
+STOCKLAB_CORS_ORIGINS=https://stock.iamlay.com
+STOCKLAB_FRONTEND_URL=https://stock.iamlay.com
+```
+
+- `CORS_ORIGINS` 不更新，浏览器登录/注册会被 CORS 拦截；
+- `FRONTEND_URL` 不更新，验证邮件和重置密码邮件里的链接仍指向旧域名；
+- 旧域名如果还要保留，用逗号并列：`https://stock.iamlay.com,https://old.example.com`。
+
+> 切换域名后，`localStorage` 里的 JWT 属于旧 origin，用户需要在新域名重新登录一次。
+
 ---
 
 ## 3.5 备选：Railway Cron 跑 ETL（不暴露数据库）
