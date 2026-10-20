@@ -79,7 +79,10 @@
 |---|---|---|
 | `code` | PK, FK instruments | 6 位代码 |
 | `name` | varchar(64) | 名称 |
-| `industry` | varchar(32) | 东财/申万行业 |
+| `industry` | varchar(32) | 一级行业，用于筛选 |
+| `industry_path` | varchar(128) | 完整三级路径 |
+| `industry_source` | varchar(16) | eastmoney / sina / null |
+| `industry_updated_at` | timestamptz | |
 | `market` | varchar(16) | 主板 / 创业板 / 科创板 |
 | `is_st` | boolean | ST/*ST |
 | `list_date` | date | 上市日 |
@@ -153,6 +156,8 @@ code, last_synced_at, bars_count, status
 全市场约 5,000+ 只股票，不能沿用 ETF 的“每只股票单独同步 10 年”方式。
 
 > Phase 0 实测：Eastmoney 列表接口在当前网络会被断连，Sina `hs_a` 兜底可用（5,217 只），但**没有行业字段**；Eastmoney 分红接口、腾讯单股日线可用。详见 [Phase 0 报告](STOCK_PHASE0_REPORT.md)。
+>
+> 行业 Phase 0 结论：Eastmoney F10 可作主源（15/15 样本，三级行业），但只能逐只/分批；Sina 行业节点可批量但只覆盖 2,927/5,217（56%）。首版采用 **Sina 粗分类 + Eastmoney 按需补全 + 未分类兜底**。详见 [行业 Phase 0 报告](STOCK_INDUSTRY_PHASE0_REPORT.md)。
 
 ### 5.1 每日全市场快照
 

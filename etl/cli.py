@@ -11,6 +11,8 @@ from app.services.invites import expire_invites
 from app.services.status import collect_status
 from sqlalchemy import desc, select
 
+from etl.industry_phase0 import print_report as print_industry_report
+from etl.industry_phase0 import run_probe as run_industry_probe
 from etl.phase0 import print_report, run_probe
 from etl.pipeline import (
     is_trading_session,
@@ -150,6 +152,17 @@ def cmd_stock_probe(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_stock_industry_probe(args: argparse.Namespace) -> int:
+    out = Path(args.out)
+    report = run_industry_probe(
+        samples=args.samples,
+        max_nodes=args.max_nodes,
+        out_path=out,
+    )
+    print_industry_report(report, out)
+    return 0
+
+
 def cmd_sync_valuation(_: argparse.Namespace) -> int:
     with SessionLocal() as session:
         seed_universe(session)
@@ -221,6 +234,15 @@ def build_parser() -> argparse.ArgumentParser:
     probe.add_argument("--max-pages", type=int, default=None)
     probe.add_argument("--out", default="etl/out/stock_phase0.json")
     probe.set_defaults(func=cmd_stock_probe)
+
+    industry = sub.add_parser(
+        "stock-industry-probe",
+        help="Phase 0: validate industry data sources",
+    )
+    industry.add_argument("--samples", type=int, default=20)
+    industry.add_argument("--max-nodes", type=int, default=None)
+    industry.add_argument("--out", default="etl/out/stock_industry_phase0.json")
+    industry.set_defaults(func=cmd_stock_industry_probe)
 
     valuation = sub.add_parser("sync-valuation", help="snapshot index PE/PB percentiles")
     valuation.set_defaults(func=cmd_sync_valuation)

@@ -395,6 +395,7 @@ stock/
 | [部署手册](docs/DEPLOYMENT.md) | Vercel + Railway + GitHub Actions |
 | [个股股息率模块计划](docs/STOCK_MODULE_PLAN.md) | V2：股票池、股息率排序、数据模型与排期 |
 | [个股 Phase 0 报告](docs/STOCK_PHASE0_REPORT.md) | 全市场列表/分红/日线数据源验证结果 |
+| [个股行业 Phase 0 报告](docs/STOCK_INDUSTRY_PHASE0_REPORT.md) | 行业字段来源、覆盖率与补全策略 |
 | [ADR-0008](docs/adr/0008-monetization-without-entity.md) | 登录与商业化的决策记录 |
 | [页面地图](docs/DEVELOPMENT_PLAN.md#附录-a页面地图) | 全部路由与权限 |
 

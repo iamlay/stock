@@ -7,6 +7,7 @@ from etl.sources.eastmoney_stock import (
     parse_stock_rows,
     ttm_dividend_yield,
 )
+from etl.sources.industry import parse_eastmoney_company, parse_sina_nodes
 from etl.sources.sina_stock import parse_rows as parse_sina_rows
 
 
@@ -124,3 +125,44 @@ def test_parse_sina_rows_filters_bj() -> None:
     assert rows[0].code == "600519"
     assert rows[0].market == "SH"
     assert rows[0].market_cap == 18800.0
+
+
+def test_parse_sina_industry_nodes() -> None:
+    payload = [
+        "行情中心",
+        [
+            [
+                "A股",
+                [
+                    [
+                        "新浪行业",
+                        [
+                            ["玻璃行业", "", "new_blhy"],
+                            ["传媒娱乐", "", "new_cmyl"],
+                        ],
+                    ]
+                ],
+            ]
+        ],
+    ]
+    nodes = parse_sina_nodes(payload)
+    assert len(nodes) == 2
+    assert nodes[0].code == "new_blhy"
+
+
+def test_parse_eastmoney_company_survey() -> None:
+    payload = {
+        "jbzl": [
+            {
+                "SECURITY_NAME_ABBR": "贵州茅台",
+                "EM2016": "食品饮料-饮料-白酒",
+                "INDUSTRYCSRC1": "制造业-酒、饮料和精制茶制造业",
+                "SECURITY_TYPE": "上交所主板A股",
+            }
+        ],
+        "fxxg": [{"LISTING_DATE": "2001-08-27 00:00:00"}],
+    }
+    company = parse_eastmoney_company(payload, "600519")
+    assert company.name == "贵州茅台"
+    assert company.eastmoney_industry == "食品饮料-饮料-白酒"
+    assert company.listing_date == "2001-08-27"
