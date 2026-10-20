@@ -152,6 +152,8 @@ code, last_synced_at, bars_count, status
 
 全市场约 5,000+ 只股票，不能沿用 ETF 的“每只股票单独同步 10 年”方式。
 
+> Phase 0 实测：Eastmoney 列表接口在当前网络会被断连，Sina `hs_a` 兜底可用（5,217 只），但**没有行业字段**；Eastmoney 分红接口、腾讯单股日线可用。详见 [Phase 0 报告](STOCK_PHASE0_REPORT.md)。
+
 ### 5.1 每日全市场快照
 
 - 用 Eastmoney 批量列表接口分页获取：

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 from datetime import date, timedelta
+from pathlib import Path
 
 from app.db.models import DataJob, DataQualityCheck
 from app.db.session import SessionLocal
@@ -10,6 +11,7 @@ from app.services.invites import expire_invites
 from app.services.status import collect_status
 from sqlalchemy import desc, select
 
+from etl.phase0 import print_report, run_probe
 from etl.pipeline import (
     is_trading_session,
     seed_universe,
@@ -136,6 +138,18 @@ def cmd_cron(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_stock_probe(args: argparse.Namespace) -> int:
+    out = Path(args.out)
+    report = run_probe(
+        samples=args.samples,
+        bars=args.bars,
+        out_path=out,
+        max_pages=args.max_pages,
+    )
+    print_report(report, out)
+    return 0
+
+
 def cmd_sync_valuation(_: argparse.Namespace) -> int:
     with SessionLocal() as session:
         seed_universe(session)
@@ -200,6 +214,13 @@ def build_parser() -> argparse.ArgumentParser:
     cron = sub.add_parser("cron", help="5-minute maintenance: quotes + invite expiry")
     cron.add_argument("--force", action="store_true", help="ignore trading session guard")
     cron.set_defaults(func=cmd_cron)
+
+    probe = sub.add_parser("stock-probe", help="Phase 0: validate full-market stock sources")
+    probe.add_argument("--samples", type=int, default=10)
+    probe.add_argument("--bars", type=int, default=3)
+    probe.add_argument("--max-pages", type=int, default=None)
+    probe.add_argument("--out", default="etl/out/stock_phase0.json")
+    probe.set_defaults(func=cmd_stock_probe)
 
     valuation = sub.add_parser("sync-valuation", help="snapshot index PE/PB percentiles")
     valuation.set_defaults(func=cmd_sync_valuation)
