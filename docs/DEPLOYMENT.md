@@ -241,7 +241,7 @@ python -m etl.cli sync-all --start 2016-01-01 --delay 0.2 && python -m etl.cli s
 2. 服务设置：
    - Root Directory：仓库根目录
    - Builder：Dockerfile
-   - Dockerfile Path：`etl/Dockerfile`
+   - Dockerfile Path：`apps/api/Dockerfile`
 3. **Settings → Deploy → Custom Start Command**：
 
 ```bash
@@ -278,7 +278,7 @@ expired invites: 3
 2. 服务设置：
    - Root Directory：仓库根目录
    - Builder：Dockerfile
-   - Dockerfile Path：`etl/Dockerfile`
+   - Dockerfile Path：`apps/api/Dockerfile`
 3. **Settings → Deploy → Custom Start Command**：
 
 ```bash
@@ -313,8 +313,9 @@ STOCKLAB_DATABASE_URL=${{Postgres.DATABASE_URL}}
 cron: quotes=20 latest=2026-10-20T14:35:00 expired_invites=0
 ```
 
-> 手动测试加 `--force` 可跳过交易时段守卫：
-> `python -m etl.cli cron --force`。
+> 仓库根目录的 `railway.json` 指向 `apps/api/Dockerfile`，所以 cron 服务也复用这个镜像；镜像里已包含 `etl` 代码。
+> 如果 Railway 仍按 `etl/Dockerfile` 构建，改成 `apps/api/Dockerfile`。
+> 手动测试加 `--force`：`python -m etl.cli cron --force`。
 
 ---
 

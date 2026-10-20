@@ -11,6 +11,7 @@ COPY apps/api/pyproject.toml ./
 COPY apps/api/app ./app
 COPY apps/api/alembic.ini ./
 COPY apps/api/alembic ./alembic
+COPY etl ./etl
 
 RUN pip install .
 
