@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import get_session
-from app.db.models import User
+from app.db.models import InviteUsage, User
 from app.security import (
     create_access_token,
     create_action_token,
@@ -57,6 +57,12 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     invite_code: str | None = Field(default=None, max_length=64)
+    phone: str | None = Field(default=None, pattern=r"^1[3-9]\d{9}$")
+
+
+class BindPhoneRequest(BaseModel):
+    phone: str = Field(pattern=r"^1[3-9]\d{9}$")
+    password: str = Field(min_length=8, max_length=128)
 
 
 class EmailLoginRequest(BaseModel):
@@ -235,6 +241,7 @@ def register(
     session: Annotated[Session, Depends(get_session)],
 ) -> RegisterResponse:
     email = str(payload.email).strip().lower()
+    phone = payload.phone or None
     check_rate_limit(
         session,
         key=rate_limit_key("register_ip", client_ip(request)),
@@ -252,8 +259,13 @@ def register(
     existing = session.scalar(select(User).where(User.email == email))
     if existing is not None:
         raise HTTPException(status_code=409, detail="该邮箱已注册")
+    if phone:
+        phone_owner = session.scalar(select(User).where(User.phone == phone))
+        if phone_owner is not None:
+            raise HTTPException(status_code=409, detail="该手机号已绑定其他账号")
 
     invite_ok = False
+    used_invite = None
     if payload.invite_code:
         if settings.registration_invite_code and hmac.compare_digest(
             payload.invite_code, settings.registration_invite_code
@@ -261,7 +273,12 @@ def register(
             invite_ok = True
         else:
             try:
-                consume_invite_code(session, payload.invite_code, email=email)
+                used_invite = consume_invite_code(
+                    session,
+                    payload.invite_code,
+                    email=email,
+                    phone=phone,
+                )
                 invite_ok = True
             except ValueError as exc:
                 raise HTTPException(status_code=403, detail=str(exc)) from exc
@@ -272,6 +289,7 @@ def register(
 
     user = User(
         email=email,
+        phone=phone,
         password_hash=hash_password(payload.password),
         role="member",
         plan="free",
@@ -298,6 +316,18 @@ def register(
             status_code=503,
             detail="验证邮件发送失败：请检查 SMTP 授权码、端口和发件人",
         )
+    if used_invite is not None:
+        session.add(
+            InviteUsage(
+                code=used_invite.code,
+                user_id=user.id,
+                email=email,
+                phone=phone,
+                ip=client_ip(request),
+            )
+        )
+        session.commit()
+
     return RegisterResponse(
         email=email,
         verification_sent=True,
@@ -338,6 +368,25 @@ def login_email(
     session.commit()
     session.refresh(user)
     return _token_response(user)
+
+
+@router.post("/auth/bind-phone", response_model=UserOut, summary="绑定手机号")
+def bind_phone(
+    payload: BindPhoneRequest,
+    session: Annotated[Session, Depends(get_session)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> UserOut:
+    if not user.password_hash or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="密码错误")
+    owner = session.scalar(
+        select(User).where(User.phone == payload.phone, User.id != user.id)
+    )
+    if owner is not None:
+        raise HTTPException(status_code=409, detail="该手机号已绑定其他账号")
+    user.phone = payload.phone
+    session.commit()
+    session.refresh(user)
+    return _user_out(user)
 
 
 @router.post("/auth/verify-email", response_model=VerifyEmailResponse, summary="验证邮箱")

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { EquityCurve } from "@/components/equity-curve";
 import type { BacktestResult } from "@/lib/api";
 import {
+  bindPhone,
   clearToken,
   fetchHistory,
   fetchHistoryDetail,
@@ -37,6 +38,10 @@ export default function AccountPage() {
   const [resending, setResending] = useState(false);
   const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
   const [devVerifyToken, setDevVerifyToken] = useState<string | null>(null);
+  const [bindPhoneValue, setBindPhoneValue] = useState("");
+  const [bindPassword, setBindPassword] = useState("");
+  const [binding, setBinding] = useState(false);
+  const [bindMessage, setBindMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -85,8 +90,25 @@ export default function AccountPage() {
     }
   }
 
-  async function onResend() {
-    if (!me?.email) return;
+  async function onBindPhone(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setBindMessage(null);
+    setBinding(true);
+    try {
+      const profile = await bindPhone(bindPhoneValue, bindPassword);
+      setMe(profile);
+      setBindPhoneValue("");
+      setBindPassword("");
+      setBindMessage("手机号已绑定");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "绑定失败");
+    } finally {
+      setBinding(false);
+    }
+  }
+
+  async function onResend() {    if (!me?.email) return;
     setError(null);
     setVerifyMessage(null);
     setResending(true);
@@ -205,6 +227,43 @@ export default function AccountPage() {
           </p>
         </div>
       </section>
+
+      {!me.phone && me.email ? (
+        <section className="card p-5">
+          <h2 className="text-base font-medium text-ink">绑定手机号</h2>
+          <p className="mt-1 text-xs text-muted">
+            绑定后可用于手机号邀请码、后续短信登录。需要确认当前密码。
+          </p>
+          <form onSubmit={onBindPhone} className="mt-4 flex flex-wrap items-end gap-3">
+            <label className="flex w-40 flex-col gap-1">
+              <span className="text-xs text-muted">手机号</span>
+              <input
+                value={bindPhoneValue}
+                onChange={(event) => setBindPhoneValue(event.target.value)}
+                placeholder="11 位手机号"
+                className="rounded-sm border border-line bg-surface px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="flex w-48 flex-col gap-1">
+              <span className="text-xs text-muted">当前密码</span>
+              <input
+                type="password"
+                value={bindPassword}
+                onChange={(event) => setBindPassword(event.target.value)}
+                className="rounded-sm border border-line bg-surface px-3 py-2 text-sm"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={binding}
+              className="rounded-sm bg-ink px-4 py-2 text-sm text-paper hover:bg-jade-deep disabled:opacity-50"
+            >
+              {binding ? "绑定中…" : "绑定"}
+            </button>
+          </form>
+          {bindMessage ? <p className="mt-2 text-xs text-jade-deep">{bindMessage}</p> : null}
+        </section>
+      ) : null}
 
       <section className="card p-5">
         <h2 className="text-base font-medium text-ink">兑换码</h2>

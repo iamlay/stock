@@ -262,6 +262,23 @@ class InviteCode(Base):
     )
 
 
+class InviteUsage(Base):
+    __tablename__ = "invite_code_usages"
+    __table_args__ = (Index("ix_invite_usages_code_created", "code", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(
+        ForeignKey("invite_codes.code", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    email: Mapped[str | None] = mapped_column(String(255))
+    phone: Mapped[str | None] = mapped_column(String(20))
+    ip: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class AdminAuditLog(Base):
     __tablename__ = "admin_audit_logs"
     __table_args__ = (Index("ix_admin_audit_logs_created", "created_at"),)

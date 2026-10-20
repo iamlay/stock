@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W20 邀请码绑定与导出 |
+| 阶段 | ✅ W21 手机号绑定 + 邀请码使用记录 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码 / 订单 / 用户 / 邀请码后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，75 个测试 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单，78 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -110,6 +110,7 @@ python -m etl.cli quality --limit 20
 | `POST /api/v1/auth/register` | 邮箱 + 密码注册，发送验证邮件，**不返回 JWT** |
 | `POST /api/v1/auth/login/email` | 邮箱 + 密码登录（需已验证） |
 | `POST /api/v1/auth/verify-email` | 验证邮箱 token |
+| `POST /api/v1/auth/bind-phone` | 登录后绑定手机号（需密码确认） |
 | `POST /api/v1/auth/resend-verification` | 按邮箱重发验证邮件（公开） |
 | `POST /api/v1/auth/forgot-password` | 发送密码重置邮件 |
 | `POST /api/v1/auth/reset-password` | 用 token 设置新密码 |
@@ -245,11 +246,12 @@ STOCKLAB_DATABASE_URL="postgresql+psycopg://..." \
 - 批量生成：数量、每码可用次数、有效期、备注、可选绑定邮箱/手机号；
 - 统计：总数 / 未使用 / 已用完 / 已过期 / 已作废；
 - 批次备注统计：每个批次的总数、未使用、已用完、已过期、已作废；
-- 按批次、状态筛选，单码作废，一键复制；
+- 按批次、状态筛选，单码/整批作废，一键复制；
 - 导出 CSV（可按状态/批次过滤）；
+- 每个邀请码可查看使用记录：邮箱、手机号、用户 ID、IP、时间；
 - 注册时校验绑定身份并原子扣减使用次数。
 
-接口：`GET/POST /api/v1/admin/invites`、`/batches`、`/{code}/revoke`、`/export`。
+接口：`GET/POST /api/v1/admin/invites`、`/batches`、`/batches/{id}/revoke`、`/{code}/revoke`、`/{code}/usages`、`/export`。
 
 启用强制邀请：
 
@@ -262,6 +264,7 @@ STOCKLAB_REGISTRATION_INVITE_REQUIRED=true
 ## 登录（W15）
 
 - 主路径：**邮箱 + 密码**注册/登录，密码用 `scrypt` 加盐哈希存储。
+- 注册时可填可选手机号，用于匹配手机号邀请码；登录后可在个人中心用密码确认绑定手机号。
 - **邮箱未验证不能登录**：注册只发验证邮件、不返回 JWT；验证成功后回到登录页。
 - 邮箱验证链接 24 小时有效；`/verify-email/sent` 可按邮箱重发。
 - 忘记密码：邮件重置链接 30 分钟有效；重置后 `token_version` 递增，旧密码和所有旧 JWT 立即失效。

@@ -175,6 +175,16 @@ export type AdminInviteBatch = {
   created_at: string;
 };
 
+export type AdminInviteUsage = {
+  id: number;
+  code: string;
+  user_id: number | null;
+  email: string | null;
+  phone: string | null;
+  ip: string | null;
+  created_at: string;
+};
+
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(TOKEN_KEY);
@@ -245,6 +255,7 @@ export async function registerEmail(
   email: string,
   password: string,
   inviteCode?: string,
+  phone?: string,
 ): Promise<{
   email: string;
   verificationSent: boolean;
@@ -260,12 +271,20 @@ export async function registerEmail(
       email,
       password,
       invite_code: inviteCode || undefined,
+      phone: phone || undefined,
     }),
   }).then((result) => ({
     email: result.email,
     verificationSent: result.verification_sent,
     devVerificationToken: result.dev_verification_token,
   }));
+}
+
+export async function bindPhone(phone: string, password: string): Promise<Me> {
+  return request<Me>("/api/v1/auth/bind-phone", {
+    method: "POST",
+    body: JSON.stringify({ phone, password }),
+  });
 }
 
 export async function verifyEmail(token: string): Promise<{ verified: boolean; email: string }> {
@@ -559,6 +578,29 @@ export async function adminRevokeInvite(code: string): Promise<AdminInvite> {
   return request<AdminInvite>(`/api/v1/admin/invites/${code}/revoke`, {
     method: "POST",
   });
+}
+
+export async function adminRevokeInviteBatch(
+  batchId: string,
+): Promise<{ revoked: number }> {
+  return request<{ revoked: number }>(
+    `/api/v1/admin/invites/batches/${batchId}/revoke`,
+    { method: "POST" },
+  );
+}
+
+export async function adminInviteUsages(
+  code: string,
+  page = 1,
+): Promise<{
+  items: AdminInviteUsage[];
+  total: number;
+  page: number;
+  page_size: number;
+}> {
+  return request(
+    `/api/v1/admin/invites/${code}/usages?page=${page}&page_size=20`,
+  );
 }
 
 export async function adminExportInvites(filters: {

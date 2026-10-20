@@ -148,3 +148,108 @@ def test_invite_export_csv(session) -> None:
         assert "export-test" in response.text
     finally:
         app.dependency_overrides.clear()
+
+
+def test_invite_bound_to_phone_and_usage_record(session, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "registration_invite_required", True)
+    client = _client(session)
+    try:
+        headers = _admin_headers(session)
+        created = client.post(
+            "/api/v1/admin/invites",
+            json={
+                "count": 1,
+                "max_uses": 1,
+                "valid_days": 30,
+                "bound_phone": "13812345678",
+            },
+            headers=headers,
+        ).json()
+        code = created["codes"][0]["code"]
+
+        wrong = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "phone-wrong@example.com",
+                "password": "correct-horse-1",
+                "phone": "13900001111",
+                "invite_code": code,
+            },
+        )
+        assert wrong.status_code == 403
+
+        ok = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "phone-ok@example.com",
+                "password": "correct-horse-1",
+                "phone": "13812345678",
+                "invite_code": code,
+            },
+        )
+        assert ok.status_code == 200
+
+        usages = client.get(
+            f"/api/v1/admin/invites/{code}/usages", headers=headers
+        ).json()
+        assert usages["total"] == 1
+        assert usages["items"][0]["email"] == "phone-ok@example.com"
+        assert usages["items"][0]["phone"] == "13812345678"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_bind_phone_with_password(session) -> None:
+    client = _client(session)
+    try:
+        registered = client.post(
+            "/api/v1/auth/register",
+            json={"email": "bind@example.com", "password": "correct-horse-1"},
+        ).json()
+        client.post(
+            "/api/v1/auth/verify-email",
+            json={"token": registered["dev_verification_token"]},
+        )
+        login = client.post(
+            "/api/v1/auth/login/email",
+            json={"email": "bind@example.com", "password": "correct-horse-1"},
+        ).json()
+
+        wrong = client.post(
+            "/api/v1/auth/bind-phone",
+            json={"phone": "13700001111", "password": "wrong-password"},
+            headers={"Authorization": f"Bearer {login['access_token']}"},
+        )
+        assert wrong.status_code == 401
+
+        bound = client.post(
+            "/api/v1/auth/bind-phone",
+            json={"phone": "13700001111", "password": "correct-horse-1"},
+            headers={"Authorization": f"Bearer {login['access_token']}"},
+        )
+        assert bound.status_code == 200
+        assert bound.json()["phone"] == "13700001111"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_revoke_invite_batch(session) -> None:
+    client = _client(session)
+    try:
+        headers = _admin_headers(session)
+        created = client.post(
+            "/api/v1/admin/invites",
+            json={"count": 2, "max_uses": 1},
+            headers=headers,
+        ).json()
+        revoked = client.post(
+            f"/api/v1/admin/invites/batches/{created['batch_id']}/revoke",
+            headers=headers,
+        )
+        assert revoked.status_code == 200
+        assert revoked.json()["revoked"] == 2
+
+        listed = client.get("/api/v1/admin/invites", headers=headers).json()
+        assert listed["stats"]["revoked"] == 2
+    finally:
+        app.dependency_overrides.clear()

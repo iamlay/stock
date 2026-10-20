@@ -16,6 +16,7 @@ from app.db.models import (
     AdminAuditLog,
     BacktestRun,
     InviteCode,
+    InviteUsage,
     PaymentOrder,
     RedeemCode,
     User,
@@ -262,6 +263,27 @@ class InviteBatchOut(BaseModel):
     expired: int
     revoked: int
     created_at: str
+
+
+class InviteBatchRevokeResponse(BaseModel):
+    revoked: int
+
+
+class InviteUsageOut(BaseModel):
+    id: int
+    code: str
+    user_id: int | None
+    email: str | None
+    phone: str | None
+    ip: str | None
+    created_at: str
+
+
+class InviteUsageList(BaseModel):
+    items: list[InviteUsageOut]
+    total: int
+    page: int
+    page_size: int
 
 
 def _code_out(row: RedeemCode) -> CodeOut:
@@ -1111,6 +1133,82 @@ def export_invites(
         content=buffer.getvalue(),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="invite-codes.csv"'},
+    )
+
+
+@router.post(
+    "/invites/batches/{batch_id}/revoke",
+    response_model=InviteBatchRevokeResponse,
+    summary="作废整批邀请码",
+)
+def revoke_invite_batch(
+    batch_id: str,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    admin: Annotated[User, Depends(get_current_admin)],
+) -> InviteBatchRevokeResponse:
+    rows = session.scalars(
+        select(InviteCode).where(
+            InviteCode.batch_id == batch_id,
+            InviteCode.status == "issued",
+        )
+    ).all()
+    for row in rows:
+        row.status = "revoked"
+    session.commit()
+    _audit(
+        session,
+        admin,
+        request,
+        action="revoke_invite_batch",
+        target_type="invite_batch",
+        target_id=batch_id,
+        detail={"revoked": len(rows)},
+    )
+    return InviteBatchRevokeResponse(revoked=len(rows))
+
+
+@router.get(
+    "/invites/{code}/usages",
+    response_model=InviteUsageList,
+    summary="邀请码使用记录",
+)
+def invite_usages(
+    code: str,
+    session: Annotated[Session, Depends(get_session)],
+    _admin: Annotated[User, Depends(get_current_admin)],
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+) -> InviteUsageList:
+    normalized = code.strip().upper()
+    total = session.scalar(
+        select(func.count())
+        .select_from(InviteUsage)
+        .where(InviteUsage.code == normalized)
+    ) or 0
+    rows = session.scalars(
+        select(InviteUsage)
+        .where(InviteUsage.code == normalized)
+        .order_by(InviteUsage.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all()
+    return InviteUsageList(
+        items=[
+            InviteUsageOut(
+                id=row.id,
+                code=row.code,
+                user_id=row.user_id,
+                email=row.email,
+                phone=row.phone,
+                ip=row.ip,
+                created_at=row.created_at.isoformat(),
+            )
+            for row in rows
+        ],
+        total=total,
+        page=page,
+        page_size=page_size,
     )
 
 

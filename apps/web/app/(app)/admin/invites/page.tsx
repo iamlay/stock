@@ -7,14 +7,17 @@ import { useEffect, useState } from "react";
 import {
   adminExportInvites,
   adminGenerateInvites,
+  adminInviteUsages,
   adminListInviteBatches,
   adminListInvites,
   adminRevokeInvite,
+  adminRevokeInviteBatch,
   fetchMe,
   getToken,
   type AdminInvite,
   type AdminInviteBatch,
   type AdminInviteStats,
+  type AdminInviteUsage,
 } from "@/lib/auth";
 
 const PAGE_SIZE = 10;
@@ -48,6 +51,11 @@ export default function AdminInvitesPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [usageFor, setUsageFor] = useState<AdminInvite | null>(null);
+  const [usages, setUsages] = useState<AdminInviteUsage[]>([]);
+  const [usageTotal, setUsageTotal] = useState(0);
+  const [usagePage, setUsagePage] = useState(1);
+  const [usageLoading, setUsageLoading] = useState(false);
 
   async function load(
     targetPage = 1,
@@ -118,6 +126,54 @@ export default function AdminInvitesPage() {
       await load(page);
     } catch (err) {
       setError(err instanceof Error ? err.message : "作废失败");
+    }
+  }
+
+  async function onRevokeBatch(batch: AdminInviteBatch) {
+    if (!window.confirm(`确认作废批次 ${batch.batch_id.slice(0, 8)} 中所有未使用邀请码？`)) {
+      return;
+    }
+    setError(null);
+    try {
+      const result = await adminRevokeInviteBatch(batch.batch_id);
+      setMessage(`已作废 ${result.revoked} 个邀请码`);
+      await Promise.all([load(page), adminListInviteBatches().then(setBatches)]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "批量作废失败");
+    }
+  }
+
+  async function openUsages(item: AdminInvite) {
+    setUsageFor(item);
+    setUsageLoading(true);
+    setUsages([]);
+    setUsageTotal(0);
+    setUsagePage(1);
+    setError(null);
+    try {
+      const result = await adminInviteUsages(item.code, 1);
+      setUsages(result.items);
+      setUsageTotal(result.total);
+      setUsagePage(result.page);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "加载使用记录失败");
+    } finally {
+      setUsageLoading(false);
+    }
+  }
+
+  async function loadUsagePage(page: number) {
+    if (!usageFor) return;
+    setUsageLoading(true);
+    try {
+      const result = await adminInviteUsages(usageFor.code, page);
+      setUsages(result.items);
+      setUsageTotal(result.total);
+      setUsagePage(result.page);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "加载使用记录失败");
+    } finally {
+      setUsageLoading(false);
     }
   }
 
@@ -366,17 +422,26 @@ export default function AdminInvitesPage() {
                     {item.expires_at ? item.expires_at.slice(0, 10) : "—"}
                   </td>
                   <td className="py-2 text-right">
-                    {item.status === "issued" ? (
+                    <div className="flex justify-end gap-2">
                       <button
                         type="button"
-                        onClick={() => onRevoke(item.code)}
-                        className="text-xs text-loss hover:underline"
+                        onClick={() => openUsages(item)}
+                        className="text-xs text-jade-deep hover:underline"
                       >
-                        作废
+                        记录
                       </button>
-                    ) : (
-                      <span className="text-xs text-muted">—</span>
-                    )}
+                      {item.status === "issued" ? (
+                        <button
+                          type="button"
+                          onClick={() => onRevoke(item.code)}
+                          className="text-xs text-loss hover:underline"
+                        >
+                          作废
+                        </button>
+                      ) : (
+                        <span className="text-xs text-muted">—</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -425,7 +490,8 @@ export default function AdminInvitesPage() {
                 <th className="py-2 pr-3 text-right font-medium">已用完</th>
                 <th className="py-2 pr-3 text-right font-medium">已过期</th>
                 <th className="py-2 pr-3 text-right font-medium">已作废</th>
-                <th className="py-2 font-medium">创建</th>
+                <th className="py-2 pr-3 font-medium">创建</th>
+                <th className="py-2 text-right font-medium">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -443,6 +509,19 @@ export default function AdminInvitesPage() {
                   <td className="py-2 text-xs text-muted">
                     {batch.created_at.slice(0, 10)}
                   </td>
+                  <td className="py-2 text-right">
+                    {batch.issued > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => onRevokeBatch(batch)}
+                        className="text-xs text-loss hover:underline"
+                      >
+                        作废整批
+                      </button>
+                    ) : (
+                      <span className="text-xs text-muted">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -452,6 +531,91 @@ export default function AdminInvitesPage() {
           <p className="py-6 text-center text-sm text-muted">暂无批次</p>
         ) : null}
       </section>
+
+      {usageFor ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/40 p-4">
+          <div className="my-8 w-full max-w-2xl rounded-sm bg-surface p-6 shadow-lg">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="font-serif text-xl text-ink">使用记录</h2>
+                <p className="mt-1 font-mono text-xs text-muted">{usageFor.code}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUsageFor(null)}
+                className="text-xs text-muted hover:text-ink"
+              >
+                关闭
+              </button>
+            </div>
+
+            <p className="mt-3 text-xs text-muted">共 {usageTotal} 次使用</p>
+
+            {usageLoading ? (
+              <p className="py-8 text-center text-sm text-muted">加载中…</p>
+            ) : (
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full min-w-[520px] text-sm">
+                  <thead>
+                    <tr className="border-b border-line text-left text-xs text-muted">
+                      <th className="py-2 pr-3 font-medium">邮箱</th>
+                      <th className="py-2 pr-3 font-medium">手机号</th>
+                      <th className="py-2 pr-3 font-medium">用户</th>
+                      <th className="py-2 pr-3 font-medium">IP</th>
+                      <th className="py-2 font-medium">时间</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usages.map((usage) => (
+                      <tr key={usage.id} className="border-b border-line/60">
+                        <td className="py-2 pr-3 break-all text-xs">
+                          {usage.email ?? "—"}
+                        </td>
+                        <td className="py-2 pr-3 text-xs">{usage.phone ?? "—"}</td>
+                        <td className="tnum py-2 pr-3 text-xs">
+                          {usage.user_id ?? "—"}
+                        </td>
+                        <td className="py-2 pr-3 text-xs text-muted">{usage.ip ?? "—"}</td>
+                        <td className="py-2 text-xs text-muted">
+                          {usage.created_at.slice(0, 16).replace("T", " ")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {usages.length === 0 && !usageLoading ? (
+              <p className="py-6 text-center text-sm text-muted">还没有使用记录</p>
+            ) : null}
+
+            <div className="mt-3 flex items-center justify-between text-xs text-muted">
+              <span>
+                第 {usagePage}/{Math.max(1, Math.ceil(usageTotal / 20))} 页
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={usagePage <= 1}
+                  onClick={() => loadUsagePage(usagePage - 1)}
+                  className="rounded-sm border border-line px-2 py-1 disabled:opacity-40"
+                >
+                  上一页
+                </button>
+                <button
+                  type="button"
+                  disabled={usagePage >= Math.ceil(usageTotal / 20)}
+                  onClick={() => loadUsagePage(usagePage + 1)}
+                  className="rounded-sm border border-line px-2 py-1 disabled:opacity-40"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

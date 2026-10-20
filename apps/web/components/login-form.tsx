@@ -16,6 +16,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+  const [registerPhone, setRegisterPhone] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
@@ -55,7 +56,12 @@ export function LoginForm() {
       setSubmitting(true);
       try {
         if (registering) {
-          const result = await registerEmail(email, password, inviteCode || undefined);
+          const result = await registerEmail(
+            email,
+            password,
+            inviteCode || undefined,
+            registerPhone || undefined,
+          );
           if (result.devVerificationToken) {
             router.push(
               `/verify-email?token=${encodeURIComponent(result.devVerificationToken)}`,
@@ -165,6 +171,20 @@ export function LoginForm() {
             </div>
             {registering ? (
               <>
+                <div>
+                  <label htmlFor="register-phone" className="text-xs font-medium text-ink">
+                    手机号（可选）
+                  </label>
+                  <input
+                    id="register-phone"
+                    type="tel"
+                    inputMode="numeric"
+                    value={registerPhone}
+                    onChange={(event) => setRegisterPhone(event.target.value)}
+                    placeholder="与手机号邀请码绑定"
+                    className="mt-2 w-full rounded-sm border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none placeholder:text-muted/70 focus:border-jade"
+                  />
+                </div>
                 <div>
                   <label htmlFor="invite" className="text-xs font-medium text-ink">
                     邀请码
