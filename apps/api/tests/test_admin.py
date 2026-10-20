@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 
-from app.db.models import User
+from app.db.models import BacktestRun, User
 from app.db.session import get_session
 from app.main import app
 from app.security import create_access_token
@@ -227,5 +227,61 @@ def test_admin_can_search_ban_and_grant_membership(session) -> None:
         )
         assert revoked.json()["plan"] == "free"
         assert revoked.json()["plan_expires_at"] is None
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_admin_user_detail_aggregates(session) -> None:
+    client = _client(session)
+    try:
+        headers = _headers(session)
+        target = User(
+            phone="13600000000",
+            email="detail@example.com",
+            role="member",
+            plan="free",
+            email_verified_at=datetime.now(UTC),
+        )
+        session.add(target)
+        session.commit()
+        session.refresh(target)
+
+        order = client.post(
+            "/api/v1/admin/orders",
+            json={
+                "platform": "manual",
+                "buyer_phone": target.phone,
+                "amount": 99,
+                "days": 365,
+                "product": "member-365",
+            },
+            headers=headers,
+        ).json()
+
+        session.add(
+            BacktestRun(
+                user_id=target.id,
+                code="510300",
+                strategy="dual-ma",
+                params={},
+                initial_cash=100000,
+                status="success",
+                metrics={"total_return": 12.5},
+                result={"trades": [{"side": "buy"}, {"side": "sell"}]},
+            )
+        )
+        session.commit()
+
+        detail = client.get(f"/api/v1/admin/users/{target.id}", headers=headers)
+        assert detail.status_code == 200
+        body = detail.json()
+        assert body["user"]["email"] == "detail@example.com"
+        assert len(body["orders"]) == 1
+        assert body["orders"][0]["order_no"] == order["order_no"]
+        assert len(body["codes"]) == 1
+        assert body["codes"][0]["code"] == order["code"]
+        assert len(body["backtests"]) == 1
+        assert body["backtests"][0]["total_return"] == 12.5
+        assert body["backtests"][0]["trades"] == 2
     finally:
         app.dependency_overrides.clear()

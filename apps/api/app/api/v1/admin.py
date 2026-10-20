@@ -12,7 +12,7 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db import get_session
-from app.db.models import AdminAuditLog, PaymentOrder, RedeemCode, User
+from app.db.models import AdminAuditLog, BacktestRun, PaymentOrder, RedeemCode, User
 from app.security import get_current_admin
 from app.services.membership import activate_membership, new_code
 
@@ -151,6 +151,23 @@ class AdminUserUpdate(BaseModel):
     status: Literal["active", "banned"] | None = None
     plan: Literal["free", "member"] | None = None
     days: int | None = Field(default=None, ge=1, le=3650)
+
+
+class BacktestSummary(BaseModel):
+    id: int
+    code: str
+    strategy: str
+    total_return: float
+    trades: int
+    status: str
+    created_at: str
+
+
+class AdminUserDetail(BaseModel):
+    user: AdminUserOut
+    orders: list[OrderOut]
+    codes: list[CodeOut]
+    backtests: list[BacktestSummary]
 
 
 def _code_out(row: RedeemCode) -> CodeOut:
@@ -556,6 +573,69 @@ def update_user(
         },
     )
     return _admin_user_out(user)
+
+
+@router.get("/users/{user_id}", response_model=AdminUserDetail, summary="用户详情")
+def get_user_detail(
+    user_id: int,
+    session: Annotated[Session, Depends(get_session)],
+    _admin: Annotated[User, Depends(get_current_admin)],
+) -> AdminUserDetail:
+    user = session.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    order_conditions = [PaymentOrder.user_id == user.id]
+    if user.phone:
+        order_conditions.append(PaymentOrder.buyer_phone == user.phone)
+    orders = session.scalars(
+        select(PaymentOrder)
+        .where(or_(*order_conditions))
+        .order_by(PaymentOrder.created_at.desc())
+        .limit(50)
+    ).all()
+    order_ids = [row.id for row in orders]
+
+    code_conditions = [
+        RedeemCode.bound_user_id == user.id,
+        RedeemCode.redeemed_by == user.id,
+    ]
+    if order_ids:
+        code_conditions.append(RedeemCode.order_id.in_(order_ids))
+    codes = session.scalars(
+        select(RedeemCode)
+        .where(or_(*code_conditions))
+        .order_by(RedeemCode.created_at.desc())
+        .limit(50)
+    ).all()
+
+    codes_by_order = {
+        row.order_id: row.code for row in codes if row.order_id is not None
+    }
+    backtests = session.scalars(
+        select(BacktestRun)
+        .where(BacktestRun.user_id == user.id)
+        .order_by(BacktestRun.created_at.desc())
+        .limit(50)
+    ).all()
+
+    return AdminUserDetail(
+        user=_admin_user_out(user),
+        orders=[_order_out(row, codes_by_order.get(row.id)) for row in orders],
+        codes=[_code_out(row) for row in codes],
+        backtests=[
+            BacktestSummary(
+                id=row.id,
+                code=row.code,
+                strategy=row.strategy,
+                total_return=float(row.metrics.get("total_return", 0)),
+                trades=len((row.result or {}).get("trades") or []),
+                status=row.status,
+                created_at=row.created_at.isoformat(),
+            )
+            for row in backtests
+        ],
+    )
 
 
 def _order_no() -> str:

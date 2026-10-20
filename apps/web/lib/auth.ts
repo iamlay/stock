@@ -95,6 +95,23 @@ export type AdminUser = {
   last_login_at: string | null;
 };
 
+export type AdminBacktestSummary = {
+  id: number;
+  code: string;
+  strategy: string;
+  total_return: number;
+  trades: number;
+  status: string;
+  created_at: string;
+};
+
+export type AdminUserDetail = {
+  user: AdminUser;
+  orders: AdminOrder[];
+  codes: AdminCode[];
+  backtests: AdminBacktestSummary[];
+};
+
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(TOKEN_KEY);
@@ -393,4 +410,8 @@ export async function adminUpdateUser(
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+}
+
+export async function adminGetUserDetail(id: number): Promise<AdminUserDetail> {
+  return request<AdminUserDetail>(`/api/v1/admin/users/${id}`);
 }

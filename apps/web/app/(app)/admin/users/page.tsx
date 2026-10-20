@@ -215,9 +215,12 @@ export default function AdminUsersPage() {
               {items.map((user) => (
                 <tr key={user.id} className="border-b border-line/60">
                   <td className="py-2 pr-3">
-                    <p className="break-all text-xs text-ink">
+                    <Link
+                      href={`/admin/users/${user.id}`}
+                      className="break-all text-xs text-jade-deep hover:underline"
+                    >
                       {user.email ?? user.phone ?? "—"}
-                    </p>
+                    </Link>
                     <p className="text-[11px] text-muted">
                       #{user.id} · 注册 {fmtDate(user.created_at)}
                     </p>
