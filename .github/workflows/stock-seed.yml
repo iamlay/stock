@@ -1,0 +1,56 @@
+name: Stock Seed
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Number of stocks to seed (by market cap)"
+        default: "500"
+      dividend_limit:
+        description: "Number of stocks to fetch dividends for"
+        default: "500"
+      industry:
+        description: "Enrich industries via Eastmoney F10"
+        type: boolean
+        default: true
+
+concurrency:
+  group: stock-seed
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install API package
+        run: pip install -e apps/api
+
+      - name: Run migrations
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: alembic -c apps/api/alembic.ini upgrade head
+
+      - name: Seed stocks and dividends
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: |
+          python -m etl.cli stock-pilot \
+            --limit "${{ inputs.limit }}" \
+            --dividend-limit "${{ inputs.dividend_limit }}"
+          python -m etl.cli stock-status
+
+      - name: Enrich industries
+        if: ${{ inputs.industry }}
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: |
+          python -m etl.cli stock-industry --limit "${{ inputs.limit }}" --delay 0.2
+          python -m etl.cli stock-status
