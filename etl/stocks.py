@@ -363,6 +363,7 @@ def enrich_stock_industries(
     include_sina: bool = True,
     sina_only: bool = False,
     sina_prefix: str = "sw_",
+    overwrite: bool = False,
     delay: float = 0.2,
 ) -> dict:
     """Fill stock industries from Sina (coarse) and Eastmoney F10 (precise)."""
@@ -403,9 +404,13 @@ def enrich_stock_industries(
                 profile = profiles.get(code)
                 industry = sina_map.get(code)
                 if profile is not None and industry:
-                    profile.industry = profile.industry or industry
-                    profile.industry_path = profile.industry_path or industry
-                    profile.industry_source = profile.industry_source or "sina"
+                    profile.industry = industry if overwrite else (profile.industry or industry)
+                    profile.industry_path = (
+                        industry if overwrite else (profile.industry_path or industry)
+                    )
+                    profile.industry_source = (
+                        "sina_sw1" if overwrite else (profile.industry_source or "sina")
+                    )
                     sina_count += 1
             session.commit()
         except Exception as exc:  # noqa: BLE001 - F10 can still fill

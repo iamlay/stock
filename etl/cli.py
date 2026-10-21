@@ -291,6 +291,7 @@ def cmd_stock_industry(args: argparse.Namespace) -> int:
             include_sina=not args.skip_sina,
             sina_only=args.sina_only,
             sina_prefix=args.sina_prefix,
+            overwrite=args.overwrite,
             delay=args.delay,
         )
     print(
@@ -430,6 +431,7 @@ def build_parser() -> argparse.ArgumentParser:
     stock_industry.add_argument("--skip-sina", action="store_true")
     stock_industry.add_argument("--sina-only", action="store_true")
     stock_industry.add_argument("--sina-prefix", default="sw_")
+    stock_industry.add_argument("--overwrite", action="store_true")
     stock_industry.set_defaults(func=cmd_stock_industry)
 
     stock_sync = sub.add_parser("stock-sync", help="sync one stock on demand")

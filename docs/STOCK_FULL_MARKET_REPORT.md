@@ -80,7 +80,7 @@ days: 730
 ```bash
 python -m etl.cli stock-universe --limit 5000
 python -m etl.cli stock-dividends-bulk --days 730
-python -m etl.cli stock-industry --limit 5000 --sina-only
+python -m etl.cli stock-industry --limit 5000 --sina-only --sina-prefix sw_ --overwrite --sina-prefix sw_ --overwrite
 python -m etl.cli stock-status
 ```
 

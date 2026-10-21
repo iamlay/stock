@@ -35,5 +35,5 @@ jobs:
         env:
           STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
         run: |
-          python -m etl.cli stock-industry --limit "${{ inputs.limit }}" --sina-only --sina-prefix sw_
+          python -m etl.cli stock-industry --limit "${{ inputs.limit }}" --sina-only --sina-prefix sw_ --overwrite
           python -m etl.cli stock-status
