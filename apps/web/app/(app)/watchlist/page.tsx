@@ -175,7 +175,42 @@ export default function WatchlistPage() {
             <option value="name">按名称</option>
           </select>
         </div>
-        <div className="overflow-x-auto">
+        <div className="divide-y divide-line md:hidden">
+          {sortedItems.map((item) => (
+            <div key={item.code} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <Link
+                    href={`/etf/${item.code}`}
+                    className="font-medium text-ink hover:text-jade-deep"
+                  >
+                    {item.name}
+                  </Link>
+                  <p className="tnum mt-0.5 text-[11px] text-muted">
+                    {item.code} · {item.category}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onRemove(item.code)}
+                  className="text-xs text-loss hover:underline"
+                >
+                  移除
+                </button>
+              </div>
+              <div className="mt-2 flex items-baseline gap-3 text-sm">
+                <span className="tnum text-ink">{fmtNumber(item.price, 3)}</span>
+                <span className={`tnum text-xs ${trendClass(item.change_pct)}`}>
+                  {fmtPct(item.change_pct)}
+                </span>
+                <span className="text-xs text-muted">
+                  规模 {item.aum == null ? "—" : `${fmtNumber(item.aum, 1)} 亿`}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">
@@ -264,7 +299,62 @@ export default function WatchlistPage() {
             <span className="text-xs text-muted">{stocks.length} 只</span>
           </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="divide-y divide-line md:hidden">
+          {sortedStocks.map((item) => (
+            <div key={item.code} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedStocks.has(item.code)}
+                    onChange={() => toggleStock(item.code)}
+                    aria-label={`选择 ${item.name}`}
+                    className="mt-1"
+                  />
+                  <div className="min-w-0">
+                    <Link
+                      href={`/stocks/${item.code}`}
+                      className="block truncate font-medium text-ink hover:text-jade-deep"
+                    >
+                      {item.name}
+                    </Link>
+                    <p className="tnum mt-0.5 text-[11px] text-muted">
+                      {item.code} · {item.industry ?? "未分类"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onRemoveStock(item.code)}
+                  className="text-xs text-loss hover:underline"
+                >
+                  移除
+                </button>
+              </div>
+              <div className="mt-2 flex items-baseline justify-between gap-3 text-sm">
+                <div className="flex items-baseline gap-3">
+                  <span className="tnum text-ink">
+                    {item.price == null ? "—" : item.price.toFixed(2)}
+                  </span>
+                  <span
+                    className={`tnum text-xs ${
+                      item.change_pct == null ? "text-muted" : trendClass(item.change_pct)
+                    }`}
+                  >
+                    {item.change_pct == null ? "—" : fmtPct(item.change_pct)}
+                  </span>
+                </div>
+                <span className="tnum text-xs font-medium text-jade-deep">
+                  TTM{" "}
+                  {item.dividend_yield_ttm == null
+                    ? "—"
+                    : `${item.dividend_yield_ttm.toFixed(2)}%`}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[820px] text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">

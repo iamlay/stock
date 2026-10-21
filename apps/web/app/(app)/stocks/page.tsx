@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { fetchStocks, type StockQuery } from "@/lib/stocks";
+import { StockCard, SustainBadge } from "@/components/stock-card";
 import { StockSearchBox } from "@/components/stock-search-box";
 import { fmtPct, trendClass } from "@/lib/format";
 
@@ -26,47 +27,6 @@ function pct(value: number | null): string {
 
 function money(value: number | null): string {
   return value == null ? "—" : value.toLocaleString("zh-CN", { maximumFractionDigits: 0 });
-}
-
-const SUSTAIN: Record<string, { label: string; className: string; title: string }> = {
-  stable: {
-    label: "连续",
-    className: "bg-jade-soft text-jade-deep",
-    title: "连续 5 年以上分红，股息率不高于 8%",
-  },
-  watch: {
-    label: "核查",
-    className: "bg-amber-soft text-amber",
-    title: "股息率偏高或 TTM 与年度差异较大，需核查",
-  },
-  one_off: {
-    label: "单次大额",
-    className: "bg-amber-soft text-amber",
-    title: "含单次大额或特别分红，需判断可持续性",
-  },
-  high_yield: {
-    label: "高股息",
-    className: "bg-amber-soft text-amber",
-    title: "TTM 股息率超过 15%，需核查一次性因素",
-  },
-  none: {
-    label: "无分红",
-    className: "bg-[#f1efe8] text-muted",
-    title: "近两年没有实施现金分红",
-  },
-};
-
-function SustainBadge({ value }: { value: string | null }) {
-  if (!value || !SUSTAIN[value]) return null;
-  const item = SUSTAIN[value];
-  return (
-    <span
-      title={item.title}
-      className={`mt-1 inline-block rounded-sm px-1.5 py-0.5 text-[10px] ${item.className}`}
-    >
-      {item.label}
-    </span>
-  );
 }
 
 export default async function StocksPage({
@@ -216,8 +176,14 @@ export default async function StocksPage({
         ) : data.items.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted">没有符合条件的股票。</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+          <>
+            <div className="md:hidden">
+              {data.items.map((stock) => (
+                <StockCard key={stock.code} stock={stock} />
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="border-b border-line bg-[#faf9f5] text-xs text-muted">
                 <tr>
                   <th className="px-4 py-3 font-normal">代码 / 名称</th>
@@ -282,7 +248,8 @@ export default async function StocksPage({
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
       </div>
 
