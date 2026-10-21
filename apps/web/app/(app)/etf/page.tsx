@@ -80,7 +80,6 @@ export default async function EtfListPage({
             <select
               name="sort"
               defaultValue={sort}
-              onChange={(event) => event.currentTarget.form?.requestSubmit()}
               className="rounded-sm border border-line bg-surface px-2 py-1.5 text-xs text-ink-soft"
             >
               <option value="aum">按规模</option>
@@ -88,6 +87,12 @@ export default async function EtfListPage({
               <option value="yield">按股息率</option>
               <option value="code">按代码</option>
             </select>
+            <button
+              type="submit"
+              className="rounded-sm border border-line bg-surface px-2.5 py-1.5 text-xs text-ink-soft hover:border-ink"
+            >
+              排序
+            </button>
           </form>
           <p className="tnum text-xs text-muted">
             {filtered.length} 只 · 合计规模 {totalAum.toFixed(0)} 亿 ·{" "}
