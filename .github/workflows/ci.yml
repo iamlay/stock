@@ -35,5 +35,5 @@ jobs:
           cache: pip
       - run: pip install -e "apps/api[dev]"
       - run: python -m pip install "ruff==0.17.1"
-      - run: python -m ruff check apps/api etl
+      - run: python -m ruff check apps/api etl --output-format=github
       - run: python -m pytest apps/api -q
