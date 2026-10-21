@@ -94,6 +94,16 @@ def test_ttm_and_fiscal_year_yield() -> None:
     assert fy == 3.92
 
 
+def test_fiscal_year_ignores_current_partial_year() -> None:
+    records = [
+        DividendRecord("603165", "荣晟环保", date(2026, 9, 8), 2026, 0.6, "", False),
+        DividendRecord("603165", "荣晟环保", date(2026, 6, 9), 2025, 1.1, "", False),
+        DividendRecord("603165", "荣晟环保", date(2026, 2, 9), 2025, 0.38, "", False),
+    ]
+    fy = latest_fiscal_year_yield(records, 12.96, as_of=date(2026, 10, 20))
+    assert fy == 11.42
+
+
 def test_no_dividend_returns_none() -> None:
     ttm, cash = ttm_dividend_yield([], 10.0, as_of=date(2026, 10, 20))
     assert ttm is None

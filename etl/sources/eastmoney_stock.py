@@ -237,7 +237,10 @@ def latest_fiscal_year_yield(
     years = [record.fiscal_year for record in records if record.ex_date <= today]
     if not years or price <= 0:
         return None
-    year = max(years)
+    # Prefer the latest completed fiscal year; the current year usually only
+    # contains interim dividends and would understate the annual yield.
+    completed = [year for year in years if year < today.year]
+    year = max(completed) if completed else max(years)
     cash = sum(
         float(record.cash_per_share)
         for record in records
