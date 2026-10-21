@@ -9,6 +9,10 @@ const categoryStyles: Record<string, string> = {
   跨境: "bg-[#eef1f8] text-[#3d4f7c]",
   宽基: "bg-[#f1efe8] text-ink-soft",
   行业: "bg-[#f8ece9] text-[#9a3f2c]",
+  债券: "bg-[#eef4f1] text-[#2f6b58]",
+  商品: "bg-[#f7f0e2] text-[#8a5a20]",
+  货币: "bg-[#eef1f4] text-[#4b5b6b]",
+  策略: "bg-[#f3eef8] text-[#5b3f7a]",
 };
 
 export function EtfTable({ rows, compact = false }: { rows: Etf[]; compact?: boolean }) {

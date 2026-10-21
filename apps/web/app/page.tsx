@@ -119,7 +119,7 @@ export default async function HomePage() {
               </div>
               <dl className="mt-10 grid max-w-lg grid-cols-2 gap-x-8 gap-y-4 border-t border-line pt-6 sm:grid-cols-4">
                 {[
-                  ["20", "重点 ETF"],
+                  ["100", "精选 ETF"],
                   ["8", "规则策略"],
                   ["10 年", "日线回测"],
                   ["18:30", "每日更新"],
@@ -221,7 +221,7 @@ export default async function HomePage() {
                 <h2 className="mt-2 font-serif text-3xl text-ink">重点 ETF，一眼横评</h2>
               </div>
               <Link href="/etf" className="text-sm text-jade-deep hover:underline">
-                查看全部 20 只 →
+                查看全部 100 只 →
               </Link>
             </div>
             <div className="card mt-8 p-2 sm:p-4">

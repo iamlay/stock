@@ -1,4 +1,5 @@
 from etl import pipeline
+from etl.universe import ETF_UNIVERSE
 from fastapi.testclient import TestClient
 
 from app.db.session import get_session
@@ -29,7 +30,7 @@ def test_data_status_returns_counts(session, monkeypatch) -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert body["instruments"] == 20
+    assert body["instruments"] == len(ETF_UNIVERSE)
     assert body["daily_bars"] == 1
     assert body["latest_trade_date"] == "2024-01-02"
     assert body["last_job"]["status"] == "success"

@@ -44,7 +44,7 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W47 自选涨跌/除息提醒 |
+| 阶段 | ✅ W48 ETF 扩容到 100 只 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码 / 订单 / 用户 / 邀请码后台 |
@@ -407,6 +407,7 @@ stock/
 | [个股数据质量](docs/STOCK_QUALITY_REPORT.md) | 股息率/价格/行业/分红/时效检查 |
 | [备份与安全](docs/BACKUP_SECURITY.md) | 加密备份、恢复演练、密钥轮换、DB 公网收口 |
 | [自选提醒](docs/STOCK_ALERTS.md) | 涨跌/除息站内提醒，可选邮件 |
+| [ETF 100 只](docs/ETF_100.md) | 100 只精选 ETF 分类、启用步骤与验收 |
 | [部署手册](docs/DEPLOYMENT.md) | 含个股每日/每周定时任务 |
 | [ADR-0008](docs/adr/0008-monetization-without-entity.md) | 登录与商业化的决策记录 |
 | [页面地图](docs/DEVELOPMENT_PLAN.md#附录-a页面地图) | 全部路由与权限 |

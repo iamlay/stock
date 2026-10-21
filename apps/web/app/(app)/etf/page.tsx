@@ -11,25 +11,45 @@ export const revalidate = 60;
 export default async function EtfListPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{ category?: string; q?: string; page?: string }>;
 }) {
-  const { category } = await searchParams;
+  const { category, q, page } = await searchParams;
   const active = categories.includes(category as EtfCategory) ? (category as EtfCategory) : null;
+  const term = (q ?? "").trim().toLowerCase();
+  const pageNum = Math.max(1, Number(page) || 1);
+  const PAGE_SIZE = 20;
 
   const apiEtfs = await fetchEtfs();
   const live = Boolean(apiEtfs && apiEtfs.length > 0);
   const all = apiEtfs && apiEtfs.length > 0 ? apiEtfs.map(toEtf) : etfs;
-  const rows = active ? all.filter((etf) => etf.category === active) : all;
-  const totalAum = rows.reduce((sum, etf) => sum + (etf.aum ?? 0), 0);
+  const filtered = all
+    .filter((etf) => (active ? etf.category === active : true))
+    .filter((etf) =>
+      term
+        ? etf.code.toLowerCase().includes(term) || etf.name.toLowerCase().includes(term)
+        : true,
+    );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(pageNum, totalPages);
+  const rows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const totalAum = filtered.reduce((sum, etf) => sum + (etf.aum ?? 0), 0);
   const dataDate = apiEtfs?.[0]?.trade_date ?? null;
   const quoteTime = apiEtfs?.[0]?.quote_time ?? null;
+
+  function pageHref(target: number): string {
+    const search = new URLSearchParams();
+    if (active) search.set("category", active);
+    if (term) search.set("q", term);
+    search.set("page", String(target));
+    return `/etf?${search.toString()}`;
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-serif text-3xl text-ink">ETF 数据</h1>
-          <p className="mt-1 text-sm text-muted">20 只重点标的 · 红利 / 现金流 / 跨境 / 宽基 / 行业</p>
+          <p className="mt-1 text-sm text-muted">100 只精选标的 · 红利 / 现金流 / 跨境 / 宽基 / 行业 / 债券 / 商品 / 货币</p>
         </div>
         <div className="flex items-center gap-3">
           <Link
@@ -39,7 +59,7 @@ export default async function EtfListPage({
             对比
           </Link>
           <p className="tnum text-xs text-muted">
-            {rows.length} 只 · 合计规模 {totalAum.toFixed(0)} 亿 ·{" "}
+            {filtered.length} 只 · 合计规模 {totalAum.toFixed(0)} 亿 ·{" "}
             {live
               ? `数据 ${dataDate}${quoteTime ? ` · 更新 ${quoteTime.slice(11, 16)}` : ""}`
               : "示例数据"}
@@ -73,9 +93,56 @@ export default async function EtfListPage({
         ))}
       </div>
 
+      <form method="get" action="/etf" className="flex flex-wrap items-center gap-2">
+        {active ? <input type="hidden" name="category" value={active} /> : null}
+        <input
+          name="q"
+          defaultValue={q ?? ""}
+          placeholder="搜索代码或名称"
+          className="w-56 rounded-sm border border-line bg-surface px-3 py-2 text-sm text-ink"
+        />
+        <button
+          type="submit"
+          className="rounded-sm bg-ink px-4 py-2 text-sm font-medium text-paper"
+        >
+          搜索
+        </button>
+        {term ? (
+          <Link href={active ? `/etf?category=${encodeURIComponent(active)}` : "/etf"} className="text-xs text-jade-deep hover:underline">
+            清除
+          </Link>
+        ) : null}
+      </form>
+
       <div className="card p-2 sm:p-4">
         <EtfTable rows={rows} />
       </div>
+
+      {totalPages > 1 ? (
+        <div className="flex items-center justify-between text-xs text-muted">
+          <span>
+            第 {currentPage} / {totalPages} 页
+          </span>
+          <div className="flex gap-2">
+            {currentPage > 1 ? (
+              <Link
+                href={pageHref(currentPage - 1)}
+                className="rounded-sm border border-line bg-surface px-3 py-1.5 hover:border-ink"
+              >
+                上一页
+              </Link>
+            ) : null}
+            {currentPage < totalPages ? (
+              <Link
+                href={pageHref(currentPage + 1)}
+                className="rounded-sm border border-line bg-surface px-3 py-1.5 hover:border-ink"
+              >
+                下一页
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid gap-3 text-xs leading-6 text-muted sm:grid-cols-3">
         <p className="rounded-sm border border-line bg-surface p-4">

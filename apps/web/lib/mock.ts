@@ -1,4 +1,13 @@
-export type EtfCategory = "红利" | "现金流" | "跨境" | "宽基" | "行业";
+export type EtfCategory =
+  | "红利"
+  | "现金流"
+  | "跨境"
+  | "宽基"
+  | "行业"
+  | "债券"
+  | "商品"
+  | "货币"
+  | "策略";
 
 export type Etf = {
   code: string;
@@ -64,7 +73,17 @@ export const etfs: Etf[] = [
   { code: "515030", name: "新能源车ETF", category: "行业", price: 1.174, change: -0.86, aum: 96.3, dividendYield: 0.8, pePercentile: 58 },
 ];
 
-export const categories: EtfCategory[] = ["红利", "现金流", "跨境", "宽基", "行业"];
+export const categories: EtfCategory[] = [
+  "红利",
+  "现金流",
+  "跨境",
+  "宽基",
+  "行业",
+  "债券",
+  "商品",
+  "货币",
+  "策略",
+];
 
 export const sectors = [
   { name: "电子", change: 2.4 },

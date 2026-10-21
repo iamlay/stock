@@ -2,6 +2,7 @@ from datetime import date
 
 from etl import pipeline
 from etl.sources.eastmoney import DailyBar, DailySeries
+from etl.universe import ETF_UNIVERSE
 from sqlalchemy import func, select
 
 from app.db.models import DataJob, DataQualityCheck, MarketDaily, TradingCalendar
@@ -18,11 +19,11 @@ def make_series(code: str = "510300") -> DailySeries:
 
 def test_seed_universe(session) -> None:
     count = pipeline.seed_universe(session)
-    assert count == 20
+    assert count == len(ETF_UNIVERSE)
     assert session.scalar(select(func.count()).select_from(MarketDaily)) == 0
 
     # Idempotent
-    assert pipeline.seed_universe(session) == 20
+    assert pipeline.seed_universe(session) == len(ETF_UNIVERSE)
 
 
 def test_sync_code_is_idempotent(session, monkeypatch) -> None:
@@ -57,6 +58,6 @@ def test_sync_all_collects_calendar(session, monkeypatch) -> None:
     monkeypatch.setattr(pipeline, "_fetch_series", lambda code, start, end: make_series(code))
 
     results = pipeline.sync_all(session, date(2024, 1, 1), date(2024, 1, 5), delay_seconds=0)
-    assert len(results) == 20
+    assert len(results) == len(ETF_UNIVERSE)
     assert all(item.status == "success" for item in results)
     assert session.scalar(select(func.count()).select_from(TradingCalendar)) == 3
