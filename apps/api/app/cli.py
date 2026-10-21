@@ -9,6 +9,7 @@ from sqlalchemy import select, update
 
 from app.db.models import RedeemCode, User
 from app.db.session import SessionLocal
+from app.services.alerts import run_stock_alerts
 from app.services.invites import expire_invites
 from app.settings import settings
 
@@ -122,6 +123,16 @@ def cmd_rotate_tokens(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_stock_alerts(_: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        result = run_stock_alerts(session)
+    print(
+        f"stock alerts users={result['users']} notifications={result['notifications']} "
+        f"emails={result['emails']}"
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="stocklab-admin", description="StockLab admin CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -148,6 +159,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     rotate = sub.add_parser("rotate-tokens", help="invalidate all user sessions")
     rotate.set_defaults(func=cmd_rotate_tokens)
+
+    alerts = sub.add_parser("stock-alerts", help="send watchlist price/dividend alerts")
+    alerts.set_defaults(func=cmd_stock_alerts)
 
     return parser
 

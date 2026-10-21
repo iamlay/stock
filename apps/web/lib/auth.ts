@@ -385,6 +385,57 @@ export async function removeStockWatchlist(
   );
 }
 
+export type NotificationItem = {
+  id: number;
+  type: string;
+  code: string;
+  title: string;
+  body: string;
+  link: string | null;
+  read: boolean;
+  created_at: string;
+};
+
+export type NotificationPage = {
+  items: NotificationItem[];
+  unread: number;
+};
+
+export type AlertSettings = {
+  price_pct: number;
+  dividend: boolean;
+  email: boolean;
+};
+
+export async function fetchNotifications(): Promise<NotificationPage> {
+  return request<NotificationPage>("/api/v1/notifications");
+}
+
+export async function markNotificationRead(id: number): Promise<{ id: number; read: boolean }> {
+  return request<{ id: number; read: boolean }>(`/api/v1/notifications/${id}/read`, {
+    method: "POST",
+  });
+}
+
+export async function markAllNotificationsRead(): Promise<{ updated: number }> {
+  return request<{ updated: number }>("/api/v1/notifications/read-all", {
+    method: "POST",
+  });
+}
+
+export async function fetchAlertSettings(): Promise<AlertSettings> {
+  return request<AlertSettings>("/api/v1/notifications/settings");
+}
+
+export async function updateAlertSettings(
+  body: Partial<AlertSettings>,
+): Promise<AlertSettings> {
+  return request<AlertSettings>("/api/v1/notifications/settings", {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function adminListStocks(params: {
   q?: string;
   page?: number;

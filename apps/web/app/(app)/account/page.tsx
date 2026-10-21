@@ -143,6 +143,12 @@ export default function AccountPage() {
           <p className="mt-1 text-sm text-muted">账号、会员与回测历史</p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/notifications"
+            className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"
+          >
+            提醒设置
+          </Link>
           {me.role === "admin" ? (
             <>
               <Link

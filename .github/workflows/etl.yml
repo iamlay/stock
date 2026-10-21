@@ -54,3 +54,8 @@ jobs:
         run: |
           python -m etl.cli stock-daily
           python -m etl.cli stock-status
+
+      - name: Watchlist alerts
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: python -m app.cli stock-alerts

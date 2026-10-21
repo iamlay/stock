@@ -7,6 +7,7 @@ from app.api.v1 import (
     data,
     etfs,
     market,
+    notifications,
     plans,
     stock_watchlist,
     stocks,
@@ -23,5 +24,6 @@ api_router.include_router(market.router)
 api_router.include_router(stocks.router)
 api_router.include_router(stocks.admin_router)
 api_router.include_router(stock_watchlist.router)
+api_router.include_router(notifications.router)
 api_router.include_router(watchlist.router)
 api_router.include_router(plans.router)
