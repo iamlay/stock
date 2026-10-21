@@ -26,10 +26,15 @@ jobs:
           BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ]; then
-            echo "BACKUP_ENCRYPTION_KEY is not configured" >&2
+          if [ -z "${STOCKLAB_DATABASE_URL:-}" ]; then
+            echo "::error title=Missing STOCKLAB_DATABASE_URL::Configure the repository secret STOCKLAB_DATABASE_URL"
             exit 1
           fi
+          if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ]; then
+            echo "::error title=Missing BACKUP_ENCRYPTION_KEY::Add a repository secret named BACKUP_ENCRYPTION_KEY"
+            exit 1
+          fi
+          trap 'echo "::error title=DB backup failed::pg_dump or openssl failed at line $LINENO"' ERR
           DB_URL="${STOCKLAB_DATABASE_URL/postgresql+psycopg/postgresql}"
           pg_dump "$DB_URL" \
             --format=custom \
