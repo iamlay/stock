@@ -36,6 +36,7 @@ from etl.stocks import (
     refresh_stock_metrics,
     sync_stock_daily,
     sync_stock_dividends,
+    sync_stock_dividends_bulk,
     sync_stock_pilot,
     sync_stock_quote,
     upsert_stock_universe,
@@ -207,6 +208,16 @@ def cmd_stock_dividends(args: argparse.Namespace) -> int:
     return 1 if result["errors"] and args.strict else 0
 
 
+def cmd_stock_dividends_bulk(args: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        result = sync_stock_dividends_bulk(session, days=args.days)
+    print(
+        f"stock dividends bulk codes={result['codes']} records={result['records']} "
+        f"written={result['written']} metrics={result.get('metrics', 0)}"
+    )
+    return 0
+
+
 def cmd_stock_metrics(args: argparse.Namespace) -> int:
     with SessionLocal() as session:
         codes = None
@@ -278,6 +289,7 @@ def cmd_stock_industry(args: argparse.Namespace) -> int:
             session,
             limit=args.limit,
             include_sina=not args.skip_sina,
+            sina_only=args.sina_only,
             delay=args.delay,
         )
     print(
@@ -400,6 +412,13 @@ def build_parser() -> argparse.ArgumentParser:
     stock_dividends.add_argument("--strict", action="store_true")
     stock_dividends.set_defaults(func=cmd_stock_dividends)
 
+    stock_dividends_bulk = sub.add_parser(
+        "stock-dividends-bulk",
+        help="sync all dividends in bulk",
+    )
+    stock_dividends_bulk.add_argument("--days", type=int, default=730)
+    stock_dividends_bulk.set_defaults(func=cmd_stock_dividends_bulk)
+
     stock_metrics = sub.add_parser("stock-metrics", help="recompute stock yields")
     stock_metrics.add_argument("--limit", type=int, default=None)
     stock_metrics.set_defaults(func=cmd_stock_metrics)
@@ -408,6 +427,7 @@ def build_parser() -> argparse.ArgumentParser:
     stock_industry.add_argument("--limit", type=int, default=500)
     stock_industry.add_argument("--delay", type=float, default=0.2)
     stock_industry.add_argument("--skip-sina", action="store_true")
+    stock_industry.add_argument("--sina-only", action="store_true")
     stock_industry.set_defaults(func=cmd_stock_industry)
 
     stock_sync = sub.add_parser("stock-sync", help="sync one stock on demand")

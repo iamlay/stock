@@ -6,9 +6,9 @@ on:
     - cron: "0 11 * * 1"
   workflow_dispatch:
     inputs:
-      limit:
-        description: "Number of stocks to refresh dividends for"
-        default: "500"
+      days:
+        description: "Dividend lookback days"
+        default: "730"
 
 concurrency:
   group: stock-dividends
@@ -38,5 +38,5 @@ jobs:
         env:
           STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
         run: |
-          python -m etl.cli stock-dividends --limit "${{ inputs.limit }}" --delay 0.15
+          python -m etl.cli stock-dividends-bulk --days "${{ inputs.days }}"
           python -m etl.cli stock-status

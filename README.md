@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W37 个股 K 线与任意代码 |
+| 阶段 | ✅ W38 个股全市场 5,000 只 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码 / 订单 / 用户 / 邀请码后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单、自选、对比、个股，99 个测试 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单、自选、对比、个股，100 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -403,6 +403,7 @@ stock/
 | [个股行业 Phase 1.5 报告](docs/STOCK_INDUSTRY_PHASE1_REPORT.md) | 500 只行业补全，500/500 成功 |
 | [个股 Phase 2 报告](docs/STOCK_PHASE2_REPORT.md) | 列表/详情/管理 API，97 个测试 |
 | [个股 Phase 3 报告](docs/STOCK_PHASE3_REPORT.md) | 列表/详情/自选/管理页面 |
+| [个股全市场报告](docs/STOCK_FULL_MARKET_REPORT.md) | 5,000 只扩量、批量分红、生产工作流 |
 | [部署手册](docs/DEPLOYMENT.md) | 含个股每日/每周定时任务 |
 | [ADR-0008](docs/adr/0008-monetization-without-entity.md) | 登录与商业化的决策记录 |
 | [页面地图](docs/DEVELOPMENT_PLAN.md#附录-a页面地图) | 全部路由与权限 |

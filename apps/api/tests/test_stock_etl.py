@@ -8,6 +8,7 @@ from etl.stocks import (
     refresh_stock_metrics,
     sync_stock_daily,
     sync_stock_dividends,
+    sync_stock_dividends_bulk,
     sync_stock_pilot,
     upsert_stock_universe,
 )
@@ -114,3 +115,20 @@ def test_daily_only_updates_existing_stocks(session, monkeypatch) -> None:
     assert session.get(StockProfile, "000001") is None
     metric = session.get(StockMetric, "600519")
     assert float(metric.market_cap) == 19000
+
+
+def test_bulk_dividends_only_keeps_known_codes(session, monkeypatch) -> None:
+    upsert_stock_universe(
+        session,
+        [make_row("600519", "贵州茅台", 18800), make_row("000001", "平安银行", 2000)],
+    )
+    records = [
+        DividendRecord("600519", "贵州茅台", date(2026, 6, 26), 2025, 28.0, "10派280", False),
+        DividendRecord("999999", "未知", date(2026, 6, 26), 2025, 1.0, "10派10", False),
+    ]
+    monkeypatch.setattr("etl.stocks.fetch_dividends_bulk", lambda since: records)
+
+    result = sync_stock_dividends_bulk(session, days=730)
+    assert result["codes"] == 2
+    assert result["written"] == 1
+    assert session.query(StockDividend).count() == 1

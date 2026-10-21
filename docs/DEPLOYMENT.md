@@ -334,8 +334,9 @@ cron: quotes=20 latest=2026-10-20T14:35:00 expired_invites=0
 | 工作流 | 时间 | 内容 |
 |---|---|---|
 | `etl.yml` | 工作日 18:30 | ETF 日线 + 个股价格/指标 |
-| `stock-dividends.yml` | 周一 19:00 | 个股分红 + TTM 重算 |
+| `stock-dividends.yml` | 周一 19:00 | 个股批量分红 + TTM 重算 |
 | `stock-seed.yml` | 手动 | 首次灌 500 只 + 行业 |
+| `stock-full.yml` | 手动 | 扩到 5,000 只 + 批量分红 + 粗行业 |
 
 必须配置的 Secret：
 

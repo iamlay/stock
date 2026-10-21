@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from etl.sources.eastmoney_stock import (
     fetch_dividends,
+    fetch_dividends_bulk,
     latest_fiscal_year_yield,
     ttm_dividend_yield,
 )
@@ -130,6 +131,60 @@ def refresh_stock_metrics(
 
     session.commit()
     return len(metrics)
+
+
+def sync_stock_dividends_bulk(
+    session: Session,
+    *,
+    codes: list[str] | None = None,
+    days: int = 730,
+) -> dict:
+    """Sync all dividends in bulk, then recompute yields for selected stocks."""
+    targets = codes or list(
+        session.scalars(
+            select(StockProfile.code).where(StockProfile.status == "active")
+        ).all()
+    )
+    if not targets:
+        return {"codes": 0, "records": 0, "written": 0}
+
+    since = date.today() - timedelta(days=days)
+    records = fetch_dividends_bulk(since=since)
+    target_set = set(targets)
+    existing = _existing_dividends(session, targets)
+
+    written = 0
+    for record in records:
+        if record.code not in target_set:
+            continue
+        key = (record.code, record.ex_date, record.plan)
+        row = existing.get(key)
+        if row is None:
+            row = StockDividend(
+                code=record.code,
+                ex_date=record.ex_date,
+                fiscal_year=record.fiscal_year,
+                cash_per_share=record.cash_per_share,
+                plan=record.plan,
+                is_special=record.is_special,
+                source="eastmoney",
+            )
+            session.add(row)
+            existing[key] = row
+            written += 1
+        else:
+            row.cash_per_share = record.cash_per_share
+            row.fiscal_year = record.fiscal_year
+            row.is_special = record.is_special
+
+    session.commit()
+    refreshed = refresh_stock_metrics(session, targets)
+    return {
+        "codes": len(targets),
+        "records": len(records),
+        "written": written,
+        "metrics": refreshed,
+    }
 
 
 def sync_stock_dividends(
@@ -285,6 +340,7 @@ def enrich_stock_industries(
     *,
     limit: int | None = None,
     include_sina: bool = True,
+    sina_only: bool = False,
     delay: float = 0.2,
 ) -> dict:
     """Fill stock industries from Sina (coarse) and Eastmoney F10 (precise)."""
@@ -329,6 +385,17 @@ def enrich_stock_industries(
 
     em_count = 0
     errors: list[str] = []
+    if sina_only:
+        job.status = "success"
+        job.rows_written = sina_count
+        job.finished_at = datetime.now(UTC)
+        session.commit()
+        return {
+            "selected": len(selected),
+            "sina": sina_count,
+            "eastmoney": 0,
+            "errors": errors,
+        }
     for index, code in enumerate(selected, start=1):
         company = None
         for attempt in range(3):

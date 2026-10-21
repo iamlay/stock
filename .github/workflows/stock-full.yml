@@ -1,0 +1,55 @@
+name: Stock Full Market
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Number of stocks to seed (5000)"
+        default: "5000"
+      days:
+        description: "Dividend lookback days"
+        default: "730"
+
+concurrency:
+  group: stock-full
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install API package
+        run: pip install -e apps/api
+
+      - name: Run migrations
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: alembic -c apps/api/alembic.ini upgrade head
+
+      - name: Seed full A-share universe
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: python -m etl.cli stock-universe --limit "${{ inputs.limit }}"
+
+      - name: Bulk dividends
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: python -m etl.cli stock-dividends-bulk --days "${{ inputs.days }}"
+
+      - name: Coarse industries
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: python -m etl.cli stock-industry --limit "${{ inputs.limit }}" --sina-only
+
+      - name: Status
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: python -m etl.cli stock-status

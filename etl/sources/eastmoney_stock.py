@@ -177,6 +177,39 @@ def fetch_dividends(code: str) -> list[DividendRecord]:
     return records
 
 
+def fetch_dividends_bulk(
+    *,
+    since: date | None = None,
+    page_size: int = 500,
+) -> list[DividendRecord]:
+    """Fetch all implemented dividends since a date in ~30 bulk pages."""
+    cutoff = since or (date.today().replace(month=1, day=1) - timedelta(days=365))
+    records: list[DividendRecord] = []
+    page = 1
+    pages = 1
+    while page <= pages:
+        query = urllib.parse.urlencode(
+            {
+                "reportName": "RPT_SHAREBONUS_DET",
+                "columns": "ALL",
+                "filter": f"(EX_DIVIDEND_DATE>='{cutoff.isoformat()}')",
+                "pageNumber": page,
+                "pageSize": page_size,
+                "sortTypes": -1,
+                "sortColumns": "EX_DIVIDEND_DATE",
+            }
+        )
+        payload = _get_json(
+            f"{DIVIDEND_API}?{query}",
+            "https://data.eastmoney.com/",
+        )
+        result = payload.get("result") or {}
+        pages = int(result.get("pages") or 1)
+        records.extend(parse_dividends(payload))
+        page += 1
+    return records
+
+
 def ttm_dividend_yield(
     records: list[DividendRecord],
     price: float,
