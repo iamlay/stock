@@ -1,0 +1,52 @@
+name: DB Backup
+
+on:
+  schedule:
+    # 03:00 Asia/Shanghai
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Dump and encrypt
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ]; then
+            echo "BACKUP_ENCRYPTION_KEY is not configured" >&2
+            exit 1
+          fi
+          DB_URL="${STOCKLAB_DATABASE_URL/postgresql+psycopg/postgresql}"
+          pg_dump "$DB_URL" \
+            --format=custom \
+            --no-owner \
+            --no-privileges \
+            --file=backup.dump
+          openssl enc -aes-256-cbc -pbkdf2 -salt \
+            -in backup.dump \
+            -out "stocklab-$(date +%F).dump.enc" \
+            -pass env:BACKUP_ENCRYPTION_KEY
+          rm -f backup.dump
+          sha256sum stocklab-*.dump.enc
+
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: stocklab-db-${{ github.run_id }}
+          path: stocklab-*.dump.enc
+          retention-days: 14
+          if-no-files-found: error

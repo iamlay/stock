@@ -5,11 +5,12 @@ import secrets
 import string
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.db.models import RedeemCode, User
 from app.db.session import SessionLocal
 from app.services.invites import expire_invites
+from app.settings import settings
 
 ALPHABET = string.ascii_uppercase + string.digits
 
@@ -71,6 +72,56 @@ def cmd_expire_invites(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_security_check(_: argparse.Namespace) -> int:
+    failures: list[str] = []
+    warnings: list[str] = []
+
+    if settings.env != "production":
+        warnings.append(f"STOCKLAB_ENV={settings.env!r}，不是 production")
+    if settings.auth_dev_mode:
+        failures.append("STOCKLAB_AUTH_DEV_MODE=true，生产必须关闭")
+    if (
+        settings.jwt_secret == "dev-only-change-me-please-32-bytes-min"
+        or len(settings.jwt_secret) < 32
+    ):
+        failures.append("STOCKLAB_JWT_SECRET 仍是默认值或长度不足 32")
+    if (
+        settings.otp_secret == "dev-only-change-me-please-32-bytes-min"
+        or len(settings.otp_secret) < 32
+    ):
+        failures.append("STOCKLAB_OTP_SECRET 仍是默认值或长度不足 32")
+    if any("localhost" in origin or "127.0.0.1" in origin for origin in settings.cors_origin_list):
+        warnings.append("CORS 包含 localhost，仅适合本地")
+    if not settings.frontend_url.startswith("https://"):
+        warnings.append("STOCKLAB_FRONTEND_URL 不是 https")
+    if settings.database_url.startswith("postgresql+psycopg://stocklab:stocklab@127.0.0.1"):
+        warnings.append("数据库仍指向本地默认地址")
+    if not settings.email_configured:
+        warnings.append("邮件服务未配置，验证/重置邮件会失败")
+
+    print(f"env={settings.env} auth_dev_mode={settings.auth_dev_mode}")
+    print(f"cors={settings.cors_origin_list}")
+    print(f"frontend={settings.frontend_url}")
+    print(f"email_configured={settings.email_configured}")
+    for item in failures:
+        print(f"FAIL {item}")
+    for item in warnings:
+        print(f"WARN {item}")
+    if not failures and not warnings:
+        print("OK security check passed")
+    return 1 if failures else 0
+
+
+def cmd_rotate_tokens(_: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        result = session.execute(
+            update(User).values(token_version=User.token_version + 1)
+        )
+        session.commit()
+    print(f"rotated token_version for {result.rowcount} users")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="stocklab-admin", description="StockLab admin CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -91,6 +142,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     expire = sub.add_parser("expire-invites", help="mark expired invite codes")
     expire.set_defaults(func=cmd_expire_invites)
+
+    security = sub.add_parser("security-check", help="check production configuration")
+    security.set_defaults(func=cmd_security_check)
+
+    rotate = sub.add_parser("rotate-tokens", help="invalidate all user sessions")
+    rotate.set_defaults(func=cmd_rotate_tokens)
 
     return parser
 
