@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Probe Eastmoney's public daily K-line endpoint.
 
 Sprint 0 uses this to prove the data path works before the real ETL lands in W2.
