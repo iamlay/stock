@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import time
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from app.db.models import (
     DataJob,
     Instrument,
+    MarketDaily,
     StockDividend,
     StockMetric,
     StockProfile,
@@ -23,6 +24,7 @@ from etl.sources.industry import (
     fetch_sina_industry_map,
 )
 from etl.sources.sina_stock import SinaStockRow, fetch_stock_universe
+from etl.sources.tencent import fetch_daily_tencent
 
 
 def upsert_stock_universe(
@@ -183,6 +185,36 @@ def sync_stock_dividends(
     return {"written": written, "errors": errors, "codes": len(codes)}
 
 
+def sync_stock_bars(session: Session, code: str, *, days: int = 250) -> int:
+    """Cache recent daily bars for a stock detail chart."""
+    end = date.today()
+    start = end - timedelta(days=days * 2)
+    series = fetch_daily_tencent(code, start, end)
+    previous: float | None = None
+    written = 0
+    for bar in series.bars[-days:]:
+        session.merge(
+            MarketDaily(
+                code=code,
+                trade_date=bar.trade_date,
+                open=bar.open,
+                high=bar.high,
+                low=bar.low,
+                close=bar.close,
+                prev_close=previous,
+                volume=bar.volume,
+                amount=bar.amount,
+                amplitude=bar.amplitude,
+                adj_factor=1,
+                source="tencent",
+            )
+        )
+        previous = bar.close
+        written += 1
+    session.commit()
+    return written
+
+
 def sync_stock_quote(session: Session, code: str) -> dict:
     """Add/refresh one stock using the Tencent quote and Eastmoney dividends."""
     from etl.sources.tencent_quote import fetch_quotes
@@ -213,6 +245,17 @@ def sync_stock_quote(session: Session, code: str) -> dict:
     if profile is None:
         profile = StockProfile(code=code, market=market, status="active")
         session.add(profile)
+    industry_error: str | None = None
+    try:
+        company = fetch_eastmoney_industry(code)
+        if company.eastmoney_industry:
+            profile.industry = company.eastmoney_industry.split("-")[0].strip()
+            profile.industry_path = company.eastmoney_industry
+            profile.industry_source = "eastmoney"
+            if company.listing_date:
+                profile.list_date = date.fromisoformat(company.listing_date)
+    except Exception as exc:  # noqa: BLE001 - industry is optional
+        industry_error = str(exc)[:200]
 
     metric = session.get(StockMetric, code)
     if metric is None:
@@ -222,8 +265,17 @@ def sync_stock_quote(session: Session, code: str) -> dict:
     metric.change_pct = quote.change_pct
 
     session.commit()
+    bars = 0
+    bars_error: str | None = None
+    try:
+        bars = sync_stock_bars(session, code)
+    except Exception as exc:  # noqa: BLE001 - chart is optional
+        bars_error = str(exc)[:200]
     result = sync_stock_dividends(session, [code], delay=0)
     refresh_stock_metrics(session, [code])
+    result["bars"] = bars
+    result["industry_error"] = industry_error
+    result["bars_error"] = bars_error
     return result
 
 

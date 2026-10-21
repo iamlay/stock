@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
+from etl.stocks import sync_stock_quote
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -46,9 +47,19 @@ def add_stock_watchlist(
     user: Annotated[User, Depends(get_current_user)],
 ) -> dict:
     code = body.code.strip()
+    if len(code) != 6 or not code.isdigit():
+        raise HTTPException(status_code=400, detail="invalid stock code")
     instrument = session.get(Instrument, code)
     metric = session.get(StockMetric, code)
     profile = session.get(StockProfile, code)
+    if instrument is None or metric is None or profile is None:
+        try:
+            sync_stock_quote(session, code)
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=404, detail=f"stock not found: {exc}") from exc
+        instrument = session.get(Instrument, code)
+        metric = session.get(StockMetric, code)
+        profile = session.get(StockProfile, code)
     if instrument is None or metric is None or profile is None:
         raise HTTPException(status_code=404, detail="stock not found")
     if profile.status == "excluded":

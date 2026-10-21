@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { StockWatchlistButton } from "@/components/stock-watchlist-button";
+import { EquityCurve } from "@/components/equity-curve";
 import { fetchStock } from "@/lib/stocks";
 import { fmtPct, trendClass } from "@/lib/format";
 
@@ -91,6 +92,33 @@ export default async function StockDetailPage({ params }: PageProps) {
           </p>
         </div>
       </div>
+
+      <section className="card p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-medium text-ink">价格走势</h2>
+            <p className="mt-0.5 text-xs text-muted">日线收盘价 · 最近 250 个交易日</p>
+          </div>
+          {stock.bars.length > 1 ? (
+            <span className="tnum text-xs text-muted">
+              {stock.bars[0].date} 至 {stock.bars[stock.bars.length - 1].date}
+            </span>
+          ) : null}
+        </div>
+        {stock.bars.length > 1 ? (
+          <div className="mt-4">
+            <EquityCurve
+              id={`stock-${stock.code}`}
+              points={stock.bars.map((bar) => bar.close)}
+              height={180}
+            />
+          </div>
+        ) : (
+          <p className="mt-6 text-sm text-muted">
+            暂无 K 线。首次加入自选或后台手动同步后生成。
+          </p>
+        )}
+      </section>
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
         <section className="card p-5">

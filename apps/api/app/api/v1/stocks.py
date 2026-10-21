@@ -13,6 +13,7 @@ from app.db import get_session
 from app.db.models import (
     AdminAuditLog,
     Instrument,
+    MarketDaily,
     StockDividend,
     StockMetric,
     StockProfile,
@@ -67,8 +68,14 @@ class DividendOut(BaseModel):
     is_special: bool
 
 
+class StockBar(BaseModel):
+    date: str
+    close: float
+
+
 class StockDetail(StockOut):
     dividends: list[DividendOut]
+    bars: list[StockBar]
 
 
 class AdminStockOut(StockOut):
@@ -229,6 +236,12 @@ def get_stock(
         .order_by(StockDividend.ex_date.desc())
         .limit(100)
     ).all()
+    bars = session.scalars(
+        select(MarketDaily)
+        .where(MarketDaily.code == code)
+        .order_by(MarketDaily.trade_date.desc())
+        .limit(250)
+    ).all()
     return StockDetail(
         **_out(instrument, profile, metric).model_dump(),
         dividends=[
@@ -240,6 +253,10 @@ def get_stock(
                 is_special=item.is_special,
             )
             for item in dividends
+        ],
+        bars=[
+            StockBar(date=item.trade_date.isoformat(), close=float(item.close))
+            for item in reversed(bars)
         ],
     )
 

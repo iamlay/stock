@@ -17,6 +17,7 @@ export function EquityCurve({
   className,
   benchmark,
 }: EquityCurveProps) {
+  if (points.length < 2) return null;
   const width = 560;
   const pad = 10;
   const scaleValues = benchmark ? [...points, ...benchmark] : points;

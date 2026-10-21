@@ -178,10 +178,10 @@ def test_stock_watchlist_roundtrip(session) -> None:
 
         missing = client.post(
             "/api/v1/stock-watchlist",
-            json={"code": "999999"},
+            json={"code": "ABC"},
             headers=headers,
         )
-        assert missing.status_code == 404
+        assert missing.status_code == 400
 
         removed = client.delete("/api/v1/stock-watchlist/600519", headers=headers)
         assert removed.json()["removed"] is True

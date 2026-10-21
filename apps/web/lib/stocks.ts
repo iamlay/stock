@@ -37,6 +37,7 @@ export type StockDividend = {
 
 export type StockDetail = Stock & {
   dividends: StockDividend[];
+  bars: { date: string; close: number }[];
 };
 
 export type StockQuery = {
