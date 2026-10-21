@@ -50,6 +50,10 @@ bash scripts/restore_backup.sh stocklab-2026-10-21.dump.enc
 2. 解密；
 3. `pg_restore --clean --if-exists`。
 
+> 生产 PostgreSQL 是 18.x，本地 `pg_restore` 也必须是 18.x。
+> 如果系统只有 16.x，先安装 PostgreSQL 18 客户端，
+> 或使用 `/usr/lib/postgresql/18/bin/pg_restore`。
+
 > 第一次演练不要直接对生产库执行。先建一个空测试库，恢复后检查：
 > `instruments`、`users`、`stock_metrics`、`stock_dividends`、`market_daily` 行数。
 

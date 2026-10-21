@@ -12,13 +12,21 @@ concurrency:
 
 jobs:
   backup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - name: Install PostgreSQL client
+      - name: Install PostgreSQL 18 client
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y curl ca-certificates gnupg lsb-release
+          sudo install -d /usr/share/postgresql-common/pgdg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-18
+          /usr/lib/postgresql/18/bin/pg_dump --version
 
       - name: Dump and encrypt
         env:
@@ -36,7 +44,7 @@ jobs:
           fi
           trap 'echo "::error title=DB backup failed::pg_dump or openssl failed at line $LINENO"' ERR
           DB_URL="${STOCKLAB_DATABASE_URL/postgresql+psycopg/postgresql}"
-          pg_dump "$DB_URL" \
+          /usr/lib/postgresql/18/bin/pg_dump "$DB_URL" \
             --format=custom \
             --no-owner \
             --no-privileges \
