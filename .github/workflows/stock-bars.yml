@@ -1,0 +1,42 @@
+name: Stock Bars
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Number of high-yield stocks to backfill"
+        default: "500"
+  schedule:
+    # First day of each month, 20:00 Asia/Shanghai
+    - cron: "0 12 1 * *"
+
+concurrency:
+  group: stock-bars
+  cancel-in-progress: false
+
+jobs:
+  bars:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install API package
+        run: pip install -e apps/api
+
+      - name: Run migrations
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: alembic -c apps/api/alembic.ini upgrade head
+
+      - name: Backfill K-line
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: |
+          LIMIT="${{ inputs.limit }}"
+          python -m etl.cli stock-bars --limit "${LIMIT:-500}"

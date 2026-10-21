@@ -337,6 +337,7 @@ cron: quotes=20 latest=2026-10-20T14:35:00 expired_invites=0
 | `stock-dividends.yml` | 周一 19:00 | 个股批量分红 + TTM 重算 |
 | `stock-seed.yml` | 手动 | 首次灌 500 只 + 行业 |
 | `stock-full.yml` | 手动 | 扩到 5,000 只 + 批量分红 + 粗行业 |
+| `stock-bars.yml` | 每月 1 日 20:00 | 高股息前 500 只 K 线补全 |
 
 必须配置的 Secret：
 

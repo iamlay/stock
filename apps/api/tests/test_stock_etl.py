@@ -3,9 +3,11 @@ from datetime import date
 from etl.sources.eastmoney_stock import DividendRecord
 from etl.sources.industry import CompanyIndustry
 from etl.sources.sina_stock import SinaStockRow
+from etl.sources.tencent import DailyBar, DailySeries
 from etl.stocks import (
     enrich_stock_industries,
     refresh_stock_metrics,
+    sync_stock_bars_batch,
     sync_stock_daily,
     sync_stock_dividends,
     sync_stock_dividends_bulk,
@@ -13,7 +15,7 @@ from etl.stocks import (
     upsert_stock_universe,
 )
 
-from app.db.models import StockDividend, StockMetric, StockProfile
+from app.db.models import MarketDaily, StockDividend, StockMetric, StockProfile
 
 
 def make_row(code: str, name: str, cap: float) -> SinaStockRow:
@@ -151,3 +153,22 @@ def test_metrics_mark_one_off_dividend(session, monkeypatch) -> None:
     assert metric.sustainability == "one_off"
     latest = session.query(StockDividend).order_by(StockDividend.ex_date.desc()).first()
     assert latest.is_one_off is True
+
+
+def test_bars_batch_caches_ohlcv(session, monkeypatch) -> None:
+    upsert_stock_universe(session, [make_row("600519", "贵州茅台", 18800)])
+    series = DailySeries(
+        code="600519",
+        name="贵州茅台",
+        bars=[
+            DailyBar(date(2026, 10, 19), 10, 11, 9, 10.5, 1000, 0, 0),
+            DailyBar(date(2026, 10, 20), 10.5, 12, 10, 11.5, 1200, 0, 0),
+        ],
+    )
+    monkeypatch.setattr("etl.stocks.fetch_daily_tencent", lambda code, start, end: series)
+
+    result = sync_stock_bars_batch(session, limit=1, delay=0)
+    assert result["selected"] == 1
+    assert result["updated"] == 1
+    assert result["skipped"] == 0
+    assert session.query(MarketDaily).filter_by(code="600519").count() == 2

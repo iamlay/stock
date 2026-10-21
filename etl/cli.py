@@ -41,6 +41,7 @@ from etl.stock_quality import (
 from etl.stocks import (
     enrich_stock_industries,
     refresh_stock_metrics,
+    sync_stock_bars_batch,
     sync_stock_daily,
     sync_stock_dividends,
     sync_stock_dividends_bulk,
@@ -290,6 +291,25 @@ def cmd_stock_status(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_stock_bars(args: argparse.Namespace) -> int:
+    codes = [item.strip() for item in args.codes.split(",") if item.strip()] if args.codes else None
+    with SessionLocal() as session:
+        result = sync_stock_bars_batch(
+            session,
+            limit=args.limit,
+            codes=codes,
+            force=args.force,
+            delay=args.delay,
+        )
+    print(
+        f"stock bars selected={result['selected']} updated={result['updated']} "
+        f"skipped={result['skipped']} errors={len(result['errors'])}"
+    )
+    for error in result["errors"][:10]:
+        print(f"  ERROR {error}")
+    return 0
+
+
 def cmd_stock_quality(args: argparse.Namespace) -> int:
     with SessionLocal() as session:
         report = run_stock_quality(session, limit=args.limit)
@@ -446,6 +466,13 @@ def build_parser() -> argparse.ArgumentParser:
     stock_daily.add_argument("--dividend-limit", type=int, default=None)
     stock_daily.add_argument("--delay", type=float, default=0.15)
     stock_daily.set_defaults(func=cmd_stock_daily)
+
+    stock_bars = sub.add_parser("stock-bars", help="backfill stock K-line bars")
+    stock_bars.add_argument("--limit", type=int, default=500)
+    stock_bars.add_argument("--codes", default="")
+    stock_bars.add_argument("--force", action="store_true")
+    stock_bars.add_argument("--delay", type=float, default=0.2)
+    stock_bars.set_defaults(func=cmd_stock_bars)
 
     stock_dividends = sub.add_parser("stock-dividends", help="sync stock dividends")
     stock_dividends.add_argument("--limit", type=int, default=None)

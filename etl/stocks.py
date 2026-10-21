@@ -11,7 +11,7 @@ from app.db.models import (
     StockMetric,
     StockProfile,
 )
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from etl.sources.eastmoney_stock import (
@@ -287,7 +287,13 @@ def sync_stock_dividends(
     return {"written": written, "errors": errors, "codes": len(codes)}
 
 
-def sync_stock_bars(session: Session, code: str, *, days: int = 250) -> int:
+def sync_stock_bars(
+    session: Session,
+    code: str,
+    *,
+    days: int = 250,
+    commit: bool = True,
+) -> int:
     """Cache recent daily bars for a stock detail chart."""
     end = date.today()
     start = end - timedelta(days=days * 2)
@@ -313,8 +319,75 @@ def sync_stock_bars(session: Session, code: str, *, days: int = 250) -> int:
         )
         previous = bar.close
         written += 1
-    session.commit()
+    if commit:
+        session.commit()
     return written
+
+
+def sync_stock_bars_batch(
+    session: Session,
+    *,
+    limit: int = 500,
+    codes: list[str] | None = None,
+    force: bool = False,
+    delay: float = 0.2,
+) -> dict:
+    """Backfill K-line bars for the highest-yield stocks."""
+    if codes:
+        targets = codes
+    else:
+        targets = list(
+            session.scalars(
+                select(StockMetric.code)
+                .join(StockProfile, StockProfile.code == StockMetric.code)
+                .where(StockProfile.status == "active")
+                .order_by(
+                    StockMetric.dividend_yield_ttm.desc().nulls_last(),
+                    StockMetric.market_cap.desc(),
+                )
+                .limit(limit)
+            ).all()
+        )
+    if not targets:
+        return {"selected": 0, "updated": 0, "skipped": 0, "errors": []}
+
+    today = date.today()
+    existing = {
+        code: (count, latest)
+        for code, count, latest in session.execute(
+            select(
+                MarketDaily.code,
+                func.count(),
+                func.max(MarketDaily.trade_date),
+            )
+            .where(MarketDaily.code.in_(targets))
+            .group_by(MarketDaily.code)
+        ).all()
+    }
+
+    updated = 0
+    skipped = 0
+    errors: list[str] = []
+    for index, code in enumerate(targets, start=1):
+        count, latest = existing.get(code, (0, None))
+        if not force and count >= 200 and latest is not None and (today - latest).days <= 3:
+            skipped += 1
+            continue
+        try:
+            sync_stock_bars(session, code, commit=False)
+            updated += 1
+        except Exception as exc:  # noqa: BLE001 - continue per stock
+            errors.append(f"{code}: {exc}"[:200])
+        time.sleep(delay)
+        if index % 25 == 0:
+            session.commit()
+    session.commit()
+    return {
+        "selected": len(targets),
+        "updated": updated,
+        "skipped": skipped,
+        "errors": errors,
+    }
 
 
 def sync_stock_quote(session: Session, code: str) -> dict:
