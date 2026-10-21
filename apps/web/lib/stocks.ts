@@ -62,7 +62,7 @@ function queryString(params: StockQuery): string {
 export async function fetchStocks(params: StockQuery = {}): Promise<StockList | null> {
   try {
     const response = await fetch(`${API_BASE}/api/v1/stocks?${queryString(params)}`, {
-      next: { revalidate: 60 },
+      cache: "no-store",
       signal: AbortSignal.timeout(8000),
     });
     if (!response.ok) return null;
@@ -75,7 +75,7 @@ export async function fetchStocks(params: StockQuery = {}): Promise<StockList | 
 export async function fetchStock(code: string): Promise<StockDetail | null> {
   try {
     const response = await fetch(`${API_BASE}/api/v1/stocks/${code}`, {
-      next: { revalidate: 60 },
+      cache: "no-store",
       signal: AbortSignal.timeout(8000),
     });
     if (!response.ok) return null;

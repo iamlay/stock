@@ -5,6 +5,7 @@ import { fetchStocks, type StockQuery } from "@/lib/stocks";
 import { fmtPct, trendClass } from "@/lib/format";
 
 export const metadata: Metadata = { title: "高股息个股" };
+export const dynamic = "force-dynamic";
 
 const SORTS = [
   ["dividend_yield_ttm", "股息率 TTM"],

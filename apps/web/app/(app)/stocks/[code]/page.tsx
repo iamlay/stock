@@ -7,6 +7,7 @@ import { fetchStock } from "@/lib/stocks";
 import { fmtPct, trendClass } from "@/lib/format";
 
 type PageProps = { params: Promise<{ code: string }> };
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { code } = await params;
