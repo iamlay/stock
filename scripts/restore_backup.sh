@@ -34,7 +34,11 @@ openssl enc -d -aes-256-cbc -pbkdf2 \
   -pass env:BACKUP_ENCRYPTION_KEY
 
 DB_URL="${STOCKLAB_DATABASE_URL/postgresql+psycopg/postgresql}"
-pg_restore \
+PG_RESTORE="${PG_RESTORE:-pg_restore}"
+if [ -x /usr/lib/postgresql/18/bin/pg_restore ]; then
+  PG_RESTORE=/usr/lib/postgresql/18/bin/pg_restore
+fi
+"$PG_RESTORE" \
   --clean \
   --if-exists \
   --no-owner \
