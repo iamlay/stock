@@ -1,4 +1,6 @@
 const API_BASE = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
+const PUBLIC_API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
 export type Stock = {
   code: string;
@@ -85,5 +87,20 @@ export async function fetchStock(code: string): Promise<StockDetail | null> {
     return (await response.json()) as StockDetail;
   } catch {
     return null;
+  }
+}
+
+export async function searchStocks(query: string): Promise<Stock[]> {
+  const text = query.trim();
+  if (!text) return [];
+  try {
+    const response = await fetch(
+      `${PUBLIC_API_BASE}/api/v1/stocks/search?q=${encodeURIComponent(text)}`,
+      { signal: AbortSignal.timeout(5000) },
+    );
+    if (!response.ok) return [];
+    return (await response.json()) as Stock[];
+  } catch {
+    return [];
   }
 }

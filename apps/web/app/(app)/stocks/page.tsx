@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { fetchStocks, type StockQuery } from "@/lib/stocks";
+import { StockSearchBox } from "@/components/stock-search-box";
 import { fmtPct, trendClass } from "@/lib/format";
 
 export const metadata: Metadata = { title: "高股息个股" };
@@ -122,9 +123,12 @@ export default async function StocksPage({
             按 TTM 股息率排序 · 默认排除 ST · 日频数据，非实时行情
           </p>
         </div>
-        <div className="text-right text-xs text-muted">
-          <p className="tnum">共 {total.toLocaleString("zh-CN")} 只</p>
-          <p>股息率 = 近 12 个月现金分红 / 不复权最新价</p>
+        <div className="flex flex-col items-end gap-2">
+          <StockSearchBox />
+          <div className="text-right text-xs text-muted">
+            <p className="tnum">共 {total.toLocaleString("zh-CN")} 只</p>
+            <p>股息率 = 近 12 个月现金分红 / 不复权最新价</p>
+          </div>
         </div>
       </div>
 

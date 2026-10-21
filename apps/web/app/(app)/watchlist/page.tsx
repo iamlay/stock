@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   fetchMe,
@@ -20,6 +20,10 @@ export default function WatchlistPage() {
   const router = useRouter();
   const [items, setItems] = useState<ApiEtf[]>([]);
   const [stocks, setStocks] = useState<Stock[]>([]);
+  const [etfSort, setEtfSort] = useState("default");
+  const [stockSort, setStockSort] = useState("yield");
+  const [selectedStocks, setSelectedStocks] = useState<Set<string>>(new Set());
+  const [batchBusy, setBatchBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,8 +62,65 @@ export default function WatchlistPage() {
     try {
       await removeStockWatchlist(code);
       setStocks((current) => current.filter((item) => item.code !== code));
+      setSelectedStocks((current) => {
+        const next = new Set(current);
+        next.delete(code);
+        return next;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "移除失败");
+    }
+  }
+
+  const sortedItems = useMemo(() => {
+    const copy = [...items];
+    if (etfSort === "change") copy.sort((a, b) => b.change_pct - a.change_pct);
+    if (etfSort === "aum") copy.sort((a, b) => (b.aum ?? 0) - (a.aum ?? 0));
+    if (etfSort === "name") copy.sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
+    return copy;
+  }, [items, etfSort]);
+
+  const sortedStocks = useMemo(() => {
+    const copy = [...stocks];
+    if (stockSort === "yield") {
+      copy.sort(
+        (a, b) => (b.dividend_yield_ttm ?? -1) - (a.dividend_yield_ttm ?? -1),
+      );
+    }
+    if (stockSort === "cap") copy.sort((a, b) => (b.market_cap ?? 0) - (a.market_cap ?? 0));
+    if (stockSort === "name") copy.sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
+    return copy;
+  }, [stocks, stockSort]);
+
+  function toggleStock(code: string) {
+    setSelectedStocks((current) => {
+      const next = new Set(current);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  }
+
+  function toggleAllStocks() {
+    setSelectedStocks((current) =>
+      current.size === sortedStocks.length
+        ? new Set()
+        : new Set(sortedStocks.map((item) => item.code)),
+    );
+  }
+
+  async function onRemoveSelected() {
+    if (selectedStocks.size === 0) return;
+    setBatchBusy(true);
+    setError(null);
+    try {
+      await Promise.all([...selectedStocks].map((code) => removeStockWatchlist(code)));
+      setStocks((current) => current.filter((item) => !selectedStocks.has(item.code)));
+      setSelectedStocks(new Set());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "批量移除失败");
+    } finally {
+      setBatchBusy(false);
     }
   }
 
@@ -101,6 +162,19 @@ export default function WatchlistPage() {
       {error ? <p className="text-xs text-loss">{error}</p> : null}
 
       <section className="card overflow-hidden">
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+          <h2 className="text-sm font-medium text-ink">自选 ETF</h2>
+          <select
+            value={etfSort}
+            onChange={(event) => setEtfSort(event.target.value)}
+            className="rounded-sm border border-line bg-surface px-2 py-1 text-xs text-ink-soft"
+          >
+            <option value="default">默认顺序</option>
+            <option value="change">按日涨跌</option>
+            <option value="aum">按规模</option>
+            <option value="name">按名称</option>
+          </select>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
@@ -115,7 +189,7 @@ export default function WatchlistPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {sortedItems.map((item) => (
                 <tr key={item.code} className="border-b border-line/60">
                   <td className="px-4 py-3">
                     <Link
@@ -165,14 +239,46 @@ export default function WatchlistPage() {
       </section>
 
       <section className="card overflow-hidden">
-        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
           <h2 className="text-sm font-medium text-ink">自选个股</h2>
-          <span className="text-xs text-muted">{stocks.length} 只</span>
+          <div className="flex items-center gap-2">
+            {selectedStocks.size > 0 ? (
+              <button
+                type="button"
+                onClick={onRemoveSelected}
+                disabled={batchBusy}
+                className="text-xs text-loss hover:underline disabled:opacity-50"
+              >
+                {batchBusy ? "移除中…" : `移除选中 ${selectedStocks.size} 只`}
+              </button>
+            ) : null}
+            <select
+              value={stockSort}
+              onChange={(event) => setStockSort(event.target.value)}
+              className="rounded-sm border border-line bg-surface px-2 py-1 text-xs text-ink-soft"
+            >
+              <option value="yield">按股息率</option>
+              <option value="cap">按市值</option>
+              <option value="name">按名称</option>
+            </select>
+            <span className="text-xs text-muted">{stocks.length} 只</span>
+          </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
+          <table className="w-full min-w-[820px] text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">
+                <th className="w-10 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={
+                      sortedStocks.length > 0 &&
+                      selectedStocks.size === sortedStocks.length
+                    }
+                    onChange={toggleAllStocks}
+                    aria-label="全选"
+                  />
+                </th>
                 <th className="px-4 py-3 font-medium">名称</th>
                 <th className="px-4 py-3 font-medium">行业</th>
                 <th className="px-4 py-3 text-right font-medium">最新价</th>
@@ -183,8 +289,16 @@ export default function WatchlistPage() {
               </tr>
             </thead>
             <tbody>
-              {stocks.map((item) => (
+              {sortedStocks.map((item) => (
                 <tr key={item.code} className="border-b border-line/60">
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedStocks.has(item.code)}
+                      onChange={() => toggleStock(item.code)}
+                      aria-label={`选择 ${item.name}`}
+                    />
+                  </td>
                   <td className="px-4 py-3">
                     <Link
                       href={`/stocks/${item.code}`}

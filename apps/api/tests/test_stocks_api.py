@@ -121,6 +121,10 @@ def test_stock_filters_and_detail(session) -> None:
         assert body["name"] == "贵州茅台"
         assert body["dividend_yield_ttm"] == 3.9
         assert len(body["dividends"]) == 1
+
+        search = client.get("/api/v1/stocks/search?q=茅台")
+        assert search.status_code == 200
+        assert [item["code"] for item in search.json()] == ["600519"]
     finally:
         app.dependency_overrides.clear()
 

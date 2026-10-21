@@ -218,6 +218,27 @@ def list_stocks(
     )
 
 
+@router.get("/search", response_model=list[StockOut], summary="个股搜索建议")
+def search_stocks(
+    session: Annotated[Session, Depends(get_session)],
+    q: str = Query(..., min_length=1, max_length=32),
+    limit: int = Query(10, ge=1, le=20),
+) -> list[StockOut]:
+    pattern = f"%{q.strip()}%"
+    rows = session.execute(
+        _base_query()
+        .where(
+            Instrument.type == "stock",
+            StockProfile.status == "active",
+            StockMetric.price.is_not(None),
+            or_(Instrument.code.ilike(pattern), Instrument.name.ilike(pattern)),
+        )
+        .order_by(StockMetric.market_cap.desc())
+        .limit(limit)
+    ).all()
+    return [_out(instrument, profile, metric) for instrument, profile, metric in rows]
+
+
 @router.get("/{code}", response_model=StockDetail, summary="个股详情")
 def get_stock(
     code: str,
