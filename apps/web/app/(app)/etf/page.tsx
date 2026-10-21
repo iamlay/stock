@@ -11,12 +11,15 @@ export const revalidate = 60;
 export default async function EtfListPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; q?: string; page?: string }>;
+  searchParams: Promise<{ category?: string; q?: string; page?: string; sort?: string }>;
 }) {
-  const { category, q, page } = await searchParams;
+  const { category, q, page, sort: rawSort } = await searchParams;
   const active = categories.includes(category as EtfCategory) ? (category as EtfCategory) : null;
   const term = (q ?? "").trim().toLowerCase();
   const pageNum = Math.max(1, Number(page) || 1);
+  const sort = ["aum", "change", "yield", "code"].includes(rawSort ?? "")
+    ? rawSort!
+    : "aum";
   const PAGE_SIZE = 20;
 
   const apiEtfs = await fetchEtfs();
@@ -28,7 +31,13 @@ export default async function EtfListPage({
       term
         ? etf.code.toLowerCase().includes(term) || etf.name.toLowerCase().includes(term)
         : true,
-    );
+    )
+    .sort((a, b) => {
+      if (sort === "change") return b.change - a.change;
+      if (sort === "yield") return (b.dividendYield ?? -1) - (a.dividendYield ?? -1);
+      if (sort === "code") return a.code.localeCompare(b.code);
+      return (b.aum ?? 0) - (a.aum ?? 0);
+    });
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(pageNum, totalPages);
   const rows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -40,8 +49,15 @@ export default async function EtfListPage({
     const search = new URLSearchParams();
     if (active) search.set("category", active);
     if (term) search.set("q", term);
+    if (sort !== "aum") search.set("sort", sort);
     search.set("page", String(target));
     return `/etf?${search.toString()}`;
+  }
+
+  function countFor(categoryName?: EtfCategory): number {
+    return categoryName
+      ? all.filter((etf) => etf.category === categoryName).length
+      : all.length;
   }
 
   return (
@@ -58,6 +74,21 @@ export default async function EtfListPage({
           >
             对比
           </Link>
+          <form method="get" action="/etf">
+            {active ? <input type="hidden" name="category" value={active} /> : null}
+            {term ? <input type="hidden" name="q" value={term} /> : null}
+            <select
+              name="sort"
+              defaultValue={sort}
+              onChange={(event) => event.currentTarget.form?.requestSubmit()}
+              className="rounded-sm border border-line bg-surface px-2 py-1.5 text-xs text-ink-soft"
+            >
+              <option value="aum">按规模</option>
+              <option value="change">按涨跌</option>
+              <option value="yield">按股息率</option>
+              <option value="code">按代码</option>
+            </select>
+          </form>
           <p className="tnum text-xs text-muted">
             {filtered.length} 只 · 合计规模 {totalAum.toFixed(0)} 亿 ·{" "}
             {live
@@ -76,25 +107,26 @@ export default async function EtfListPage({
               : "border-line bg-surface text-ink-soft hover:border-ink"
           }`}
         >
-          全部
+          全部 ({countFor()})
         </Link>
         {categories.map((item) => (
           <Link
             key={item}
-            href={`/etf?category=${encodeURIComponent(item)}`}
+            href={`/etf?category=${encodeURIComponent(item)}${sort !== "aum" ? `&sort=${sort}` : ""}`}
             className={`rounded-sm border px-3 py-1.5 text-xs transition-colors ${
               active === item
                 ? "border-ink bg-ink text-paper"
                 : "border-line bg-surface text-ink-soft hover:border-ink"
             }`}
           >
-            {item}
+            {item} ({countFor(item)})
           </Link>
         ))}
       </div>
 
       <form method="get" action="/etf" className="flex flex-wrap items-center gap-2">
         {active ? <input type="hidden" name="category" value={active} /> : null}
+        {sort !== "aum" ? <input type="hidden" name="sort" value={sort} /> : null}
         <input
           name="q"
           defaultValue={q ?? ""}
