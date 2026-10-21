@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { EtfTable } from "@/components/etf-table";
+import { CategoryHeatChart } from "@/components/category-heat-chart";
 import { fetchEtfs, fetchOverview, fetchStrategySummaries, toEtf } from "@/lib/api";
 import { etfs, strategies } from "@/lib/mock";
-import { fmtPct, trendBg, trendClass } from "@/lib/format";
+import { fmtPct } from "@/lib/format";
 
 export const metadata: Metadata = { title: "今日市场" };
 export const revalidate = 60;
@@ -148,27 +149,14 @@ export default async function DashboardPage() {
         <section className="card p-5">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-medium text-ink">ETF 分类热力</h2>
+              <h2 className="text-base font-medium text-ink">ETF 分类涨跌</h2>
               <p className="mt-0.5 text-xs text-muted">
                 重点 ETF 按分类等权 · 当日涨跌幅
               </p>
             </div>
             <span className="text-xs text-muted">红涨绿跌</span>
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
-            {heat.map((sector) => (
-              <div
-                key={sector.name}
-                className="flex h-20 flex-col justify-between rounded-sm border border-line/60 p-2.5"
-                style={{ backgroundColor: trendBg(sector.change) }}
-              >
-                <span className="text-xs text-ink">{sector.name}</span>
-                <span className={`tnum text-sm font-medium ${trendClass(sector.change)}`}>
-                  {fmtPct(sector.change)}
-                </span>
-              </div>
-            ))}
-          </div>
+          <CategoryHeatChart data={heat} />
           <p className="mt-3 text-xs text-muted">
             {live
               ? `基于 ${list.length} 只重点 ETF 分类等权，非申万全行业。`
