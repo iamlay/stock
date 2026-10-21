@@ -47,11 +47,31 @@ jobs:
           fi
           trap 'echo "::error title=DB backup failed::pg_dump or openssl failed at line $LINENO"' ERR
           DB_URL="${STOCKLAB_DATABASE_URL/postgresql+psycopg/postgresql}"
-          /usr/lib/postgresql/18/bin/pg_dump "$DB_URL" \
-            --format=custom \
-            --no-owner \
-            --no-privileges \
-            --file=backup.dump
+          if [[ "$DB_URL" != *"sslmode="* ]]; then
+            if [[ "$DB_URL" == *"?"* ]]; then
+              DB_URL="$DB_URL&sslmode=require"
+            else
+              DB_URL="$DB_URL?sslmode=require"
+            fi
+          fi
+          export PGSSLMODE=require
+          export PGCONNECT_TIMEOUT=30
+          ok=0
+          for attempt in 1 2 3; do
+            if /usr/lib/postgresql/18/bin/pg_dump "$DB_URL" \
+              --format=custom \
+              --no-owner \
+              --no-privileges \
+              --file=backup.dump; then
+              ok=1
+              break
+            fi
+            echo "pg_dump attempt ${attempt} failed; retrying"
+            sleep 5
+          done
+          if [ "$ok" != "1" ]; then
+            exit 1
+          fi
           openssl enc -aes-256-cbc -pbkdf2 -salt \
             -in backup.dump \
             -out "stocklab-$(date +%F).dump.enc" \
