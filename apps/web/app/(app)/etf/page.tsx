@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { EtfTable } from "@/components/etf-table";
+import { EtfSortSelect } from "@/components/etf-sort-select";
 import { fetchEtfs, toEtf } from "@/lib/api";
 import { categories, etfs, type EtfCategory } from "@/lib/mock";
 
@@ -74,26 +75,7 @@ export default async function EtfListPage({
           >
             对比
           </Link>
-          <form method="get" action="/etf">
-            {active ? <input type="hidden" name="category" value={active} /> : null}
-            {term ? <input type="hidden" name="q" value={term} /> : null}
-            <select
-              name="sort"
-              defaultValue={sort}
-              className="rounded-sm border border-line bg-surface px-2 py-1.5 text-xs text-ink-soft"
-            >
-              <option value="aum">按规模</option>
-              <option value="change">按涨跌</option>
-              <option value="yield">按股息率</option>
-              <option value="code">按代码</option>
-            </select>
-            <button
-              type="submit"
-              className="rounded-sm border border-line bg-surface px-2.5 py-1.5 text-xs text-ink-soft hover:border-ink"
-            >
-              排序
-            </button>
-          </form>
+          <EtfSortSelect value={sort} category={active ?? undefined} query={term || undefined} />
           <p className="tnum text-xs text-muted">
             {filtered.length} 只 · 合计规模 {totalAum.toFixed(0)} 亿 ·{" "}
             {live
