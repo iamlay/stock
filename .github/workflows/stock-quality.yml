@@ -1,0 +1,46 @@
+name: Stock Quality
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Number of stocks to check (0 = all)"
+        default: "5000"
+  schedule:
+    # Monday 20:00 Asia/Shanghai, after dividend refresh
+    - cron: "0 12 * * 1"
+
+concurrency:
+  group: stock-quality
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install API package
+        run: pip install -e apps/api
+
+      - name: Run migrations
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: alembic -c apps/api/alembic.ini upgrade head
+
+      - name: Check stock quality
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: |
+          LIMIT="${{ inputs.limit }}"
+          if [ -z "$LIMIT" ] || [ "$LIMIT" = "0" ]; then
+            python -m etl.cli stock-quality --limit 5000 --write
+          else
+            python -m etl.cli stock-quality --limit "$LIMIT" --write
+          fi

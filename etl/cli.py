@@ -31,6 +31,13 @@ from etl.pipeline import (
     sync_valuation,
 )
 from etl.sources.sina_stock import fetch_stock_universe as fetch_sina_stocks
+from etl.stock_quality import (
+    run_stock_quality,
+    write_quality_checks,
+)
+from etl.stock_quality import (
+    write_report as write_quality_report,
+)
 from etl.stocks import (
     enrich_stock_industries,
     refresh_stock_metrics,
@@ -283,6 +290,29 @@ def cmd_stock_status(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_stock_quality(args: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        report = run_stock_quality(session, limit=args.limit)
+        if args.write:
+            write_quality_checks(session, report)
+    write_quality_report(report, Path(args.out))
+    summary = report["summary"]
+    print(
+        f"stock quality metrics={summary['metrics']} st={summary['st']} "
+        f"issues={summary['issues']} fail={summary['fail']} warn={summary['warn']}"
+    )
+    for name, check in summary["checks"].items():
+        print(f"  {check['status'].upper():4} {name:20} count={check['count']}")
+    print("top yields:")
+    for item in summary["top_yields"][:10]:
+        print(
+            f"  {item['code']} {item['name']} "
+            f"ttm={item['yield_ttm']} fy={item['yield_fy']} price={item['price']}"
+        )
+    print(f"report: {args.out}")
+    return 0
+
+
 def cmd_stock_industry(args: argparse.Namespace) -> int:
     with SessionLocal() as session:
         result = enrich_stock_industries(
@@ -401,6 +431,12 @@ def build_parser() -> argparse.ArgumentParser:
     stock_universe = sub.add_parser("stock-universe", help="sync A-share stock list")
     stock_universe.add_argument("--limit", type=int, default=None)
     stock_universe.set_defaults(func=cmd_stock_universe)
+
+    stock_quality = sub.add_parser("stock-quality", help="check stock data quality")
+    stock_quality.add_argument("--limit", type=int, default=None)
+    stock_quality.add_argument("--write", action="store_true")
+    stock_quality.add_argument("--out", default="etl/out/stock_quality.json")
+    stock_quality.set_defaults(func=cmd_stock_quality)
 
     stock_daily = sub.add_parser("stock-daily", help="refresh existing stock prices")
     stock_daily.add_argument("--dividends", action="store_true")
