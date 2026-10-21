@@ -4,7 +4,13 @@ type HeatItem = {
   count: number;
 };
 
-export function CategoryHeatChart({ data }: { data: HeatItem[] }) {
+export function CategoryHeatChart({
+  data,
+  note = "每类 ETF 等权，非申万行业",
+}: {
+  data: HeatItem[];
+  note?: string;
+}) {
   const sorted = [...data].sort((a, b) => b.change - a.change);
   const maxAbs = Math.max(...sorted.map((item) => Math.abs(item.change)), 0.1);
 
@@ -52,7 +58,7 @@ export function CategoryHeatChart({ data }: { data: HeatItem[] }) {
         })}
       </div>
       <div className="mt-3 flex items-center justify-between text-[11px] text-muted">
-        <span>每类 ETF 等权，非申万行业</span>
+        <span>{note}</span>
         <span>{sorted.reduce((sum, item) => sum + item.count, 0)} 只样本</span>
       </div>
     </div>

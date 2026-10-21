@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { EtfTable } from "@/components/etf-table";
 import { CategoryHeatChart } from "@/components/category-heat-chart";
-import { fetchEtfs, fetchOverview, fetchStrategySummaries, toEtf } from "@/lib/api";
+import { fetchEtfs, fetchIndustries, fetchOverview, fetchStrategySummaries, toEtf } from "@/lib/api";
 import { etfs, strategies } from "@/lib/mock";
 import { fmtPct } from "@/lib/format";
 
@@ -18,10 +18,11 @@ const fallbackStats = [
 ];
 
 export default async function DashboardPage() {
-  const [apiEtfs, overview, strategySummary] = await Promise.all([
+  const [apiEtfs, overview, strategySummary, industries] = await Promise.all([
     fetchEtfs(),
     fetchOverview(),
     fetchStrategySummaries("510300"),
+    fetchIndustries(),
   ]);
   const live = Boolean(apiEtfs?.length && overview && !overview.demo);
   const list = apiEtfs && apiEtfs.length > 0 ? apiEtfs.map(toEtf) : etfs;
@@ -74,6 +75,14 @@ export default async function DashboardPage() {
       count: value.count,
     }))
     .sort((a, b) => b.change - a.change);
+
+  const industryHeat =
+    industries?.map((item) => ({
+      name: item.name,
+      change: item.change_pct,
+      count: item.count,
+    })) ?? [];
+  const hasIndustryHeat = industryHeat.length > 0;
 
   const breadth =
     overview && overview.advancing + overview.declining > 0
@@ -149,18 +158,31 @@ export default async function DashboardPage() {
         <section className="card p-5">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-medium text-ink">ETF 分类涨跌</h2>
+              <h2 className="text-base font-medium text-ink">
+                {hasIndustryHeat ? "申万行业涨跌" : "ETF 分类涨跌"}
+              </h2>
               <p className="mt-0.5 text-xs text-muted">
-                重点 ETF 按分类等权 · 当日涨跌幅
+                {hasIndustryHeat
+                  ? "申万一级行业 · 个股等权"
+                  : "重点 ETF 按分类等权 · 当日涨跌幅"}
               </p>
             </div>
             <span className="text-xs text-muted">红涨绿跌</span>
           </div>
-          <CategoryHeatChart data={heat} />
+          <CategoryHeatChart
+            data={hasIndustryHeat ? industryHeat : heat}
+            note={
+              hasIndustryHeat
+                ? "申万一级行业，个股等权"
+                : "每类 ETF 等权，非申万行业"
+            }
+          />
           <p className="mt-3 text-xs text-muted">
-            {live
-              ? `基于 ${list.length} 只重点 ETF 分类等权，非申万全行业。`
-              : "当前为示例数据；API 连通后自动切换为真实 ETF 分类涨跌。"}
+            {hasIndustryHeat
+              ? `基于 ${industryHeat.reduce((sum, item) => sum + item.count, 0)} 只非 ST A 股，按申万一级行业个股等权计算。`
+              : live
+                ? `基于 ${list.length} 只重点 ETF 分类等权，非申万全行业。`
+                : "当前为示例数据；API 连通后自动切换为真实行业涨跌。"}
           </p>
         </section>
 

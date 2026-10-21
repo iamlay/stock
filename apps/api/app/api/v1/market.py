@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.api.v1.etfs import EtfSummary, _summaries
 from app.db import get_session
+from app.db.models import Instrument, StockMetric, StockProfile
 
 router = APIRouter(prefix="/market", tags=["market"])
 
@@ -79,3 +81,77 @@ def market_overview(
     session: Annotated[Session, Depends(get_session)],
 ) -> MarketOverview:
     return _overview(_summaries(session))
+
+
+class IndustryMove(BaseModel):
+    name: str
+    change_pct: float
+    count: int
+    advancing: int
+    declining: int
+
+
+class IndustryList(BaseModel):
+    items: list[IndustryMove]
+    total: int
+    note: str
+
+
+@router.get("/industries", response_model=IndustryList, summary="申万一级行业涨跌")
+def market_industries(
+    session: Annotated[Session, Depends(get_session)],
+    include_st: bool = False,
+    weight: Literal["equal", "cap"] = "equal",
+) -> IndustryList:
+    conditions = [
+        Instrument.type == "stock",
+        StockProfile.status == "active",
+        StockProfile.industry.is_not(None),
+        StockMetric.price.is_not(None),
+        StockMetric.change_pct.is_not(None),
+    ]
+    if not include_st:
+        conditions.append(StockProfile.is_st.is_(False))
+
+    if weight == "cap":
+        change_expr = func.sum(
+            StockMetric.change_pct * StockMetric.market_cap
+        ) / func.nullif(func.sum(StockMetric.market_cap), 0)
+    else:
+        change_expr = func.avg(StockMetric.change_pct)
+
+    rows = session.execute(
+        select(
+            StockProfile.industry,
+            change_expr.label("change_pct"),
+            func.count().label("count"),
+            func.sum(case((StockMetric.change_pct > 0, 1), else_=0)).label("advancing"),
+            func.sum(case((StockMetric.change_pct < 0, 1), else_=0)).label("declining"),
+        )
+        .select_from(Instrument)
+        .join(StockProfile, StockProfile.code == Instrument.code)
+        .join(StockMetric, StockMetric.code == Instrument.code)
+        .where(*conditions)
+        .group_by(StockProfile.industry)
+    ).all()
+
+    items = [
+        IndustryMove(
+            name=row.industry,
+            change_pct=round(float(row.change_pct or 0), 2),
+            count=int(row.count or 0),
+            advancing=int(row.advancing or 0),
+            declining=int(row.declining or 0),
+        )
+        for row in rows
+    ]
+    items.sort(key=lambda item: item.change_pct, reverse=True)
+    return IndustryList(
+        items=items,
+        total=len(items),
+        note=(
+            "申万一级行业，个股等权涨跌"
+            if weight == "equal"
+            else "申万一级行业，市值加权涨跌"
+        ),
+    )

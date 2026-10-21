@@ -57,6 +57,20 @@ export type CompareResponse = {
   items: CompareItem[];
 };
 
+export type ApiIndustry = {
+  name: string;
+  change_pct: number;
+  count: number;
+  advancing: number;
+  declining: number;
+};
+
+export type ApiIndustryList = {
+  items: ApiIndustry[];
+  total: number;
+  note: string;
+};
+
 export type ApiOverview = {
   trade_date: string | null;
   quote_time: string | null;
@@ -223,6 +237,11 @@ export async function fetchStrategySummaries(
 
 export async function fetchOverview(): Promise<ApiOverview | null> {
   return fetchJson<ApiOverview>("/api/v1/market/overview");
+}
+
+export async function fetchIndustries(): Promise<ApiIndustry[] | null> {
+  const data = await fetchJson<ApiIndustryList>("/api/v1/market/industries");
+  return data?.items ?? null;
 }
 
 export async function runBacktest(

@@ -192,3 +192,32 @@ def test_stock_watchlist_roundtrip(session) -> None:
         assert client.get("/api/v1/stock-watchlist", headers=headers).json() == []
     finally:
         app.dependency_overrides.clear()
+
+
+def test_market_industries_aggregate_equal_weight(session) -> None:
+    _seed(session)
+    bank = session.get(StockMetric, "601398")
+    bank.change_pct = 2
+    food = session.get(StockMetric, "600519")
+    food.change_pct = -1
+    st = session.get(StockMetric, "000001")
+    st.change_pct = 5
+    session.commit()
+
+    client = _client(session)
+    try:
+        response = client.get("/api/v1/market/industries")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total"] == 2
+        by_name = {item["name"]: item for item in body["items"]}
+        assert by_name["金融"]["change_pct"] == 2
+        assert by_name["食品饮料"]["change_pct"] == -1
+        assert by_name["金融"]["count"] == 1
+
+        with_st = client.get("/api/v1/market/industries?include_st=true")
+        by_name = {item["name"]: item for item in with_st.json()["items"]}
+        assert by_name["金融"]["count"] == 2
+        assert by_name["金融"]["change_pct"] == 3.5
+    finally:
+        app.dependency_overrides.clear()
