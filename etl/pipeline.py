@@ -17,7 +17,7 @@ from app.db.models import (
     RealtimeQuote,
     TradingCalendar,
 )
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from etl.quality import (
@@ -98,6 +98,12 @@ def seed_universe(session: Session) -> int:
             profile.tracked_index = seed.tracked_index
             profile.valuation_index = VALUATION_INDEX.get(seed.code)
 
+    # Retire ETFs removed from the curated universe so /etfs stays at 100.
+    session.execute(
+        update(Instrument)
+        .where(Instrument.type == "etf", Instrument.code.notin_(codes))
+        .values(is_active=False)
+    )
     session.commit()
     return len(ETF_UNIVERSE)
 
