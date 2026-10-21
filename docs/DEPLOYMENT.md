@@ -1,4 +1,6 @@
-# 部署手册：Vercel + Railway + GitHub Actions
+# 部署手册
+
+> 日常维护、故障排查、回滚请看 [运维操作手册](OPERATIONS.md)。：Vercel + Railway + GitHub Actions
 
 > 架构：Next.js 部署 Vercel；FastAPI + PostgreSQL 部署 Railway；ETL 由 GitHub Actions 定时触发。
 
