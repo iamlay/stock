@@ -1,0 +1,42 @@
+name: Stock Industry Detail
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Number of high-yield stocks to enrich"
+        default: "500"
+  schedule:
+    # First day of each quarter, 20:30 Asia/Shanghai
+    - cron: "30 12 1 1,4,7,10 *"
+
+concurrency:
+  group: stock-industry-detail
+  cancel-in-progress: false
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install API package
+        run: pip install -e apps/api
+
+      - name: Run migrations
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: alembic -c apps/api/alembic.ini upgrade head
+
+      - name: Fill three-level industries
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: |
+          LIMIT="${{ inputs.limit }}"
+          python -m etl.cli stock-industry-detail --limit "${LIMIT:-500}" --delay 0.2

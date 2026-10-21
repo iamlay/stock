@@ -40,6 +40,7 @@ from etl.stock_quality import (
 )
 from etl.stocks import (
     enrich_stock_industries,
+    enrich_stock_industry_details,
     refresh_stock_metrics,
     sync_stock_bars_batch,
     sync_stock_daily,
@@ -310,6 +311,20 @@ def cmd_stock_bars(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_stock_industry_detail(args: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        result = enrich_stock_industry_details(
+            session,
+            limit=args.limit,
+            delay=args.delay,
+        )
+    print(
+        f"stock industry detail selected={result['selected']} "
+        f"updated={result['updated']} errors={len(result['errors'])}"
+    )
+    return 0
+
+
 def cmd_stock_quality(args: argparse.Namespace) -> int:
     with SessionLocal() as session:
         report = run_stock_quality(session, limit=args.limit)
@@ -499,6 +514,14 @@ def build_parser() -> argparse.ArgumentParser:
     stock_industry.add_argument("--sina-prefix", default="sw_")
     stock_industry.add_argument("--overwrite", action="store_true")
     stock_industry.set_defaults(func=cmd_stock_industry)
+
+    stock_industry_detail = sub.add_parser(
+        "stock-industry-detail",
+        help="fill three-level industry paths for high-yield stocks",
+    )
+    stock_industry_detail.add_argument("--limit", type=int, default=500)
+    stock_industry_detail.add_argument("--delay", type=float, default=0.2)
+    stock_industry_detail.set_defaults(func=cmd_stock_industry_detail)
 
     stock_sync = sub.add_parser("stock-sync", help="sync one stock on demand")
     stock_sync.add_argument("--code", required=True)

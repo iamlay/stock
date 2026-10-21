@@ -466,6 +466,77 @@ def sync_stock_quote(session: Session, code: str) -> dict:
     return result
 
 
+def enrich_stock_industry_details(
+    session: Session,
+    *,
+    limit: int = 500,
+    delay: float = 0.2,
+) -> dict:
+    """Fill three-level Eastmoney industry paths for high-yield stocks."""
+    targets = list(
+        session.scalars(
+            select(StockProfile.code)
+            .join(StockMetric, StockMetric.code == StockProfile.code)
+            .where(
+                StockProfile.status == "active",
+                StockMetric.dividend_yield_ttm.is_not(None),
+            )
+            .order_by(StockMetric.dividend_yield_ttm.desc().nulls_last())
+            .limit(limit)
+        ).all()
+    )
+    if not targets:
+        return {"selected": 0, "updated": 0, "errors": []}
+
+    profiles = {
+        item.code: item
+        for item in session.scalars(
+            select(StockProfile).where(StockProfile.code.in_(targets))
+        ).all()
+    }
+    job = DataJob(
+        job_name="stock_industry_detail",
+        status="running",
+        params={"codes": len(targets)},
+    )
+    session.add(job)
+    session.commit()
+    session.refresh(job)
+
+    updated = 0
+    errors: list[str] = []
+    for index, code in enumerate(targets, start=1):
+        company = None
+        for attempt in range(3):
+            try:
+                company = fetch_eastmoney_industry(code)
+                break
+            except Exception:  # noqa: BLE001 - retry then record
+                if attempt == 2:
+                    errors.append(code)
+                time.sleep(0.5 * (attempt + 1))
+        profile = profiles.get(code)
+        if company and company.eastmoney_industry and profile is not None:
+            profile.industry_path = company.eastmoney_industry
+            profile.industry_source = "eastmoney"
+            if company.listing_date:
+                try:
+                    profile.list_date = date.fromisoformat(company.listing_date)
+                except ValueError:
+                    pass
+            updated += 1
+        time.sleep(delay)
+        if index % 50 == 0:
+            session.commit()
+
+    job.status = "success"
+    job.rows_written = updated
+    job.error = f"{len(errors)} codes failed" if errors else None
+    job.finished_at = datetime.now(UTC)
+    session.commit()
+    return {"selected": len(targets), "updated": updated, "errors": errors}
+
+
 def enrich_stock_industries(
     session: Session,
     codes: list[str] | None = None,
