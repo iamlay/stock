@@ -1,0 +1,58 @@
+name: Uptime Monitor
+
+on:
+  schedule:
+    # Every hour
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: uptime-monitor
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check API and web
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 20 https://stock-production-c535.up.railway.app/healthz > health.json
+          curl -fsS --max-time 20 https://stock-production-c535.up.railway.app/api/v1/data/status > status.json
+          curl -fsSL --max-time 20 -o /dev/null https://stock.iamlay.com/
+          python - <<'PY'
+          import datetime
+          import json
+
+          status = json.load(open("status.json"))
+          latest = datetime.date.fromisoformat(status["latest_trade_date"])
+          lag = (datetime.date.today() - latest).days
+          failed = int(status.get("failed_quality_checks") or 0)
+          job = status.get("last_job") or {}
+          print(f"latest_trade_date={latest} lag_days={lag} failed_checks={failed}")
+          if lag > 10:
+              raise SystemExit(f"data is stale: {lag} days")
+          if failed > 0:
+              raise SystemExit(f"{failed} failed quality checks")
+          if job.get("status") == "failed":
+              raise SystemExit(f"last job failed: {job}")
+          PY
+          {
+            echo "### Uptime check passed"
+            echo ""
+            echo "- API: ok"
+            echo "- Web: ok"
+            echo "- latest_trade_date: $(python -c 'import json;print(json.load(open("status.json"))["latest_trade_date"])')"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Notify failure
+        if: failure()
+        env:
+          WEBHOOK: ${{ secrets.STOCKLAB_ALERT_WEBHOOK }}
+        run: |
+          if [ -n "${WEBHOOK:-}" ]; then
+            curl -sS -X POST -H 'Content-Type: application/json' \
+              -d '{"text":"StockLab 可用性/数据新鲜度检查失败，请查看 GitHub Actions 日志"}' \
+              "$WEBHOOK"
+          fi

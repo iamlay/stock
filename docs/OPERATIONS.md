@@ -17,6 +17,7 @@
 | ETL | GitHub Actions `ETL` | 每天 18:30 |
 | 备份 | GitHub Actions `DB Backup` | 每天 03:00 |
 | 质量检查 | GitHub Actions `Stock Quality` | 每周一 20:00 |
+| 可用性监控 | GitHub Actions `Uptime Monitor` | 每小时 |
 
 ---
 
@@ -184,6 +185,7 @@ alembic -c apps/api/alembic.ini downgrade -1
 | `Stock Industry` | 手动 | 申万一级行业 | 修复行业 |
 | `Stock Seed` | 手动 | 500 只灰度 | 首次 |
 | `DB Restore Test` | 手动 | 恢复最近备份 | 验证备份 |
+| `Uptime Monitor` | 每小时 | API/Web/数据新鲜度 | 可用性告警 |
 
 ### Railway 5 分钟 Cron
 
@@ -294,6 +296,19 @@ python -m app.cli security-check
 ---
 
 ## 10. 监控与健康检查
+
+### 自动监控
+
+`Uptime Monitor` 每小时检查：
+
+- API `/healthz`；
+- Web 首页；
+- `/api/v1/data/status`；
+- 数据最新日期不超过 10 天；
+- 质量检查无 fail；
+- 最近数据任务不是 failed。
+
+失败时 GitHub Actions 会失败；配置 `STOCKLAB_ALERT_WEBHOOK` 可额外发 Slack/飞书通知。
 
 ### API
 
