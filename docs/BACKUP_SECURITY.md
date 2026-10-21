@@ -70,11 +70,11 @@ bash scripts/restore_backup.sh stocklab-2026-10-21.dump.enc
 
 ### 备份验收
 
-- [ ] `BACKUP_ENCRYPTION_KEY` 已配置；
-- [ ] 手动跑一次 `DB Backup` 成功；
-- [ ] Artifact 能下载；
-- [ ] 在测试库恢复成功；
-- [ ] 记录恢复耗时与行数；
+- [x] `BACKUP_ENCRYPTION_KEY` 已配置；
+- [x] 手动跑一次 `DB Backup` 成功；
+- [x] Artifact 能下载；
+- [x] 在临时库恢复成功（DB Restore Test）；
+- [x] 记录恢复行数；
 - [ ] 确认 Railway 自身自动备份也已开启。
 
 ---
