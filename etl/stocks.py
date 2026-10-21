@@ -11,7 +11,7 @@ from app.db.models import (
     StockMetric,
     StockProfile,
 )
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from etl.sources.eastmoney_stock import (
@@ -298,30 +298,42 @@ def sync_stock_bars(
     end = date.today()
     start = end - timedelta(days=days * 2)
     series = fetch_daily_tencent(code, start, end)
+    bars = series.bars[-days:]
+    if not bars:
+        if commit:
+            session.commit()
+        return 0
+
+    session.execute(
+        delete(MarketDaily).where(
+            MarketDaily.code == code,
+            MarketDaily.trade_date >= bars[0].trade_date,
+        )
+    )
+    mappings: list[dict] = []
     previous: float | None = None
-    written = 0
-    for bar in series.bars[-days:]:
-        session.merge(
-            MarketDaily(
-                code=code,
-                trade_date=bar.trade_date,
-                open=bar.open,
-                high=bar.high,
-                low=bar.low,
-                close=bar.close,
-                prev_close=previous,
-                volume=bar.volume,
-                amount=bar.amount,
-                amplitude=bar.amplitude,
-                adj_factor=1,
-                source="tencent",
-            )
+    for bar in bars:
+        mappings.append(
+            {
+                "code": code,
+                "trade_date": bar.trade_date,
+                "open": bar.open,
+                "high": bar.high,
+                "low": bar.low,
+                "close": bar.close,
+                "prev_close": previous,
+                "volume": bar.volume,
+                "amount": bar.amount,
+                "amplitude": bar.amplitude,
+                "adj_factor": 1,
+                "source": "tencent",
+            }
         )
         previous = bar.close
-        written += 1
+    session.bulk_insert_mappings(MarketDaily, mappings)
     if commit:
         session.commit()
-    return written
+    return len(mappings)
 
 
 def sync_stock_bars_batch(
