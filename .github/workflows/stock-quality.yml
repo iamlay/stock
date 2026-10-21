@@ -34,6 +34,11 @@ jobs:
           STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
         run: alembic -c apps/api/alembic.ini upgrade head
 
+      - name: Recompute yields
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: python -m etl.cli stock-metrics --limit 5000
+
       - name: Check stock quality
         env:
           STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
