@@ -48,10 +48,25 @@ class SyncResult:
 
 
 def seed_universe(session: Session) -> int:
-    """Upsert the frozen 20-ETF universe and its profile rows."""
+    """Upsert the frozen ETF universe and its profile rows."""
+    codes = [seed.code for seed in ETF_UNIVERSE]
+    instruments = {
+        item.code: item
+        for item in session.scalars(
+            select(Instrument).where(Instrument.code.in_(codes))
+        ).all()
+    }
+    profiles = {
+        item.code: item
+        for item in session.scalars(
+            select(EtfProfile).where(EtfProfile.code.in_(codes))
+        ).all()
+    }
+
     for seed in ETF_UNIVERSE:
-        session.merge(
-            Instrument(
+        instrument = instruments.get(seed.code)
+        if instrument is None:
+            instrument = Instrument(
                 code=seed.code,
                 name=seed.name,
                 type="etf",
@@ -59,19 +74,30 @@ def seed_universe(session: Session) -> int:
                 lot_size=100,
                 is_active=True,
             )
-        )
-    session.flush()  # instruments must exist before profiles (FK)
+            session.add(instrument)
+            instruments[seed.code] = instrument
+        else:
+            instrument.name = seed.name
+            instrument.type = "etf"
+            instrument.exchange = seed.exchange
+            instrument.is_active = True
 
-    for seed in ETF_UNIVERSE:
-        session.merge(
-            EtfProfile(
+        profile = profiles.get(seed.code)
+        if profile is None:
+            profile = EtfProfile(
                 code=seed.code,
                 category=seed.category,
                 tracked_index=seed.tracked_index,
                 valuation_index=VALUATION_INDEX.get(seed.code),
                 extra={},
             )
-        )
+            session.add(profile)
+            profiles[seed.code] = profile
+        else:
+            profile.category = seed.category
+            profile.tracked_index = seed.tracked_index
+            profile.valuation_index = VALUATION_INDEX.get(seed.code)
+
     session.commit()
     return len(ETF_UNIVERSE)
 
