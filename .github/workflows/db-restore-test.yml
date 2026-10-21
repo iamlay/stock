@@ -1,0 +1,101 @@
+name: DB Restore Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "DB Backup run id (from the run URL)"
+        required: true
+
+concurrency:
+  group: db-restore-test
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: stocklab_restore_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL 18 client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl ca-certificates gnupg lsb-release
+          sudo install -d /usr/share/postgresql-common/pgdg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /tmp/pgdg.asc
+          sudo gpg --batch --yes --dearmor \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg \
+            /tmp/pgdg.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-18
+
+      - name: Download encrypted backup
+        uses: actions/download-artifact@v4
+        with:
+          name: stocklab-db-${{ inputs.run_id }}
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: backup
+
+      - name: Decrypt
+        env:
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ]; then
+            echo "::error title=Missing BACKUP_ENCRYPTION_KEY::Add the repository secret"
+            exit 1
+          fi
+          encrypted="$(find backup -name '*.dump.enc' -print -quit)"
+          if [ -z "$encrypted" ]; then
+            echo "::error title=Backup not found::Artifact has no .dump.enc file"
+            exit 1
+          fi
+          openssl enc -d -aes-256-cbc -pbkdf2 \
+            -in "$encrypted" \
+            -out backup.dump \
+            -pass env:BACKUP_ENCRYPTION_KEY
+
+      - name: Restore into temporary database
+        run: |
+          set -euo pipefail
+          /usr/lib/postgresql/18/bin/pg_restore \
+            --clean --if-exists --no-owner --no-privileges \
+            --dbname "postgresql://postgres:test@127.0.0.1:5432/stocklab_restore_test" \
+            backup.dump
+
+      - name: Verify counts
+        run: |
+          set -euo pipefail
+          /usr/lib/postgresql/18/bin/psql "postgresql://postgres:test@127.0.0.1:5432/stocklab_restore_test" -v ON_ERROR_STOP=1 <<'SQL'
+          select 'instruments' as table_name, count(*) from instruments
+          union all select 'users', count(*) from users
+          union all select 'stock_profiles', count(*) from stock_profiles
+          union all select 'stock_metrics', count(*) from stock_metrics
+          union all select 'stock_dividends', count(*) from stock_dividends
+          union all select 'market_daily', count(*) from market_daily;
+          SQL
+
+      - name: Summary
+        run: |
+          echo "### Restore test passed" >> "$GITHUB_STEP_SUMMARY"
+          echo "Backup run: ${{ inputs.run_id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Database: temporary postgres:18 on the runner" >> "$GITHUB_STEP_SUMMARY"

@@ -38,6 +38,17 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 
 ### 恢复演练
 
+最省事的方式是 GitHub Actions：
+
+```text
+1. 打开成功的 DB Backup 运行，复制 URL 里的 run id
+2. Actions → DB Restore Test → Run workflow
+3. 填入 run id
+4. 工作流会启动临时 postgres:18，恢复备份并输出行数
+```
+
+手动恢复：
+
 ```bash
 STOCKLAB_DATABASE_URL='postgresql://...' \
 BACKUP_ENCRYPTION_KEY='...' \
