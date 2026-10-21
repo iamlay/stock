@@ -49,7 +49,7 @@ def _get_json(url: str, referer: str) -> object:
     return json.loads(text)
 
 
-def parse_sina_nodes(payload: object) -> list[IndustryNode]:
+def parse_sina_nodes(payload: object, prefix: str = "new_") -> list[IndustryNode]:
     nodes: list[IndustryNode] = []
 
     def walk(node: object) -> None:
@@ -59,7 +59,7 @@ def parse_sina_nodes(payload: object) -> list[IndustryNode]:
             len(node) >= 3
             and isinstance(node[0], str)
             and isinstance(node[2], str)
-            and node[2].startswith("new_")
+            and node[2].startswith(prefix)
         ):
             nodes.append(IndustryNode(name=node[0], code=node[2]))
             return
@@ -70,9 +70,9 @@ def parse_sina_nodes(payload: object) -> list[IndustryNode]:
     return nodes
 
 
-def fetch_sina_industry_nodes() -> list[IndustryNode]:
+def fetch_sina_industry_nodes(prefix: str = "new_") -> list[IndustryNode]:
     payload = _get_json(SINA_NODES_API, "https://finance.sina.com.cn/")
-    return parse_sina_nodes(payload)
+    return parse_sina_nodes(payload, prefix)
 
 
 def parse_sina_industry_rows(items: list[dict], industry: str) -> dict[str, str]:
@@ -88,11 +88,12 @@ def parse_sina_industry_rows(items: list[dict], industry: str) -> dict[str, str]
 
 def fetch_sina_industry_map(
     *,
+    prefix: str = "new_",
     max_nodes: int | None = None,
     page_size: int = 100,
     delay: float = 0.2,
 ) -> tuple[list[IndustryNode], dict[str, str]]:
-    nodes = fetch_sina_industry_nodes()
+    nodes = fetch_sina_industry_nodes(prefix)
     if max_nodes is not None:
         nodes = nodes[:max_nodes]
     mapping: dict[str, str] = {}

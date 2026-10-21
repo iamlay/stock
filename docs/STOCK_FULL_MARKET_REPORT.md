@@ -21,7 +21,7 @@ stock-industry --sina-only      # 49 个行业节点
 ```text
 stocks universe=5217 stored=5000
 stock dividends bulk codes=5000 records=9841 written=7783 metrics=5000
-stock industry selected=5000 sina=2470 eastmoney=0 errors=0
+stock industry selected=5000 sina=5000 eastmoney=0 errors=0
 stocks profiles=5000 metrics=5000 dividends=14964 with_yield=3404 st=127
 ```
 
@@ -36,14 +36,14 @@ stocks profiles=5000 metrics=5000 dividends=14964 with_yield=3404 st=127
 | 分红记录 | 14,964 |
 | 有 TTM 股息率 | 3,404 |
 | ST | 127 |
-| 有行业 | 2,470 |
+| 有行业 | 5,000 |
 
 说明：
 
 - 3,404 只有股息率，约 68%；
 - 其余无分红或近两年无实施分红；
-- 行业只做了 Sina 粗分类，覆盖 2,470；
-- 剩余 2,530 只行业为 null，后续用 F10 分批补。
+- 行业使用新浪申万一级（31 个节点），5,000 只全部覆盖；
+- 如需更细行业，可再用 Eastmoney F10 补三级路径。
 
 ---
 
@@ -95,13 +95,13 @@ python -m etl.cli stock-status
 | `etl.yml` | 工作日 18:30 | 5,000 只价格/市值/PE/PB + 股息率重算 |
 | `stock-dividends.yml` | 周一 19:00 | 批量分红增量 |
 | `stock-full.yml` | 手动 | 全市场初始化 |
-| `stock-industry` | 手动/季度 | F10 精确行业 |
+| `stock-industry` | 手动/季度 | 申万一级行业（5,000 只全量） |
 
 ---
 
 ## 6. 已知限制
 
-- 行业只有 2,470 只有值，筛选会跳过 null；
+- 行业是申万一级 31 类，粒度较粗；
 - 5,000 只价格来自 Sina 快照，不是实时；
 - 无 K 线的股票占多数，K 线按需生成；
 - 全市场分红只拉近两年，更早历史不展示；

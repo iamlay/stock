@@ -1,0 +1,39 @@
+name: Stock Industry
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Number of stocks to enrich"
+        default: "5000"
+
+concurrency:
+  group: stock-industry
+  cancel-in-progress: false
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install API package
+        run: pip install -e apps/api
+
+      - name: Run migrations
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: alembic -c apps/api/alembic.ini upgrade head
+
+      - name: Enrich SW1 industries
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: |
+          python -m etl.cli stock-industry --limit "${{ inputs.limit }}" --sina-only --sina-prefix sw_
+          python -m etl.cli stock-status

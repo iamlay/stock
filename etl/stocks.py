@@ -362,6 +362,7 @@ def enrich_stock_industries(
     limit: int | None = None,
     include_sina: bool = True,
     sina_only: bool = False,
+    sina_prefix: str = "sw_",
     delay: float = 0.2,
 ) -> dict:
     """Fill stock industries from Sina (coarse) and Eastmoney F10 (precise)."""
@@ -397,7 +398,7 @@ def enrich_stock_industries(
     sina_count = 0
     if include_sina:
         try:
-            _, sina_map = fetch_sina_industry_map()
+            _, sina_map = fetch_sina_industry_map(prefix=sina_prefix)
             for code in selected:
                 profile = profiles.get(code)
                 industry = sina_map.get(code)
