@@ -39,9 +39,28 @@ def upsert_stock_universe(
     if limit is not None:
         ordered = ordered[:limit]
 
-    codes: list[str] = []
+    codes = [row.code for row in ordered]
+    instruments = {
+        item.code: item
+        for item in session.scalars(
+            select(Instrument).where(Instrument.code.in_(codes))
+        ).all()
+    }
+    profiles = {
+        item.code: item
+        for item in session.scalars(
+            select(StockProfile).where(StockProfile.code.in_(codes))
+        ).all()
+    }
+    metrics = {
+        item.code: item
+        for item in session.scalars(
+            select(StockMetric).where(StockMetric.code.in_(codes))
+        ).all()
+    }
+
     for row in ordered:
-        instrument = session.get(Instrument, row.code)
+        instrument = instruments.get(row.code)
         if instrument is None:
             instrument = Instrument(
                 code=row.code,
@@ -52,13 +71,14 @@ def upsert_stock_universe(
                 is_active=True,
             )
             session.add(instrument)
+            instruments[row.code] = instrument
         else:
             instrument.name = row.name
             instrument.type = "stock"
             instrument.exchange = row.market
             instrument.is_active = True
 
-        profile = session.get(StockProfile, row.code)
+        profile = profiles.get(row.code)
         if profile is None:
             profile = StockProfile(
                 code=row.code,
@@ -67,21 +87,22 @@ def upsert_stock_universe(
                 status="active",
             )
             session.add(profile)
+            profiles[row.code] = profile
         else:
             profile.market = row.market
             profile.is_st = row.is_st
             profile.status = "active"
 
-        metric = session.get(StockMetric, row.code)
+        metric = metrics.get(row.code)
         if metric is None:
             metric = StockMetric(code=row.code)
             session.add(metric)
+            metrics[row.code] = metric
         metric.price = row.price
         metric.change_pct = row.change_pct
         metric.market_cap = row.market_cap
         metric.pe_ttm = row.pe_ttm
         metric.pb = row.pb
-        codes.append(row.code)
 
     session.commit()
     return codes
@@ -357,6 +378,12 @@ def enrich_stock_industries(
     selected = list(session.scalars(query).all())
     if not selected:
         return {"selected": 0, "sina": 0, "eastmoney": 0, "errors": []}
+    profiles = {
+        item.code: item
+        for item in session.scalars(
+            select(StockProfile).where(StockProfile.code.in_(selected))
+        ).all()
+    }
 
     job = DataJob(
         job_name="stock_industry",
@@ -372,7 +399,7 @@ def enrich_stock_industries(
         try:
             _, sina_map = fetch_sina_industry_map()
             for code in selected:
-                profile = session.get(StockProfile, code)
+                profile = profiles.get(code)
                 industry = sina_map.get(code)
                 if profile is not None and industry:
                     profile.industry = profile.industry or industry
@@ -407,7 +434,7 @@ def enrich_stock_industries(
                     errors.append(code)
                 time.sleep(0.5 * (attempt + 1))
         if company and company.eastmoney_industry:
-            profile = session.get(StockProfile, code)
+            profile = profiles.get(code)
             if profile is not None:
                 path = company.eastmoney_industry
                 profile.industry = path.split("-")[0].strip()
