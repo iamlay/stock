@@ -47,3 +47,10 @@ jobs:
             python -m etl.cli daily
           fi
           python -m etl.cli status
+
+      - name: Refresh stock quotes
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: |
+          python -m etl.cli stock-daily
+          python -m etl.cli stock-status

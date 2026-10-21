@@ -34,6 +34,7 @@ from etl.sources.sina_stock import fetch_stock_universe as fetch_sina_stocks
 from etl.stocks import (
     enrich_stock_industries,
     refresh_stock_metrics,
+    sync_stock_daily,
     sync_stock_dividends,
     sync_stock_pilot,
     sync_stock_quote,
@@ -286,6 +287,22 @@ def cmd_stock_industry(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_stock_daily(args: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        result = sync_stock_daily(
+            session,
+            include_dividends=args.dividends,
+            dividend_limit=args.dividend_limit,
+            delay=args.delay,
+        )
+    print(
+        f"stock daily universe={result['universe']} matched={result['matched']} "
+        f"dividends={result['dividends']} errors={len(result['errors'])} "
+        f"metrics={result['metrics']}"
+    )
+    return 0
+
+
 def cmd_sync_valuation(_: argparse.Namespace) -> int:
     with SessionLocal() as session:
         seed_universe(session)
@@ -370,6 +387,12 @@ def build_parser() -> argparse.ArgumentParser:
     stock_universe = sub.add_parser("stock-universe", help="sync A-share stock list")
     stock_universe.add_argument("--limit", type=int, default=None)
     stock_universe.set_defaults(func=cmd_stock_universe)
+
+    stock_daily = sub.add_parser("stock-daily", help="refresh existing stock prices")
+    stock_daily.add_argument("--dividends", action="store_true")
+    stock_daily.add_argument("--dividend-limit", type=int, default=None)
+    stock_daily.add_argument("--delay", type=float, default=0.15)
+    stock_daily.set_defaults(func=cmd_stock_daily)
 
     stock_dividends = sub.add_parser("stock-dividends", help="sync stock dividends")
     stock_dividends.add_argument("--limit", type=int, default=None)

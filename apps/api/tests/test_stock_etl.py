@@ -6,6 +6,7 @@ from etl.sources.sina_stock import SinaStockRow
 from etl.stocks import (
     enrich_stock_industries,
     refresh_stock_metrics,
+    sync_stock_daily,
     sync_stock_dividends,
     sync_stock_pilot,
     upsert_stock_universe,
@@ -97,3 +98,19 @@ def test_enrich_industry_prefers_eastmoney(session, monkeypatch) -> None:
     assert profile.industry_path == "食品饮料-饮料-白酒"
     assert profile.industry_source == "eastmoney"
     assert profile.list_date == date(2001, 8, 27)
+
+
+def test_daily_only_updates_existing_stocks(session, monkeypatch) -> None:
+    upsert_stock_universe(session, [make_row("600519", "贵州茅台", 18800)])
+    rows = [
+        make_row("600519", "贵州茅台", 19000),
+        make_row("000001", "平安银行", 2000),
+    ]
+    monkeypatch.setattr("etl.stocks.fetch_stock_universe", lambda: (2, rows))
+
+    result = sync_stock_daily(session, include_dividends=False)
+    assert result["matched"] == 1
+    assert result["metrics"] == 1
+    assert session.get(StockProfile, "000001") is None
+    metric = session.get(StockMetric, "600519")
+    assert float(metric.market_cap) == 19000

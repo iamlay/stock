@@ -319,6 +319,50 @@ def enrich_stock_industries(
     }
 
 
+def sync_stock_daily(
+    session: Session,
+    *,
+    include_dividends: bool = False,
+    dividend_limit: int | None = None,
+    delay: float = 0.15,
+) -> dict:
+    """Refresh prices/metrics for stocks already in the database."""
+    existing = set(
+        session.scalars(
+            select(StockProfile.code).where(StockProfile.status == "active")
+        ).all()
+    )
+    if not existing:
+        return {
+            "universe": 0,
+            "matched": 0,
+            "dividends": 0,
+            "errors": [],
+            "metrics": 0,
+        }
+
+    total, rows = fetch_stock_universe()
+    selected = [row for row in rows if row.code in existing]
+    codes = upsert_stock_universe(session, selected)
+
+    dividends = 0
+    errors: list[str] = []
+    if include_dividends and codes:
+        targets = codes[:dividend_limit] if dividend_limit is not None else codes
+        result = sync_stock_dividends(session, targets, delay=delay)
+        dividends = result["written"]
+        errors = result["errors"]
+
+    refreshed = refresh_stock_metrics(session, codes)
+    return {
+        "universe": total,
+        "matched": len(codes),
+        "dividends": dividends,
+        "errors": errors,
+        "metrics": refreshed,
+    }
+
+
 def sync_stock_pilot(
     session: Session,
     *,
