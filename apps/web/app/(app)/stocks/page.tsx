@@ -27,6 +27,47 @@ function money(value: number | null): string {
   return value == null ? "—" : value.toLocaleString("zh-CN", { maximumFractionDigits: 0 });
 }
 
+const SUSTAIN: Record<string, { label: string; className: string; title: string }> = {
+  stable: {
+    label: "连续",
+    className: "bg-jade-soft text-jade-deep",
+    title: "连续 5 年以上分红，股息率不高于 8%",
+  },
+  watch: {
+    label: "核查",
+    className: "bg-amber-soft text-amber",
+    title: "股息率偏高或 TTM 与年度差异较大，需核查",
+  },
+  one_off: {
+    label: "单次大额",
+    className: "bg-amber-soft text-amber",
+    title: "含单次大额或特别分红，需判断可持续性",
+  },
+  high_yield: {
+    label: "高股息",
+    className: "bg-amber-soft text-amber",
+    title: "TTM 股息率超过 15%，需核查一次性因素",
+  },
+  none: {
+    label: "无分红",
+    className: "bg-[#f1efe8] text-muted",
+    title: "近两年没有实施现金分红",
+  },
+};
+
+function SustainBadge({ value }: { value: string | null }) {
+  if (!value || !SUSTAIN[value]) return null;
+  const item = SUSTAIN[value];
+  return (
+    <span
+      title={item.title}
+      className={`mt-1 inline-block rounded-sm px-1.5 py-0.5 text-[10px] ${item.className}`}
+    >
+      {item.label}
+    </span>
+  );
+}
+
 export default async function StocksPage({
   searchParams,
 }: {
@@ -215,8 +256,11 @@ export default async function StocksPage({
                     >
                       {stock.change_pct == null ? "—" : fmtPct(stock.change_pct)}
                     </td>
-                    <td className="tnum px-4 py-3 text-right font-medium text-jade-deep">
-                      {pct(stock.dividend_yield_ttm)}
+                    <td className="tnum px-4 py-3 text-right">
+                      <div className="font-medium text-jade-deep">
+                        {pct(stock.dividend_yield_ttm)}
+                      </div>
+                      <SustainBadge value={stock.sustainability} />
                     </td>
                     <td className="tnum px-4 py-3 text-right text-ink-soft">
                       {pct(stock.dividend_yield_fy)}

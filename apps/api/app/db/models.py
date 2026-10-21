@@ -388,6 +388,7 @@ class StockDividend(Base):
     cash_per_share: Mapped[float] = mapped_column(Numeric(12, 6), nullable=False)
     plan: Mapped[str] = mapped_column(String(128), nullable=False)
     is_special: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_one_off: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     source: Mapped[str] = mapped_column(String(16), nullable=False, default="eastmoney")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -411,6 +412,7 @@ class StockMetric(Base):
     pb: Mapped[float | None] = mapped_column(Numeric(12, 4))
     dividend_yield_ttm: Mapped[float | None] = mapped_column(Numeric(8, 4))
     dividend_yield_fy: Mapped[float | None] = mapped_column(Numeric(8, 4))
+    sustainability: Mapped[str | None] = mapped_column(String(16))
     last_ex_date: Mapped[date | None] = mapped_column(Date)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False

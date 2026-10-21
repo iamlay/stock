@@ -90,7 +90,64 @@ TTM/年度差异>5  24
 
 ---
 
-## 5. 重点核查样本
+## 5. 分红标记与可持续性
+
+### 分红标记
+
+`stock_dividends` 增加：
+
+```text
+is_special   方案含“特别”
+is_one_off   特别分红，或单次现金/价格 >= 8%
+```
+
+详情页会显示：
+
+```text
+特别
+单次大额
+```
+
+### 股票级提示
+
+`stock_metrics.sustainability`：
+
+| 值 | 含义 |
+|---|---|
+| `stable` | 连续 5 年以上分红，股息率 ≤ 8% |
+| `normal` | 常规分红 |
+| `watch` | 股息率 > 10% 或 TTM/年度差异大 |
+| `one_off` | 含特别或单次大额分红 |
+| `high_yield` | TTM > 15%，需核查 |
+| `none` | 近两年无现金分红 |
+
+列表页在股息率下方显示：
+
+```text
+连续 / 核查 / 单次大额 / 高股息 / 无分红
+```
+
+---
+
+## 6. 告警
+
+`stock-quality --fail-on-fail` 在出现 `fail` 时返回非零，GitHub Actions 任务失败，默认会通知仓库关注者。
+
+可选 Webhook：
+
+```text
+Secret: STOCKLAB_ALERT_WEBHOOK
+```
+
+工作流失败时 POST：
+
+```json
+{"text":"StockLab 个股质量检查失败，请查看 GitHub Actions 日志"}
+```
+
+---
+
+## 7. 重点核查样本
 
 当前高股息前几名：
 
@@ -112,7 +169,7 @@ TTM/年度差异>5  24
 
 ---
 
-## 6. 后续
+## 8. 后续
 
 - 对 `yield_extreme` 增加人工复核标记；
 - 对特别分红单独展示；

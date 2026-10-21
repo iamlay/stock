@@ -14,6 +14,7 @@ export type Stock = {
   pb: number | null;
   dividend_yield_ttm: number | null;
   dividend_yield_fy: number | null;
+  sustainability: string | null;
   last_ex_date: string | null;
   updated_at: string | null;
 };
@@ -33,6 +34,7 @@ export type StockDividend = {
   cash_per_share: number;
   plan: string;
   is_special: boolean;
+  is_one_off: boolean;
 };
 
 export type StockDetail = Stock & {

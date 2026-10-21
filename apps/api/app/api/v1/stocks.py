@@ -47,6 +47,7 @@ class StockOut(BaseModel):
     pb: float | None
     dividend_yield_ttm: float | None
     dividend_yield_fy: float | None
+    sustainability: str | None
     last_ex_date: str | None
     updated_at: str | None
 
@@ -66,6 +67,7 @@ class DividendOut(BaseModel):
     cash_per_share: float
     plan: str
     is_special: bool
+    is_one_off: bool
 
 
 class StockBar(BaseModel):
@@ -124,6 +126,7 @@ def _out(
             if metric.dividend_yield_fy is not None
             else None
         ),
+        sustainability=metric.sustainability,
         last_ex_date=_iso(metric.last_ex_date),
         updated_at=_iso(metric.updated_at),
     )
@@ -251,6 +254,7 @@ def get_stock(
                 cash_per_share=float(item.cash_per_share),
                 plan=item.plan,
                 is_special=item.is_special,
+                is_one_off=item.is_one_off,
             )
             for item in dividends
         ],

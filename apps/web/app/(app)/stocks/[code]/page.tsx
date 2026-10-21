@@ -24,6 +24,15 @@ function metric(value: number | null, digits = 2): string {
   return value == null ? "—" : value.toFixed(digits);
 }
 
+const SUSTAIN_LABELS: Record<string, string> = {
+  stable: "连续分红",
+  watch: "需核查",
+  one_off: "含单次大额",
+  high_yield: "高股息需核查",
+  none: "无分红",
+  normal: "常规",
+};
+
 export default async function StockDetailPage({ params }: PageProps) {
   const { code } = await params;
   const stock = await fetchStock(code);
@@ -157,6 +166,11 @@ export default async function StockDetailPage({ params }: PageProps) {
                             特别
                           </span>
                         ) : null}
+                        {item.is_one_off && !item.is_special ? (
+                          <span className="ml-2 rounded-sm bg-amber-soft px-1.5 py-0.5 text-[10px] text-amber">
+                            单次大额
+                          </span>
+                        ) : null}
                       </td>
                     </tr>
                   ))}
@@ -181,6 +195,14 @@ export default async function StockDetailPage({ params }: PageProps) {
               <dt className="text-muted">年度每股现金</dt>
               <dd className="tnum text-ink">
                 {latestDividend ? annualCash.toFixed(4) : "—"}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted">分红特征</dt>
+              <dd className="text-ink">
+                {stock.sustainability
+                  ? (SUSTAIN_LABELS[stock.sustainability] ?? stock.sustainability)
+                  : "—"}
               </dd>
             </div>
             <div className="flex justify-between gap-4">

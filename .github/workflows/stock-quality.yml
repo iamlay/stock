@@ -45,7 +45,18 @@ jobs:
         run: |
           LIMIT="${{ inputs.limit }}"
           if [ -z "$LIMIT" ] || [ "$LIMIT" = "0" ]; then
-            python -m etl.cli stock-quality --limit 5000 --write
+            python -m etl.cli stock-quality --limit 5000 --write --fail-on-fail
           else
-            python -m etl.cli stock-quality --limit "$LIMIT" --write
+            python -m etl.cli stock-quality --limit "$LIMIT" --write --fail-on-fail
+          fi
+
+      - name: Notify failure
+        if: failure()
+        env:
+          WEBHOOK: ${{ secrets.STOCKLAB_ALERT_WEBHOOK }}
+        run: |
+          if [ -n "$WEBHOOK" ]; then
+            curl -sS -X POST -H 'Content-Type: application/json' \
+              -d '{"text":"StockLab 个股质量检查失败，请查看 GitHub Actions 日志"}' \
+              "$WEBHOOK"
           fi

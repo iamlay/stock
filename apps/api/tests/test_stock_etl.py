@@ -132,3 +132,22 @@ def test_bulk_dividends_only_keeps_known_codes(session, monkeypatch) -> None:
     assert result["codes"] == 2
     assert result["written"] == 1
     assert session.query(StockDividend).count() == 1
+
+
+def test_metrics_mark_one_off_dividend(session, monkeypatch) -> None:
+    upsert_stock_universe(session, [make_row("600519", "贵州茅台", 18800)])
+    metric = session.get(StockMetric, "600519")
+    metric.price = 10
+    session.commit()
+    records = [
+        DividendRecord("600519", "贵州茅台", date(2025, 6, 26), 2024, 0.2, "", False),
+        DividendRecord("600519", "贵州茅台", date(2026, 6, 26), 2025, 1.0, "", False),
+    ]
+    monkeypatch.setattr("etl.stocks.fetch_dividends", lambda code: records)
+    sync_stock_dividends(session, ["600519"], delay=0)
+
+    refresh_stock_metrics(session, ["600519"], as_of=date(2026, 10, 21))
+    metric = session.get(StockMetric, "600519")
+    assert metric.sustainability == "one_off"
+    latest = session.query(StockDividend).order_by(StockDividend.ex_date.desc()).first()
+    assert latest.is_one_off is True

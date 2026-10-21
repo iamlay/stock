@@ -143,10 +143,36 @@ def refresh_stock_metrics(
     for metric in metrics:
         records = dividends.get(metric.code, [])
         price = float(metric.price or 0)
+        one_off = 0
+        years: set[int] = set()
+        for row in records:
+            row.is_special = "特别" in row.plan
+            contribution = (
+                float(row.cash_per_share) / price * 100 if price > 0 else 0.0
+            )
+            row.is_one_off = row.is_special or contribution >= 8
+            if row.is_one_off:
+                one_off += 1
+            years.add(row.fiscal_year)
+
         ttm, _ = ttm_dividend_yield(records, price, as_of=today)
         fy = latest_fiscal_year_yield(records, price, as_of=today)
         metric.dividend_yield_ttm = ttm
         metric.dividend_yield_fy = fy
+        if not records:
+            metric.sustainability = "none"
+        elif one_off:
+            metric.sustainability = "one_off"
+        elif ttm is not None and ttm > 15:
+            metric.sustainability = "high_yield"
+        elif (ttm is not None and ttm > 10) or (
+            ttm is not None and fy is not None and abs(ttm - fy) > 5
+        ):
+            metric.sustainability = "watch"
+        elif ttm is not None and ttm > 0 and len(years) >= 5 and ttm <= 8:
+            metric.sustainability = "stable"
+        else:
+            metric.sustainability = "normal"
         past = [row.ex_date for row in records if row.ex_date <= today]
         metric.last_ex_date = max(past, default=None)
 

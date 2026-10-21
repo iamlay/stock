@@ -310,6 +310,8 @@ def cmd_stock_quality(args: argparse.Namespace) -> int:
             f"ttm={item['yield_ttm']} fy={item['yield_fy']} price={item['price']}"
         )
     print(f"report: {args.out}")
+    if args.fail_on_fail and summary["fail"] > 0:
+        return 1
     return 0
 
 
@@ -435,6 +437,7 @@ def build_parser() -> argparse.ArgumentParser:
     stock_quality = sub.add_parser("stock-quality", help="check stock data quality")
     stock_quality.add_argument("--limit", type=int, default=None)
     stock_quality.add_argument("--write", action="store_true")
+    stock_quality.add_argument("--fail-on-fail", action="store_true")
     stock_quality.add_argument("--out", default="etl/out/stock_quality.json")
     stock_quality.set_defaults(func=cmd_stock_quality)
 

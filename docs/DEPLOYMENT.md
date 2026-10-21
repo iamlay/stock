@@ -343,6 +343,7 @@ cron: quotes=20 latest=2026-10-20T14:35:00 expired_invites=0
 | Secret | 值 |
 |---|---|
 | `STOCKLAB_DATABASE_URL` | Railway `DATABASE_PUBLIC_URL`（带 `+psycopg` 和 `sslmode=require`） |
+| `STOCKLAB_ALERT_WEBHOOK` | 可选，质量检查失败时的 Slack/Discord/飞书 Webhook |
 
 ---
 
