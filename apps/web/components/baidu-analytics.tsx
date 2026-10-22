@@ -1,5 +1,3 @@
-import Script from "next/script";
-
 const DEFAULT_ID = "26d75880bb0baefcaf2906dc951c705b";
 
 export function BaiduAnalytics() {
@@ -12,16 +10,18 @@ export function BaiduAnalytics() {
   if (!id || !enabled) return null;
 
   return (
-    <Script id="baidu-analytics" strategy="afterInteractive">
-      {`
-        var _hmt = _hmt || [];
-        (function() {
-          var hm = document.createElement("script");
-          hm.src = "https://hm.baidu.com/hm.js?${id}";
-          var s = document.getElementsByTagName("script")[0];
-          s.parentNode.insertBefore(hm, s);
-        })();
-      `}
-    </Script>
+    <script
+      dangerouslySetInnerHTML={{
+        __html: `
+          var _hmt = _hmt || [];
+          (function() {
+            var hm = document.createElement("script");
+            hm.src = "https://hm.baidu.com/hm.js?${id}";
+            var s = document.getElementsByTagName("script")[0];
+            s.parentNode.insertBefore(hm, s);
+          })();
+        `,
+      }}
+    />
   );
 }
