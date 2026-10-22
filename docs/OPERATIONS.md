@@ -10,7 +10,7 @@
 
 | 服务 | 地址/位置 | 说明 |
 |---|---|---|
-| Web | `https://stock.iamlay.com` | Next.js，Railway Web |
+| Web | `https://stock.iamlay.com` | Next.js，Vercel |
 | API | `https://stock-production-c535.up.railway.app` | FastAPI，Railway API |
 | PostgreSQL | Railway Postgres | 生产数据库 |
 | 5 分钟 Cron | Railway `stocklab-cron` | `python -m etl.cli cron` |
@@ -38,7 +38,7 @@
 | `STOCKLAB_RESEND_API_KEY` / `STOCKLAB_BREVO_API_KEY` | 二选一 | 邮件服务 |
 | `STOCKLAB_EMAIL_FROM` | ✅ | 已验证发件地址 |
 
-### Web（Railway）
+### Web（Vercel）
 
 | 变量 | 说明 |
 |---|---|
@@ -47,6 +47,7 @@
 | `NEXT_TELEMETRY_DISABLED` | 可选 `1` |
 
 > `API_BASE_URL` 和 `NEXT_PUBLIC_API_BASE_URL` 都不带末尾 `/`。
+> Web 部署在 Vercel，Railway 只跑 API、PostgreSQL 和 Cron。
 
 ### GitHub Secrets
 
@@ -122,14 +123,14 @@ curl https://stock-production-c535.up.railway.app/healthz
 ### 4.2 Web 发布
 
 1. 合并到 `main`；
-2. Railway Web 重新构建；
+2. Vercel 自动重新构建；
 3. 检查：
 
 ```bash
 curl -I https://stock.iamlay.com
 ```
 
-4. 如果页面还是旧数据，强制刷新或检查 `API_BASE_URL`。
+4. 如果页面还是旧数据，强制刷新或检查 Vercel 的 `API_BASE_URL`。
 
 ### 4.3 发布后检查清单
 

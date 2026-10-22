@@ -29,14 +29,14 @@
 ## 2. 推荐架构
 
 ```text
-GitHub main       → Railway Production
-GitHub staging    → Railway Staging
+GitHub main    → Vercel Production Web + Railway Production API/DB
+GitHub staging → Vercel Staging Web + Railway Staging API/DB
 ```
 
-| 环境 | 分支 | 域名 | 数据库 |
+| 环境 | 分支 | Web | API/DB |
 |---|---|---|---|
-| Production | `main` | `stock.iamlay.com` | 生产 Postgres |
-| Staging | `staging` | `staging.stock.iamlay.com` | 独立 Postgres |
+| Production | `main` | Vercel `stock.iamlay.com` | Railway 生产 |
+| Staging | `staging` | Vercel `staging.stock.iamlay.com` | Railway 独立项目 |
 
 推荐**单独建一个 Railway Project**：
 
@@ -75,8 +75,9 @@ git push origin staging
 1. Railway → New Project；
 2. Deploy from GitHub → `iamlay/stock`；
 3. 添加 PostgreSQL；
-4. 创建 API 服务；
-5. 创建 Web 服务。
+4. 创建 API 服务。
+
+Web 不放在 Railway，单独在 Vercel 建 staging 项目。
 
 ### 3.3 API 服务
 
@@ -110,16 +111,19 @@ STOCKLAB_AUTH_DEV_MODE=true
 
 验证邮件 token 会写入 API 日志，测试时从日志取。
 
-### 3.4 Web 服务
+### 3.4 Web 服务（Vercel）
+
+Vercel → Add New Project → `iamlay/stock`：
 
 | 项 | 值 |
 |---|---|
-| 分支 | `staging` |
-| Builder | Railpack |
+| Branch | `staging` |
+| Framework | Next.js |
+| Root Directory | 仓库根目录 |
+| Install Command | `pnpm install --frozen-lockfile` |
 | Build Command | `pnpm --filter @stocklab/web build` |
-| Start Command | `pnpm --filter @stocklab/web start` |
-| 目标端口 | 3000 |
-| 变量 | 见下表 |
+
+环境变量：
 
 ```text
 API_BASE_URL=https://<staging-api>.up.railway.app
@@ -128,13 +132,19 @@ NEXT_PUBLIC_API_BASE_URL=https://<staging-api>.up.railway.app
 
 ### 3.5 域名
 
-Railway Web → Settings → Networking → Custom Domain：
+Vercel → Domains：
 
 ```text
 staging.stock.iamlay.com
 ```
 
-DNS 添加 CNAME。
+DNS 按 Vercel 提示添加 CNAME。
+
+Railway API 的 CORS 增加：
+
+```text
+https://staging.stock.iamlay.com
+```
 
 ### 3.6 不做
 
@@ -311,8 +321,8 @@ python -m etl.cli sync-all --start 2025-01-01 --delay 0.2
 
 | 项 | 估算 |
 |---|---|
+| Vercel Web | Hobby 免费额度 |
 | Railway API | 低配即可 |
-| Railway Web | 低配即可 |
 | PostgreSQL | 小容量 |
 | 合计 | 约 $5–15/月，以 Railway 页面为准 |
 
