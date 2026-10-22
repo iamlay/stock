@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Analytics } from "@vercel/analytics/next";
 
+import { BaiduAnalytics } from "@/components/baidu-analytics";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -26,6 +28,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       <body>
         {children}
         <Analytics />
+        <BaiduAnalytics />
       </body>
     </html>
   );

@@ -61,7 +61,9 @@ export default function PrivacyPage() {
           token，用于保持登录状态。该 token 不包含密码，关闭或清理浏览器数据后需要重新登录。
         </p>
         <p>
-          当前不使用广告 Cookie，也不接入第三方广告追踪。若未来引入统计工具，会在此说明并更新本政策。
+          当前不使用广告 Cookie，也不接入第三方广告追踪。我们使用 Vercel Analytics
+          和百度统计了解页面访问量、来源、设备类型等聚合信息，用于改进产品体验，
+          不用于识别个人身份。
         </p>
       </section>
 
