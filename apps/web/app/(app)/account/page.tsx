@@ -142,7 +142,7 @@ export default function AccountPage() {
           <h1 className="font-serif text-3xl text-ink">个人中心</h1>
           <p className="mt-1 text-sm text-muted">账号、会员与回测历史</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 [&>a]:whitespace-nowrap [&>button]:whitespace-nowrap sm:w-auto sm:justify-end">
           <Link
             href="/notifications"
             className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"

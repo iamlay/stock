@@ -146,10 +146,13 @@ export default async function StockFinancialPage({
           </p>
           <h1 className="mt-1 font-serif text-3xl text-ink">股息财务</h1>
           <p className="mt-1 text-sm text-muted">
-            年报 / 季报净利润与同比 · 先覆盖高股息前 500 只
+            年报 / 季报净利润与同比 · 全市场覆盖
+          </p>
+          <p className="tnum mt-2 text-xs text-muted md:hidden">
+            共 {total.toLocaleString("zh-CN")} 只 · 净利润单位：亿元
           </p>
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="hidden flex-col items-end gap-2 md:flex">
           <StockSearchBox />
           <div className="text-right text-xs text-muted">
             <p className="tnum">共 {total.toLocaleString("zh-CN")} 只</p>
@@ -163,35 +166,37 @@ export default async function StockFinancialPage({
       <form
         method="get"
         action="/stocks/financial"
-        className="card flex flex-wrap items-end gap-3 p-4 text-xs"
+        className="card grid w-full min-w-0 grid-cols-2 items-end gap-3 p-4 text-xs sm:flex sm:flex-wrap"
       >
-        <label className="flex flex-col gap-1">
+        <label className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-auto">
           <span className="text-muted">搜索</span>
           <input
             name="q"
             defaultValue={q}
             placeholder="代码或名称"
-            className="w-36 rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink"
+            className="w-full min-w-0 rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink sm:w-36"
           />
         </label>
-        <label className="flex flex-col gap-1">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className="text-muted">行业</span>
           <input
             name="industry"
             defaultValue={industry}
             placeholder="如 金融"
-            className="w-28 rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink"
+            className="w-full min-w-0 rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink sm:w-28"
           />
         </label>
-        <button
-          type="submit"
-          className="rounded-sm bg-ink px-4 py-2 text-sm font-medium text-paper hover:bg-jade-deep"
-        >
-          筛选
-        </button>
-        <Link href="/stocks/financial" className="pb-2 text-jade-deep hover:underline">
-          重置
-        </Link>
+        <div className="col-span-2 flex items-center gap-3 sm:col-auto">
+          <button
+            type="submit"
+            className="flex-1 rounded-sm bg-ink px-4 py-2 text-sm font-medium text-paper hover:bg-jade-deep sm:flex-none"
+          >
+            筛选
+          </button>
+          <Link href="/stocks/financial" className="text-jade-deep hover:underline">
+            重置
+          </Link>
+        </div>
       </form>
 
       <div className="card overflow-hidden">
