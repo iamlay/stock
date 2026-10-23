@@ -8,6 +8,7 @@ import { SessionCookieSync } from "@/components/session-cookie-sync";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://stock.iamlay.com"),
   title: {
     default: "StockLab · 稳健 ETF 投研台",
     template: "%s · StockLab",

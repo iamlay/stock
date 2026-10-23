@@ -17,10 +17,55 @@ type PageProps = {
 };
 export const dynamic = "force-dynamic";
 
+const SITE_URL = "https://stock.iamlay.com";
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { code } = await params;
   const stock = await fetchStock(code);
-  return { title: stock ? `${stock.name} · 股息率` : "个股详情" };
+  if (!stock) {
+    return {
+      title: "个股详情",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const url = `${SITE_URL}/stocks/${code}`;
+  const industry = stock.industry ? `所属${stock.industry}行业，` : "";
+  const yieldText =
+    stock.dividend_yield_ttm == null
+      ? "暂无股息率数据"
+      : `TTM 股息率 ${stock.dividend_yield_ttm.toFixed(2)}%`;
+  const description =
+    `${stock.name}（${code}）最新价 ${stock.price?.toFixed(2) ?? "—"}，` +
+    `${yieldText}，${industry}查看近十年分红、财务、网格与布林数据。`;
+
+  return {
+    title: `${stock.name}（${code}）股息率与分红`,
+    description,
+    keywords: [
+      stock.name,
+      code,
+      `${stock.name} 股息率`,
+      `${code} 股息率`,
+      `${stock.name} 分红`,
+      stock.industry ?? "",
+    ].filter(Boolean),
+    alternates: { canonical: url },
+    openGraph: {
+      title: `${stock.name}（${code}）股息率与分红`,
+      description,
+      url,
+      siteName: "StockLab",
+      type: "article",
+      locale: "zh_CN",
+    },
+    twitter: {
+      card: "summary",
+      title: `${stock.name}（${code}）股息率与分红`,
+      description,
+    },
+    robots: { index: true, follow: true },
+  };
 }
 
 function pct(value: number | null): string {
@@ -75,6 +120,54 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
     { label: "月线", band: bollinger.monthly },
   ];
 
+  const pageUrl = `${SITE_URL}/stocks/${stock.code}`;
+  const pageDescription =
+    `${stock.name}（${stock.code}）最新价 ${stock.price?.toFixed(2) ?? "—"}，` +
+    `${stock.dividend_yield_ttm == null ? "暂无股息率数据" : `TTM 股息率 ${stock.dividend_yield_ttm.toFixed(2)}%`}。`;
+  const breadcrumbItems = [
+    { name: "首页", item: SITE_URL },
+    { name: "高股息个股", item: `${SITE_URL}/stocks` },
+    ...(stock.industry
+      ? [
+          {
+            name: stock.industry,
+            item: `${SITE_URL}/stocks?industry=${encodeURIComponent(stock.industry)}`,
+          },
+        ]
+      : []),
+    { name: stock.name, item: pageUrl },
+  ];
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Corporation",
+        "@id": `${pageUrl}#company`,
+        name: stock.name,
+        tickerSymbol: stock.code,
+        url: pageUrl,
+      },
+      {
+        "@type": "WebPage",
+        "@id": `${pageUrl}#page`,
+        url: pageUrl,
+        name: `${stock.name}（${stock.code}）股息率与分红`,
+        description: pageDescription,
+        about: { "@id": `${pageUrl}#company` },
+        isPartOf: { "@type": "WebSite", name: "StockLab", url: SITE_URL },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: breadcrumbItems.map((item, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: item.name,
+          item: item.item,
+        })),
+      },
+    ],
+  };
+
   const latestDividend = stock.dividends[0];
   const annualCash = stock.dividends
     .filter((item) => item.fiscal_year === latestDividend?.fiscal_year)
@@ -94,11 +187,39 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
 
   return (
     <div className="space-y-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link href="/stocks" className="text-xs text-jade-deep hover:underline">
-            ← 返回高股息列表
-          </Link>
+          <nav
+            aria-label="面包屑"
+            className="flex flex-wrap items-center gap-1.5 text-xs text-muted"
+          >
+            <Link href="/" className="hover:text-jade-deep">
+              首页
+            </Link>
+            <span>/</span>
+            <Link href="/stocks" className="hover:text-jade-deep">
+              高股息个股
+            </Link>
+            {stock.industry ? (
+              <>
+                <span>/</span>
+                <Link
+                  href={`/stocks?industry=${encodeURIComponent(stock.industry)}`}
+                  className="hover:text-jade-deep"
+                >
+                  {stock.industry}
+                </Link>
+              </>
+            ) : null}
+            <span>/</span>
+            <span className="text-ink-soft">{stock.name}</span>
+          </nav>
           <div className="mt-2 flex flex-wrap items-baseline gap-3">
             <h1 className="font-serif text-3xl text-ink">{stock.name}</h1>
             <span className="tnum text-sm text-muted">{stock.code}</span>
