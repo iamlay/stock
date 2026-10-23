@@ -4,8 +4,9 @@ import Link from "next/link";
 import { StockSearchBox } from "@/components/stock-search-box";
 import { StockSectionTabs } from "@/components/stock-section-tabs";
 import { MemberGate } from "@/components/member-gate";
-import { buildGrid, GRID_YIELDS, type StockGrid } from "@/lib/grid";
-import { fetchStocks, type Stock, type StockQuery } from "@/lib/stocks";
+import { getServerToken } from "@/lib/server-auth";
+import { GRID_YIELDS } from "@/lib/grid";
+import { fetchStockGrid, type StockGrid } from "@/lib/stocks";
 
 export const metadata: Metadata = { title: "股息网格" };
 export const dynamic = "force-dynamic";
@@ -20,12 +21,12 @@ function pct(value: number | null): string {
   return value == null ? "—" : `${value.toFixed(2)}%`;
 }
 
-function targetClass(stock: Stock, targetPrice: number): string {
+function targetClass(stock: StockGrid, targetPrice: number): string {
   if (stock.price == null) return "text-muted";
   return targetPrice <= stock.price ? "text-jade-deep" : "text-ink-soft";
 }
 
-function GridCard({ stock, grid }: { stock: Stock; grid: StockGrid }) {
+function GridCard({ stock }: { stock: StockGrid }) {
   return (
     <article className="border-b border-line p-4 last:border-0">
       <div className="flex items-start justify-between gap-3">
@@ -42,15 +43,15 @@ function GridCard({ stock, grid }: { stock: Stock; grid: StockGrid }) {
         </div>
       </div>
       <div className="mt-3 grid grid-cols-5 gap-1.5">
-        {grid.targets.map((target) => (
-          <div key={target.yield} className="rounded-sm bg-paper/70 px-1.5 py-2 text-center">
-            <p className="text-[10px] text-muted">{target.yield}%</p>
-            <p className={`tnum mt-0.5 text-xs ${targetClass(stock, target.price)}`}>
-              {target.price.toFixed(2)}
+        {stock.grid_targets.map((target) => (
+          <div key={target.target_yield} className="rounded-sm bg-paper/70 px-1.5 py-2 text-center">
+            <p className="text-[10px] text-muted">{target.target_yield}%</p>
+            <p className={`tnum mt-0.5 text-xs ${targetClass(stock, target.target_price)}`}>
+              {target.target_price.toFixed(2)}
             </p>
             <p className="tnum mt-0.5 text-[10px] text-muted">
-              {target.distancePct > 0 ? "+" : ""}
-              {target.distancePct.toFixed(1)}%
+              {target.distance_pct > 0 ? "+" : ""}
+              {target.distance_pct.toFixed(1)}%
             </p>
           </div>
         ))}
@@ -71,22 +72,19 @@ export default async function StockGridPage({
   const minYield = minYieldRaw ? Number(minYieldRaw) : 0.01;
   const page = Math.max(1, Number(one(params.page)) || 1);
 
-  const query: StockQuery = {
-    sort: "dividend_yield_ttm",
-    order: "desc",
-    q: q || undefined,
-    industry: industry || undefined,
-    min_yield: Number.isFinite(minYield) ? minYield : 0.01,
-    page,
-    page_size: PAGE_SIZE,
-  };
-  const data = await fetchStocks(query);
+  const data = await fetchStockGrid(
+    {
+      q: q || undefined,
+      industry: industry || undefined,
+      min_yield: Number.isFinite(minYield) ? minYield : 0.01,
+      page,
+      page_size: PAGE_SIZE,
+    },
+    await getServerToken(),
+  );
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  const rows = (data?.items ?? [])
-    .map((stock) => ({ stock, grid: buildGrid(stock.price, stock.dividend_yield_ttm) }))
-    .filter((row): row is { stock: Stock; grid: StockGrid } => row.grid !== null);
+  const rows = data?.items ?? [];
 
   function pageHref(target: number): string {
     const search = new URLSearchParams();
@@ -179,8 +177,8 @@ export default async function StockGridPage({
         ) : (
           <>
             <div className="md:hidden">
-              {rows.map(({ stock, grid }) => (
-                <GridCard key={stock.code} stock={stock} grid={grid} />
+              {rows.map((stock) => (
+                <GridCard key={stock.code} stock={stock} />
               ))}
             </div>
             <div className="hidden overflow-x-auto md:block">
@@ -199,7 +197,7 @@ export default async function StockGridPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {rows.map(({ stock, grid }) => (
+                  {rows.map((stock) => (
                     <tr key={stock.code} className="hover:bg-black/[0.02]">
                       <td className="px-4 py-3">
                         <Link href={`/stocks/${stock.code}?tab=grid`} className="group">
@@ -216,17 +214,17 @@ export default async function StockGridPage({
                         {stock.price?.toFixed(2) ?? "—"}
                       </td>
                       <td className="tnum px-4 py-3 text-right text-jade-deep">
-                        {pct(grid.currentYield)}
+                        {pct(stock.dividend_yield_ttm)}
                       </td>
-                      {grid.targets.map((target) => (
+                      {stock.grid_targets.map((target) => (
                         <td
-                          key={target.yield}
-                          className={`tnum px-4 py-3 text-right ${targetClass(stock, target.price)}`}
+                          key={target.target_yield}
+                          className={`tnum px-4 py-3 text-right ${targetClass(stock, target.target_price)}`}
                         >
-                          <div>{target.price.toFixed(2)}</div>
+                          <div>{target.target_price.toFixed(2)}</div>
                           <div className="text-[10px] text-muted">
-                            {target.distancePct > 0 ? "+" : ""}
-                            {target.distancePct.toFixed(1)}%
+                            {target.distance_pct > 0 ? "+" : ""}
+                            {target.distance_pct.toFixed(1)}%
                           </div>
                         </td>
                       ))}

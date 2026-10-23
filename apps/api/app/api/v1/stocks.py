@@ -152,6 +152,24 @@ class StockFinancialList(BaseModel):
     page_size: int
 
 
+class GridTargetOut(BaseModel):
+    target_yield: float
+    target_price: float
+    distance_pct: float
+
+
+class StockGridOut(StockOut):
+    annual_cash: float
+    grid_targets: list[GridTargetOut]
+
+
+class StockGridList(BaseModel):
+    items: list[StockGridOut]
+    total: int
+    page: int
+    page_size: int
+
+
 class StockDetail(StockOut):
     dividends: list[DividendOut]
     bars: list[StockBar]
@@ -328,6 +346,79 @@ def search_stocks(
         .limit(limit)
     ).all()
     return [_out(instrument, profile, metric) for instrument, profile, metric in rows]
+
+
+@router.get(
+    "/grid",
+    response_model=StockGridList,
+    summary="股息网格，会员专享",
+)
+def list_stock_grid(
+    session: Annotated[Session, Depends(get_session)],
+    user: Annotated[User, Depends(get_current_user)],
+    q: str | None = Query(None, max_length=32),
+    industry: str | None = Query(None, max_length=32),
+    min_yield: float | None = Query(None, ge=0, le=100),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+) -> StockGridList:
+    require_member(user)
+    conditions = [
+        *_conditions(
+            q=q,
+            industry=industry,
+            min_yield=min_yield,
+            include_st=False,
+        ),
+        StockMetric.dividend_yield_ttm.is_not(None),
+        StockMetric.dividend_yield_ttm > 0,
+    ]
+    total = (
+        session.scalar(
+            select(func.count())
+            .select_from(Instrument)
+            .join(StockProfile, StockProfile.code == Instrument.code)
+            .join(StockMetric, StockMetric.code == Instrument.code)
+            .where(*conditions)
+        )
+        or 0
+    )
+    rows = session.execute(
+        _base_query()
+        .where(*conditions)
+        .order_by(
+            StockMetric.dividend_yield_ttm.desc().nulls_last(),
+            StockMetric.market_cap.desc().nulls_last(),
+        )
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all()
+
+    items: list[StockGridOut] = []
+    for instrument, profile, metric in rows:
+        price = float(metric.price) if metric.price is not None else 0
+        ttm = float(metric.dividend_yield_ttm or 0)
+        if price <= 0 or ttm <= 0:
+            continue
+        annual_cash = price * ttm / 100
+        items.append(
+            StockGridOut(
+                **_out(instrument, profile, metric).model_dump(),
+                annual_cash=round(annual_cash, 4),
+                grid_targets=[
+                    GridTargetOut(
+                        target_yield=target,
+                        target_price=round(annual_cash / (target / 100), 2),
+                        distance_pct=round(
+                            (annual_cash / (target / 100) / price - 1) * 100, 2
+                        ),
+                    )
+                    for target in (4, 4.5, 5, 5.5, 6)
+                ],
+            )
+        )
+
+    return StockGridList(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.get(

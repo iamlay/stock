@@ -94,6 +94,24 @@ export type StockFinancialList = {
   page_size: number;
 };
 
+export type GridTarget = {
+  target_yield: number;
+  target_price: number;
+  distance_pct: number;
+};
+
+export type StockGrid = Stock & {
+  annual_cash: number;
+  grid_targets: GridTarget[];
+};
+
+export type StockGridList = {
+  items: StockGrid[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
 export type StockBand = {
   position: string;
   close: number;
@@ -193,8 +211,38 @@ export async function fetchStockBollinger(
   }
 }
 
-export async function fetchStockFinancials(
-  params: { q?: string; industry?: string; page?: number; page_size?: number } = {},
+export async function fetchStockGrid(
+  params: {
+    q?: string;
+    industry?: string;
+    min_yield?: number;
+    page?: number;
+    page_size?: number;
+  } = {},
+  token?: string | null,
+): Promise<StockGridList | null> {
+  try {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value === undefined || value === "") continue;
+      search.set(key, String(value));
+    }
+    const response = await fetch(
+      `${API_BASE}/api/v1/stocks/grid?${search.toString()}`,
+      {
+        cache: "no-store",
+        signal: AbortSignal.timeout(20000),
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      },
+    );
+    if (!response.ok) return null;
+    return (await response.json()) as StockGridList;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchStockFinancials(  params: { q?: string; industry?: string; page?: number; page_size?: number } = {},
   token?: string | null,
 ): Promise<StockFinancialList | null> {
   try {

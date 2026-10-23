@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W66 高级接口 Cookie 硬门禁 |
+| 阶段 | ✅ W67 网格 API 硬门禁 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码 / 订单 / 用户 / 邀请码后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单、自选、对比、个股，115 个测试 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单、自选、对比、个股，116 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -129,6 +129,7 @@ python -m etl.cli cron
 | `GET /api/v1/stocks` | 个股列表，按 TTM 股息率/市值/PE 排序，支持行业筛选 |
 | `GET /api/v1/stocks/{code}` | 个股详情 + 分红历史 + 财务 |
 | `GET /api/v1/stocks/bollinger` | 布林位置与评级 |
+| `GET /api/v1/stocks/grid` | 股息网格目标价（会员） |
 | `GET /api/v1/stocks/financials` | 年报/季报净利润、营收同比、ROE、毛利率、净利率、现金流概览 |
 | `GET/POST/DELETE /api/v1/stock-watchlist` | 个股自选 |
 | `GET /api/v1/data/status` | 行数、最新交易日、份额快照、最近任务 |

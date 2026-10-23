@@ -107,6 +107,7 @@ plan_expires_at
 - [ ] 免费用户打开 `/stocks/grid` 看到升级卡片；
 - [ ] 免费用户打开布林/财务看到升级卡片；
 - [ ] 会员可正常查看三个高级页面；
+- [ ] 免费用户请求 `/stocks/grid` 返回 403；
 - [ ] 匿名请求 `/stocks/bollinger` 返回 401；
 - [ ] 免费用户请求 `/stocks/financials` 返回 403；
 - [ ] 会员 Cookie 请求高级接口返回 200；
@@ -154,6 +155,7 @@ Cookie: stocklab_token=<token>
 ### 已强制返回 401 / 403 的接口
 
 ```text
+GET /api/v1/stocks/grid         未登录 401，免费 403
 GET /api/v1/stocks/bollinger    未登录 401，免费 403
 GET /api/v1/stocks/financials   未登录 401，免费 403
 GET /api/v1/stocks/{code}       财务字段仅会员返回
@@ -168,13 +170,18 @@ Cookie 仍在
 → 403
 ```
 
-### 仍然公开的接口
+### 网格 API
 
 ```text
-/stocks/grid 页面使用公开个股列表
+GET /api/v1/stocks/grid
 ```
 
-网格页是产品级页面门禁；如果要把网格数据也做成服务端硬门禁，需要新增专用网格 API。
+已改为会员专享：
+
+- 匿名 401；
+- 免费 403；
+- 会员 200；
+- `/stocks/grid` 页面通过 Cookie 转发请求，不再使用公开个股列表计算。
 
 ---
 

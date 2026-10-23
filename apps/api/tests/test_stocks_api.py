@@ -258,6 +258,28 @@ def test_stock_bollinger_requires_bars(session) -> None:
         app.dependency_overrides.clear()
 
 
+def test_stock_grid_member_only(session) -> None:
+    _seed(session)
+    client = _client(session)
+    try:
+        free_headers = _headers(session, role="free", plan="free")
+        denied = client.get("/api/v1/stocks/grid", headers=free_headers)
+        assert denied.status_code == 403
+
+        headers = _headers(session, role="member", plan="member")
+        response = client.get("/api/v1/stocks/grid", headers=headers)
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total"] == 2
+        first = body["items"][0]
+        assert first["code"] == "601398"
+        assert len(first["grid_targets"]) == 5
+        assert first["grid_targets"][0]["target_yield"] == 4
+        assert first["grid_targets"][0]["target_price"] == 13.0
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_stock_financials_cookie_auth(session) -> None:
     _seed(session)
     user = User(phone="13600007777", role="member", plan="member")

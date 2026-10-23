@@ -6,9 +6,8 @@ import { StockWatchlistButton } from "@/components/stock-watchlist-button";
 import { EquityCurve } from "@/components/equity-curve";
 import { StockDetailTabs } from "@/components/stock-detail-tabs";
 import { MemberGate } from "@/components/member-gate";
-import { buildGrid } from "@/lib/grid";
 import { computeBollinger } from "@/lib/bollinger";
-import { fetchStock } from "@/lib/stocks";
+import { fetchStock, fetchStockGrid } from "@/lib/stocks";
 import { getServerToken } from "@/lib/server-auth";
 import { fmtPct, trendClass } from "@/lib/format";
 
@@ -60,10 +59,15 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
   )
     ? rawTab!
     : "overview";
-  const stock = await fetchStock(code, await getServerToken());
+  const token = await getServerToken();
+  const stock = await fetchStock(code, token);
   if (!stock) notFound();
 
-  const grid = buildGrid(stock.price, stock.dividend_yield_ttm);
+  const gridData =
+    tab === "grid"
+      ? await fetchStockGrid({ q: code, page_size: 1 }, token)
+      : null;
+  const grid = gridData?.items.find((item) => item.code === code) ?? null;
   const bollinger = computeBollinger(stock.bars);
   const bollingerCards = [
     { label: "日线", band: bollinger.daily },
@@ -319,28 +323,28 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
-                    {grid.targets.map((target) => (
-                      <tr key={target.yield}>
-                        <td className="tnum py-3 text-ink">{target.yield}%</td>
+                    {grid.grid_targets.map((target) => (
+                      <tr key={target.target_yield}>
+                        <td className="tnum py-3 text-ink">{target.target_yield}%</td>
                         <td
                           className={`tnum py-3 text-right ${
-                            stock.price != null && target.price <= stock.price
+                            stock.price != null && target.target_price <= stock.price
                               ? "text-jade-deep"
                               : "text-ink"
                           }`}
                         >
-                          {target.price.toFixed(2)}
+                          {target.target_price.toFixed(2)}
                         </td>
                         <td
                           className={`tnum py-3 text-right text-xs ${
-                            target.distancePct <= 0 ? "text-jade" : "text-muted"
+                            target.distance_pct <= 0 ? "text-jade" : "text-muted"
                           }`}
                         >
-                          {target.distancePct > 0 ? "+" : ""}
-                          {target.distancePct.toFixed(1)}%
+                          {target.distance_pct > 0 ? "+" : ""}
+                          {target.distance_pct.toFixed(1)}%
                         </td>
                         <td className="tnum py-3 text-right text-xs text-muted">
-                          {grid.annualCash.toFixed(3)}
+                          {grid.annual_cash.toFixed(3)}
                         </td>
                       </tr>
                     ))}
