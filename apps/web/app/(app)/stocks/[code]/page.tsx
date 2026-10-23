@@ -30,6 +30,17 @@ function metric(value: number | null, digits = 2): string {
   return value == null ? "—" : value.toFixed(digits);
 }
 
+function yi(value: number | null): string {
+  return value == null ? "—" : (value / 100_000_000).toFixed(1);
+}
+
+const PERIOD_LABELS: Record<string, string> = {
+  Q1: "一季报",
+  H1: "中报",
+  Q3: "三季报",
+  FY: "年报",
+};
+
 const SUSTAIN_LABELS: Record<string, string> = {
   stable: "连续分红",
   watch: "需核查",
@@ -401,11 +412,78 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
       ) : null}
 
       {tab === "financial" ? (
-        <section className="card p-10 text-center">
-          <p className="text-sm text-ink">财务追踪正在开发中</p>
-          <p className="mx-auto mt-2 max-w-lg text-xs leading-6 text-muted">
-            将展示年报/季报净利润、同比与披露日期，先覆盖高股息前 500 只。
-          </p>
+        <section className="card p-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-base font-medium text-ink">财务概览</h2>
+              <p className="mt-0.5 text-xs text-muted">
+                归母净利润与同比 · 单位亿元 · 公开财报
+              </p>
+            </div>
+            <span className="text-xs text-muted">
+              {stock.financials.length} 期
+            </span>
+          </div>
+
+          {stock.financials.length === 0 ? (
+            <p className="mt-6 text-sm text-muted">
+              暂无财务数据。需要在 API 环境执行 `stock-financials`。
+            </p>
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead className="border-b border-line text-xs text-muted">
+                  <tr>
+                    <th className="py-2 font-normal">报告期</th>
+                    <th className="py-2 font-normal">类型</th>
+                    <th className="py-2 text-right font-normal">营收</th>
+                    <th className="py-2 text-right font-normal">归母净利</th>
+                    <th className="py-2 text-right font-normal">净利同比</th>
+                    <th className="py-2 text-right font-normal">披露日</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {stock.financials.map((item) => (
+                    <tr key={item.report_date}>
+                      <td className="tnum py-3 text-xs text-muted">
+                        {item.report_date}
+                      </td>
+                      <td className="py-3 text-xs text-ink-soft">
+                        {PERIOD_LABELS[item.period] ?? item.period}
+                        {item.period === "FY" ? (
+                          <span className="ml-2 rounded-sm bg-jade-soft px-1.5 py-0.5 text-[10px] text-jade-deep">
+                            年度
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="tnum py-3 text-right text-ink-soft">
+                        {yi(item.revenue)}
+                      </td>
+                      <td className="tnum py-3 text-right text-ink">
+                        {yi(item.net_profit)}
+                      </td>
+                      <td
+                        className={`tnum py-3 text-right text-xs ${
+                          item.net_profit_yoy == null
+                            ? "text-muted"
+                            : item.net_profit_yoy >= 0
+                              ? "text-loss"
+                              : "text-jade"
+                        }`}
+                      >
+                        {item.net_profit_yoy == null
+                          ? "—"
+                          : `${item.net_profit_yoy > 0 ? "+" : ""}${item.net_profit_yoy.toFixed(1)}%`}
+                      </td>
+                      <td className="tnum py-3 text-right text-xs text-muted">
+                        {item.disclosure_date ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       ) : null}
     </div>

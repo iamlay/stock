@@ -6,6 +6,7 @@ from app.db.models import (
     Instrument,
     MarketDaily,
     StockDividend,
+    StockFinancial,
     StockMetric,
     StockProfile,
     User,
@@ -252,5 +253,63 @@ def test_stock_bollinger_requires_bars(session) -> None:
         assert body["items"][0]["code"] == "600519"
         assert body["items"][0]["daily"] is not None
         assert body["items"][0]["daily"]["periods"] == 20
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_stock_financials_list_and_detail(session) -> None:
+    _seed(session)
+    session.add_all(
+        [
+            StockFinancial(
+                code="600519",
+                report_date=date(2025, 12, 31),
+                period="FY",
+                revenue=100,
+                net_profit=50,
+                revenue_yoy=10,
+                net_profit_yoy=12,
+                disclosure_date=date(2026, 4, 17),
+            ),
+            StockFinancial(
+                code="600519",
+                report_date=date(2024, 12, 31),
+                period="FY",
+                revenue=90,
+                net_profit=44,
+                revenue_yoy=8,
+                net_profit_yoy=9,
+                disclosure_date=date(2025, 4, 1),
+            ),
+            StockFinancial(
+                code="600519",
+                report_date=date(2026, 3, 31),
+                period="Q1",
+                revenue=30,
+                net_profit=16,
+                revenue_yoy=6,
+                net_profit_yoy=7,
+                disclosure_date=date(2026, 4, 25),
+            ),
+        ]
+    )
+    session.commit()
+
+    client = _client(session)
+    try:
+        response = client.get("/api/v1/stocks/financials")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total"] == 1
+        item = body["items"][0]
+        assert item["code"] == "600519"
+        assert item["latest_period"] == "Q1"
+        assert len(item["annuals"]) == 2
+        assert item["annuals"][0]["year"] == 2025
+        assert item["annuals"][0]["net_profit"] == 50
+
+        detail = client.get("/api/v1/stocks/600519")
+        assert detail.status_code == 200
+        assert len(detail.json()["financials"]) == 3
     finally:
         app.dependency_overrides.clear()

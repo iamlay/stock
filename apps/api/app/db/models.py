@@ -427,6 +427,30 @@ class StockDividend(Base):
     )
 
 
+class StockFinancial(Base):
+    __tablename__ = "stock_financials"
+    __table_args__ = (
+        UniqueConstraint("code", "report_date", name="uq_stock_financials_code_report"),
+        Index("ix_stock_financials_code_report", "code", "report_date"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(
+        String(16), ForeignKey("instruments.code", ondelete="CASCADE"), nullable=False
+    )
+    report_date: Mapped[date] = mapped_column(Date, nullable=False)
+    period: Mapped[str] = mapped_column(String(8), nullable=False, default="")
+    revenue: Mapped[float | None] = mapped_column(Numeric(20, 2))
+    net_profit: Mapped[float | None] = mapped_column(Numeric(20, 2))
+    revenue_yoy: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    net_profit_yoy: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    disclosure_date: Mapped[date | None] = mapped_column(Date)
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="eastmoney")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class StockMetric(Base):
     __tablename__ = "stock_metrics"
     __table_args__ = (

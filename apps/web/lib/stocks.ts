@@ -42,6 +42,39 @@ export type StockDividend = {
 export type StockDetail = Stock & {
   dividends: StockDividend[];
   bars: { date: string; close: number }[];
+  financials: StockFinancialReport[];
+};
+
+export type StockFinancialReport = {
+  report_date: string;
+  period: string;
+  revenue: number | null;
+  net_profit: number | null;
+  revenue_yoy: number | null;
+  net_profit_yoy: number | null;
+  disclosure_date: string | null;
+};
+
+export type AnnualFinancial = {
+  year: number;
+  net_profit: number | null;
+  net_profit_yoy: number | null;
+};
+
+export type StockFinancialSummary = Stock & {
+  annuals: AnnualFinancial[];
+  latest_period: string | null;
+  latest_report_date: string | null;
+  latest_net_profit: number | null;
+  latest_net_profit_yoy: number | null;
+  disclosure_date: string | null;
+};
+
+export type StockFinancialList = {
+  items: StockFinancialSummary[];
+  total: number;
+  page: number;
+  page_size: number;
 };
 
 export type StockBand = {
@@ -137,8 +170,30 @@ export async function fetchStockBollinger(
   }
 }
 
-export async function searchStocks(query: string): Promise<Stock[]> {
-  const text = query.trim();
+export async function fetchStockFinancials(
+  params: { q?: string; industry?: string; page?: number; page_size?: number } = {},
+): Promise<StockFinancialList | null> {
+  try {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value === undefined || value === "") continue;
+      search.set(key, String(value));
+    }
+    const response = await fetch(
+      `${API_BASE}/api/v1/stocks/financials?${search.toString()}`,
+      {
+        cache: "no-store",
+        signal: AbortSignal.timeout(20000),
+      },
+    );
+    if (!response.ok) return null;
+    return (await response.json()) as StockFinancialList;
+  } catch {
+    return null;
+  }
+}
+
+export async function searchStocks(query: string): Promise<Stock[]> {  const text = query.trim();
   if (!text) return [];
   try {
     const response = await fetch(

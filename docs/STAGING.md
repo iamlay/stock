@@ -177,6 +177,7 @@ python -m etl.cli stock-universe --limit 100
 python -m etl.cli stock-dividends-bulk --days 3650
 python -m etl.cli stock-metrics --limit 100
 python -m etl.cli stock-industry --limit 100 --sina-only --sina-prefix sw_ --overwrite
+python -m etl.cli stock-financials --limit 100
 ```
 
 ### 4.3 管理员

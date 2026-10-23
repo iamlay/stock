@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W55 股息布林 |
+| 阶段 | ✅ W56 股息财务 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码 / 订单 / 用户 / 邀请码后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单、自选、对比、个股，111 个测试 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单、自选、对比、个股，112 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -122,12 +122,14 @@ python -m etl.cli cron
 
 | 接口 | 说明 |
 |---|---|
-| `GET /api/v1/etfs` | 20 只 ETF + 最新价、涨跌、均线、回撤、规模、份额 |
+| `GET /api/v1/etfs` | 100 只 ETF + 最新价、涨跌、均线、回撤、规模、份额 |
 | `GET /api/v1/etfs/{code}` | 详情 + 120 根日线 + 1/3/12 月收益 |
 | `GET /api/v1/market/overview` | 重点 ETF 等权涨跌、涨跌家数、成交额、领涨/领跌 |
 | `GET /api/v1/market/industries` | 申万一级行业个股等权涨跌 |
 | `GET /api/v1/stocks` | 个股列表，按 TTM 股息率/市值/PE 排序，支持行业筛选 |
-| `GET /api/v1/stocks/{code}` | 个股详情 + 分红历史 |
+| `GET /api/v1/stocks/{code}` | 个股详情 + 分红历史 + 财务 |
+| `GET /api/v1/stocks/bollinger` | 布林位置与评级 |
+| `GET /api/v1/stocks/financials` | 年报/季报净利润概览 |
 | `GET/POST/DELETE /api/v1/stock-watchlist` | 个股自选 |
 | `GET /api/v1/data/status` | 行数、最新交易日、份额快照、最近任务 |
 | `POST /api/v1/auth/register` | 邮箱 + 密码注册，发送验证邮件，**不返回 JWT** |

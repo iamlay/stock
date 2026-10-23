@@ -46,6 +46,7 @@ from etl.stocks import (
     sync_stock_daily,
     sync_stock_dividends,
     sync_stock_dividends_bulk,
+    sync_stock_financials_batch,
     sync_stock_pilot,
     sync_stock_quote,
     upsert_stock_universe,
@@ -225,6 +226,24 @@ def cmd_stock_dividends_bulk(args: argparse.Namespace) -> int:
         f"written={result['written']} metrics={result.get('metrics', 0)}"
     )
     return 0
+
+
+def cmd_stock_financials(args: argparse.Namespace) -> int:
+    codes = [item.strip() for item in args.codes.split(",") if item.strip()] if args.codes else None
+    with SessionLocal() as session:
+        result = sync_stock_financials_batch(
+            session,
+            limit=args.limit,
+            codes=codes,
+            delay=args.delay,
+        )
+    print(
+        f"stock financials selected={result['selected']} written={result['written']} "
+        f"updated={result['updated']} errors={len(result['errors'])}"
+    )
+    for error in result["errors"][:5]:
+        print(f"  {error['code']}: {error['error']}", file=sys.stderr)
+    return 1 if result["errors"] and args.strict else 0
 
 
 def cmd_stock_metrics(args: argparse.Namespace) -> int:
@@ -501,6 +520,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     stock_dividends_bulk.add_argument("--days", type=int, default=3650)
     stock_dividends_bulk.set_defaults(func=cmd_stock_dividends_bulk)
+
+    stock_financials = sub.add_parser(
+        "stock-financials",
+        help="sync annual/quarterly financials",
+    )
+    stock_financials.add_argument("--limit", type=int, default=500)
+    stock_financials.add_argument("--codes", default="")
+    stock_financials.add_argument("--delay", type=float, default=0.2)
+    stock_financials.add_argument("--strict", action="store_true")
+    stock_financials.set_defaults(func=cmd_stock_financials)
 
     stock_metrics = sub.add_parser("stock-metrics", help="recompute stock yields")
     stock_metrics.add_argument("--limit", type=int, default=None)

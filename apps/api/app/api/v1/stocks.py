@@ -15,6 +15,7 @@ from app.db.models import (
     Instrument,
     MarketDaily,
     StockDividend,
+    StockFinancial,
     StockMetric,
     StockProfile,
     User,
@@ -100,9 +101,42 @@ class StockBar(BaseModel):
     close: float
 
 
+class FinancialOut(BaseModel):
+    report_date: str
+    period: str
+    revenue: float | None
+    net_profit: float | None
+    revenue_yoy: float | None
+    net_profit_yoy: float | None
+    disclosure_date: str | None
+
+
+class AnnualFinancialOut(BaseModel):
+    year: int
+    net_profit: float | None
+    net_profit_yoy: float | None
+
+
+class StockFinancialOut(StockOut):
+    annuals: list[AnnualFinancialOut]
+    latest_period: str | None
+    latest_report_date: str | None
+    latest_net_profit: float | None
+    latest_net_profit_yoy: float | None
+    disclosure_date: str | None
+
+
+class StockFinancialList(BaseModel):
+    items: list[StockFinancialOut]
+    total: int
+    page: int
+    page_size: int
+
+
 class StockDetail(StockOut):
     dividends: list[DividendOut]
     bars: list[StockBar]
+    financials: list[FinancialOut] = []
 
 
 class AdminStockOut(StockOut):
@@ -354,6 +388,100 @@ def list_stock_bollinger(
     )
 
 
+@router.get(
+    "/financials",
+    response_model=StockFinancialList,
+    summary="个股财务概览，覆盖已有财报的标的",
+)
+def list_stock_financials(
+    session: Annotated[Session, Depends(get_session)],
+    q: str | None = Query(None, max_length=32),
+    industry: str | None = Query(None, max_length=32),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+) -> StockFinancialList:
+    rows = session.execute(
+        _base_query()
+        .where(
+            *_conditions(
+                q=q,
+                industry=industry,
+                min_yield=None,
+                include_st=False,
+            ),
+            Instrument.code.in_(select(StockFinancial.code).distinct()),
+        )
+        .order_by(
+            StockMetric.dividend_yield_ttm.desc().nulls_last(),
+            StockMetric.market_cap.desc().nulls_last(),
+        )
+    ).all()
+    codes = [instrument.code for instrument, _, _ in rows]
+    financial_rows = session.scalars(
+        select(StockFinancial)
+        .where(StockFinancial.code.in_(codes))
+        .order_by(StockFinancial.code, StockFinancial.report_date.desc())
+    ).all()
+    by_code: dict[str, list[StockFinancial]] = {}
+    for item in financial_rows:
+        by_code.setdefault(item.code, []).append(item)
+
+    items: list[StockFinancialOut] = []
+    for instrument, profile, metric in rows:
+        reports = by_code.get(instrument.code, [])
+        if not reports:
+            continue
+        latest = reports[0]
+        annuals = [report for report in reports if report.period == "FY"][:3]
+        items.append(
+            StockFinancialOut(
+                **_out(instrument, profile, metric).model_dump(),
+                annuals=[
+                    AnnualFinancialOut(
+                        year=report.report_date.year,
+                        net_profit=(
+                            float(report.net_profit)
+                            if report.net_profit is not None
+                            else None
+                        ),
+                        net_profit_yoy=(
+                            float(report.net_profit_yoy)
+                            if report.net_profit_yoy is not None
+                            else None
+                        ),
+                    )
+                    for report in annuals
+                ],
+                latest_period=latest.period,
+                latest_report_date=latest.report_date.isoformat(),
+                latest_net_profit=(
+                    float(latest.net_profit)
+                    if latest.net_profit is not None
+                    else None
+                ),
+                latest_net_profit_yoy=(
+                    float(latest.net_profit_yoy)
+                    if latest.net_profit_yoy is not None
+                    else None
+                ),
+                disclosure_date=(
+                    latest.disclosure_date.isoformat()
+                    if latest.disclosure_date
+                    else None
+                ),
+            )
+        )
+
+    total = len(items)
+    start = (page - 1) * page_size
+    return StockFinancialList(
+        items=items[start : start + page_size],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
 @router.get("/{code}", response_model=StockDetail, summary="个股详情")
 def get_stock(
     code: str,
@@ -374,6 +502,12 @@ def get_stock(
         .where(StockDividend.code == code)
         .order_by(StockDividend.ex_date.desc())
         .limit(100)
+    ).all()
+    financials = session.scalars(
+        select(StockFinancial)
+        .where(StockFinancial.code == code)
+        .order_by(StockFinancial.report_date.desc())
+        .limit(24)
     ).all()
     bars = session.scalars(
         select(MarketDaily)
@@ -397,6 +531,28 @@ def get_stock(
         bars=[
             StockBar(date=item.trade_date.isoformat(), close=float(item.close))
             for item in reversed(bars)
+        ],
+        financials=[
+            FinancialOut(
+                report_date=item.report_date.isoformat(),
+                period=item.period,
+                revenue=float(item.revenue) if item.revenue is not None else None,
+                net_profit=(
+                    float(item.net_profit) if item.net_profit is not None else None
+                ),
+                revenue_yoy=(
+                    float(item.revenue_yoy) if item.revenue_yoy is not None else None
+                ),
+                net_profit_yoy=(
+                    float(item.net_profit_yoy)
+                    if item.net_profit_yoy is not None
+                    else None
+                ),
+                disclosure_date=(
+                    item.disclosure_date.isoformat() if item.disclosure_date else None
+                ),
+            )
+            for item in financials
         ],
     )
 

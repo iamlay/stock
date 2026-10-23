@@ -37,6 +37,18 @@ class DividendRecord:
     is_special: bool
 
 
+@dataclass(frozen=True)
+class FinancialRecord:
+    code: str
+    report_date: date
+    period: str
+    revenue: float | None
+    net_profit: float | None
+    revenue_yoy: float | None
+    net_profit_yoy: float | None
+    disclosure_date: date | None
+
+
 def _get_json(url: str, referer: str) -> dict:
     request = urllib.request.Request(
         url,
@@ -208,6 +220,49 @@ def fetch_dividends_bulk(
         records.extend(parse_dividends(payload))
         page += 1
     return records
+
+
+def fetch_stock_financials(
+    code: str,
+    *,
+    limit: int = 24,
+) -> list[FinancialRecord]:
+    """Fetch recent annual/quarterly financials for one stock."""
+    query = urllib.parse.urlencode(
+        {
+            "reportName": "RPT_LICO_FN_CPD",
+            "columns": "ALL",
+            "filter": f'(SECURITY_CODE="{code}")',
+            "pageNumber": 1,
+            "pageSize": limit,
+            "sortColumns": "REPORTDATE",
+            "sortTypes": -1,
+        }
+    )
+    payload = _get_json(f"{DIVIDEND_API}?{query}", "https://data.eastmoney.com/")
+    result = payload.get("result") or {}
+    rows: list[FinancialRecord] = []
+    for item in result.get("data") or []:
+        report_date = _date(item.get("REPORTDATE") or item.get("REPORT_DATE"))
+        if report_date is None:
+            continue
+        month = report_date.month
+        period = (
+            "Q1" if month == 3 else "H1" if month == 6 else "Q3" if month == 9 else "FY"
+        )
+        rows.append(
+            FinancialRecord(
+                code=code,
+                report_date=report_date,
+                period=period,
+                revenue=_float(item.get("TOTAL_OPERATE_INCOME"), None),
+                net_profit=_float(item.get("PARENT_NETPROFIT"), None),
+                revenue_yoy=_float(item.get("YSTZ"), None),
+                net_profit_yoy=_float(item.get("SJLTZ"), None),
+                disclosure_date=_date(item.get("NOTICE_DATE")),
+            )
+        )
+    return rows
 
 
 def ttm_dividend_yield(

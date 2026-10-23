@@ -144,7 +144,7 @@ TTM 股息率
 
 ```text
 1. 布林：日/周/月，已完成 /stocks/bollinger
-2. 财务：净利润/同比/披露日
+2. 财务：已完成 /stocks/financial
 3. 网格提醒：跌破目标价触发站内提醒
 ```
 
@@ -168,4 +168,38 @@ GET /api/v1/stocks/bollinger
 - 评级：回踩 / 偏热 / 高位 / 观望 / 数据不足。
 
 K 线缓存从 250 天扩展到 600 天，详情 API 返回 600 根，月线才有足够数据。
+
+## 9. 财务
+
+已新增：
+
+```text
+GET /api/v1/stocks/financials
+/stocks/financial
+/stocks/{code}?tab=financial
+```
+
+数据表：
+
+```text
+stock_financials
+```
+
+字段：
+
+```text
+code, report_date, period
+revenue, net_profit
+revenue_yoy, net_profit_yoy
+disclosure_date
+```
+
+同步：
+
+```bash
+python -m etl.cli stock-financials --limit 500 --delay 0.2
+```
+
+当前覆盖高股息前 500 只；默认每月 1 日更新，也可手动触发 GitHub Actions。
+
 

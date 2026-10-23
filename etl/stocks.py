@@ -8,6 +8,7 @@ from app.db.models import (
     Instrument,
     MarketDaily,
     StockDividend,
+    StockFinancial,
     StockMetric,
     StockProfile,
 )
@@ -17,6 +18,7 @@ from sqlalchemy.orm import Session
 from etl.sources.eastmoney_stock import (
     fetch_dividends,
     fetch_dividends_bulk,
+    fetch_stock_financials,
     latest_fiscal_year_yield,
     ttm_dividend_yield,
 )
@@ -231,6 +233,87 @@ def sync_stock_dividends_bulk(
         "records": len(records),
         "written": written,
         "metrics": refreshed,
+    }
+
+
+def sync_stock_financials_batch(
+    session: Session,
+    *,
+    limit: int = 500,
+    codes: list[str] | None = None,
+    delay: float = 0.2,
+) -> dict:
+    """Fetch recent financial reports for high-dividend stocks."""
+    if codes:
+        targets = codes
+    else:
+        targets = list(
+            session.scalars(
+                select(StockMetric.code)
+                .join(StockProfile, StockProfile.code == StockMetric.code)
+                .where(StockProfile.status == "active")
+                .order_by(
+                    StockMetric.dividend_yield_ttm.desc().nulls_last(),
+                    StockMetric.market_cap.desc(),
+                )
+                .limit(limit)
+            ).all()
+        )
+    if not targets:
+        return {"selected": 0, "written": 0, "updated": 0, "errors": []}
+
+    existing = {
+        (row.code, row.report_date): row
+        for row in session.scalars(
+            select(StockFinancial).where(StockFinancial.code.in_(targets))
+        ).all()
+    }
+    written = 0
+    updated = 0
+    errors: list[dict] = []
+
+    for index, code in enumerate(targets):
+        try:
+            records = fetch_stock_financials(code)
+            for record in records:
+                row = existing.get((code, record.report_date))
+                if row is None:
+                    row = StockFinancial(
+                        code=code,
+                        report_date=record.report_date,
+                        period=record.period,
+                        revenue=record.revenue,
+                        net_profit=record.net_profit,
+                        revenue_yoy=record.revenue_yoy,
+                        net_profit_yoy=record.net_profit_yoy,
+                        disclosure_date=record.disclosure_date,
+                        source="eastmoney",
+                    )
+                    session.add(row)
+                    existing[(code, record.report_date)] = row
+                    written += 1
+                else:
+                    row.period = record.period
+                    row.revenue = record.revenue
+                    row.net_profit = record.net_profit
+                    row.revenue_yoy = record.revenue_yoy
+                    row.net_profit_yoy = record.net_profit_yoy
+                    row.disclosure_date = record.disclosure_date
+                    updated += 1
+            if (index + 1) % 25 == 0:
+                session.commit()
+        except Exception as exc:  # noqa: BLE001 - one stock must not stop the batch
+            session.rollback()
+            errors.append({"code": code, "error": str(exc)[:300]})
+        if index < len(targets) - 1 and delay > 0:
+            time.sleep(delay)
+
+    session.commit()
+    return {
+        "selected": len(targets),
+        "written": written,
+        "updated": updated,
+        "errors": errors,
     }
 
 

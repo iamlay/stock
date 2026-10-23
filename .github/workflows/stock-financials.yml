@@ -1,0 +1,47 @@
+name: Stock Financials
+
+on:
+  schedule:
+    # 1st of each month, 21:00 Asia/Shanghai
+    - cron: "0 13 1 * *"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Number of stocks (highest dividend yield)"
+        default: "500"
+      delay:
+        description: "Delay seconds between stocks"
+        default: "0.2"
+
+concurrency:
+  group: stock-financials
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install API package
+        run: pip install -e apps/api
+
+      - name: Run migrations
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: alembic -c apps/api/alembic.ini upgrade head
+
+      - name: Refresh financials
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: |
+          python -m etl.cli stock-financials \
+            --limit "${{ inputs.limit || '500' }}" \
+            --delay "${{ inputs.delay || '0.2' }}"
+          python -m etl.cli stock-status
