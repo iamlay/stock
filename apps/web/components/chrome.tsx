@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { AuthNavActions } from "@/components/auth-nav";
+
 const nav = [
   { href: "/dashboard", label: "今日市场", short: "市场" },
   { href: "/etf", label: "ETF 数据", short: "ETF" },
@@ -78,12 +80,7 @@ export function SiteHeader() {
           </Link>
         </nav>
         <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="hidden rounded-sm border border-line px-3.5 py-2 text-sm text-ink-soft transition-colors hover:border-ink hover:text-ink sm:block"
-          >
-            登录
-          </Link>
+          <AuthNavActions variant="site" />
           <Link
             href="/dashboard"
             className="rounded-sm bg-ink px-3.5 py-2 text-sm font-medium text-paper transition-colors hover:bg-jade-deep"

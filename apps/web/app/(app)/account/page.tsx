@@ -123,8 +123,8 @@ export default function AccountPage() {
     }
   }
 
-  function onLogout() {
-    clearToken();
+  async function onLogout() {
+    await clearToken();
     router.push("/login");
     router.refresh();
   }

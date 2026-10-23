@@ -191,18 +191,22 @@ export function getToken(): string | null {
   return window.localStorage.getItem(TOKEN_KEY);
 }
 
-export function setToken(token: string) {
+export function setToken(token: string): Promise<void> {
   window.localStorage.setItem(TOKEN_KEY, token);
-  void fetch("/api/session", {
+  return fetch("/api/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token }),
-  }).catch(() => undefined);
+  })
+    .then(() => undefined)
+    .catch(() => undefined);
 }
 
-export function clearToken() {
+export function clearToken(): Promise<void> {
   window.localStorage.removeItem(TOKEN_KEY);
-  void fetch("/api/session", { method: "DELETE" }).catch(() => undefined);
+  return fetch("/api/session", { method: "DELETE" })
+    .then(() => undefined)
+    .catch(() => undefined);
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -242,7 +246,7 @@ export async function login(phone: string, code: string): Promise<Me> {
     method: "POST",
     body: JSON.stringify({ phone, code }),
   });
-  setToken(result.access_token);
+  await setToken(result.access_token);
   return result.user;
 }
 
@@ -254,7 +258,7 @@ export async function emailLogin(email: string, password: string): Promise<Me> {
       body: JSON.stringify({ email, password }),
     },
   );
-  setToken(result.access_token);
+  await setToken(result.access_token);
   return result.user;
 }
 

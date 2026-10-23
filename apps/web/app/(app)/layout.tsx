@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 
 import { AppNav, Logo } from "@/components/chrome";
+import { AuthNavActions } from "@/components/auth-nav";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
@@ -15,18 +15,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <AppNav />
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
             <span className="hidden text-xs text-muted lg:block">ETF 投研工作台</span>
-            <Link
-              href="/account"
-              className="hidden rounded-sm border border-line px-3 py-1.5 text-xs text-ink-soft hover:border-ink hover:text-ink sm:block"
-            >
-              个人中心
-            </Link>
-            <Link
-              href="/login"
-              className="hidden rounded-sm bg-ink px-3 py-1.5 text-xs font-medium text-paper hover:bg-jade-deep sm:block"
-            >
-              登录
-            </Link>          </div>
+            <AuthNavActions />
+          </div>
         </div>
       </header>
 
