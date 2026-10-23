@@ -51,6 +51,10 @@ class FinancialRecord:
     operating_cash_flow: float | None
     gross_margin: float | None
     net_margin: float | None
+    total_assets: float | None
+    total_liabilities: float | None
+    debt_asset_ratio: float | None
+    roa: float | None
     disclosure_date: date | None
 
 
@@ -265,6 +269,26 @@ def fetch_stock_financials(
         for item in (cash_payload.get("result") or {}).get("data") or []
         if (item_date := _date(item.get("REPORT_DATE")))
     }
+    balance_query = urllib.parse.urlencode(
+        {
+            "reportName": "RPT_DMSK_FN_BALANCE",
+            "columns": "ALL",
+            "filter": f'(SECURITY_CODE="{code}")',
+            "pageNumber": 1,
+            "pageSize": limit,
+            "sortColumns": "REPORT_DATE",
+            "sortTypes": -1,
+        }
+    )
+    balance_payload = _get_json(
+        f"{DIVIDEND_API}?{balance_query}",
+        "https://data.eastmoney.com/",
+    )
+    balance_by_date = {
+        item_date: item
+        for item in (balance_payload.get("result") or {}).get("data") or []
+        if (item_date := _date(item.get("REPORT_DATE")))
+    }
     result = payload.get("result") or {}
     rows: list[FinancialRecord] = []
     for item in result.get("data") or []:
@@ -282,6 +306,17 @@ def fetch_stock_financials(
             if revenue and net_profit is not None and revenue > 0
             else None
         )
+        balance = balance_by_date.get(report_date) or {}
+        total_assets = _float(balance.get("TOTAL_ASSETS"), None)
+        total_liabilities = _float(balance.get("TOTAL_LIABILITIES"), None)
+        debt_asset_ratio = _float(balance.get("DEBT_ASSET_RATIO"), None)
+        if debt_asset_ratio is None and total_assets and total_liabilities is not None:
+            debt_asset_ratio = total_liabilities / total_assets * 100
+        roa = (
+            net_profit / total_assets * 100
+            if net_profit is not None and total_assets and total_assets > 0
+            else None
+        )
         rows.append(
             FinancialRecord(
                 code=code,
@@ -296,6 +331,10 @@ def fetch_stock_financials(
                 operating_cash_flow=cash_by_date.get(report_date),
                 gross_margin=_float(item.get("XSMLL"), None),
                 net_margin=net_margin,
+                total_assets=total_assets,
+                total_liabilities=total_liabilities,
+                debt_asset_ratio=debt_asset_ratio,
+                roa=roa,
                 disclosure_date=_date(item.get("NOTICE_DATE")),
             )
         )

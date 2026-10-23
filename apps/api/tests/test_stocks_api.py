@@ -291,6 +291,10 @@ def test_stock_financials_list_and_detail(session) -> None:
                 net_profit_yoy=7,
                 roe=15.5,
                 operating_cash_flow_per_share=2.5,
+                total_assets=200,
+                total_liabilities=80,
+                debt_asset_ratio=40,
+                roa=8.5,
                 disclosure_date=date(2026, 4, 25),
             ),
         ]
@@ -308,6 +312,8 @@ def test_stock_financials_list_and_detail(session) -> None:
         assert item["latest_period"] == "Q1"
         assert item["latest_revenue_yoy"] == 6
         assert item["latest_roe"] == 15.5
+        assert item["latest_roa"] == 8.5
+        assert item["latest_debt_asset_ratio"] == 40
         assert item["latest_operating_cash_flow_per_share"] == 2.5
         assert len(item["annuals"]) == 2
         assert item["annuals"][0]["year"] == 2025

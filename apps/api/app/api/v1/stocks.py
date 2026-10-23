@@ -113,6 +113,10 @@ class FinancialOut(BaseModel):
     operating_cash_flow: float | None
     gross_margin: float | None
     net_margin: float | None
+    total_assets: float | None
+    total_liabilities: float | None
+    debt_asset_ratio: float | None
+    roa: float | None
     disclosure_date: str | None
 
 
@@ -134,6 +138,8 @@ class StockFinancialOut(StockOut):
     latest_operating_cash_flow: float | None
     latest_gross_margin: float | None
     latest_net_margin: float | None
+    latest_roa: float | None
+    latest_debt_asset_ratio: float | None
     disclosure_date: str | None
 
 
@@ -503,6 +509,12 @@ def list_stock_financials(
                     if latest.net_margin is not None
                     else None
                 ),
+                latest_roa=float(latest.roa) if latest.roa is not None else None,
+                latest_debt_asset_ratio=(
+                    float(latest.debt_asset_ratio)
+                    if latest.debt_asset_ratio is not None
+                    else None
+                ),
                 disclosure_date=(
                     latest.disclosure_date.isoformat()
                     if latest.disclosure_date
@@ -604,6 +616,20 @@ def get_stock(
                 net_margin=(
                     float(item.net_margin) if item.net_margin is not None else None
                 ),
+                total_assets=(
+                    float(item.total_assets) if item.total_assets is not None else None
+                ),
+                total_liabilities=(
+                    float(item.total_liabilities)
+                    if item.total_liabilities is not None
+                    else None
+                ),
+                debt_asset_ratio=(
+                    float(item.debt_asset_ratio)
+                    if item.debt_asset_ratio is not None
+                    else None
+                ),
+                roa=float(item.roa) if item.roa is not None else None,
                 disclosure_date=(
                     item.disclosure_date.isoformat() if item.disclosure_date else None
                 ),

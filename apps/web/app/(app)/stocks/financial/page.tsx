@@ -91,7 +91,11 @@ function FinancialCard({ stock }: { stock: StockFinancialSummary }) {
           : `${stock.latest_gross_margin.toFixed(1)}%`} · 净利率{" "}
         {stock.latest_net_margin == null
           ? "—"
-          : `${stock.latest_net_margin.toFixed(1)}%`} · 经营现金流{" "}
+          : `${stock.latest_net_margin.toFixed(1)}%`} · ROA{" "}
+        {stock.latest_roa == null ? "—" : `${stock.latest_roa.toFixed(1)}%`} · 负债率{" "}
+        {stock.latest_debt_asset_ratio == null
+          ? "—"
+          : `${stock.latest_debt_asset_ratio.toFixed(1)}%`} · 经营现金流{" "}
         {stock.latest_operating_cash_flow == null
           ? "—"
           : `${(stock.latest_operating_cash_flow / 100_000_000).toFixed(1)} 亿`}
@@ -202,7 +206,7 @@ export default async function StockFinancialPage({
               ))}
             </div>
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[1380px] text-left text-sm">
+              <table className="w-full min-w-[1500px] text-left text-sm">
                 <thead className="border-b border-line bg-[#faf9f5] text-xs text-muted">
                   <tr>
                     <th className="px-4 py-3 font-normal">代码 / 名称</th>
@@ -214,6 +218,8 @@ export default async function StockFinancialPage({
                     <th className="px-4 py-3 text-right font-normal">ROE</th>
                     <th className="px-4 py-3 text-right font-normal">毛利率</th>
                     <th className="px-4 py-3 text-right font-normal">净利率</th>
+                    <th className="px-4 py-3 text-right font-normal">ROA</th>
+                    <th className="px-4 py-3 text-right font-normal">资产负债率</th>
                     <th className="px-4 py-3 text-right font-normal">经营现金流</th>
                     <th className="px-4 py-3 text-right font-normal">年度 1</th>
                     <th className="px-4 py-3 text-right font-normal">年度 2</th>
@@ -270,6 +276,16 @@ export default async function StockFinancialPage({
                         {stock.latest_net_margin == null
                           ? "—"
                           : `${stock.latest_net_margin.toFixed(1)}%`}
+                      </td>
+                      <td className="tnum px-4 py-3 text-right text-xs text-ink-soft">
+                        {stock.latest_roa == null
+                          ? "—"
+                          : `${stock.latest_roa.toFixed(1)}%`}
+                      </td>
+                      <td className="tnum px-4 py-3 text-right text-xs text-ink-soft">
+                        {stock.latest_debt_asset_ratio == null
+                          ? "—"
+                          : `${stock.latest_debt_asset_ratio.toFixed(1)}%`}
                       </td>
                       <td className="tnum px-4 py-3 text-right text-xs text-ink-soft">
                         {stock.latest_operating_cash_flow == null

@@ -457,6 +457,10 @@ class StockFinancial(Base):
     operating_cash_flow: Mapped[float | None] = mapped_column(Numeric(20, 2))
     gross_margin: Mapped[float | None] = mapped_column(Numeric(8, 2))
     net_margin: Mapped[float | None] = mapped_column(Numeric(8, 2))
+    total_assets: Mapped[float | None] = mapped_column(Numeric(20, 2))
+    total_liabilities: Mapped[float | None] = mapped_column(Numeric(20, 2))
+    debt_asset_ratio: Mapped[float | None] = mapped_column(Numeric(8, 2))
+    roa: Mapped[float | None] = mapped_column(Numeric(8, 2))
     disclosure_date: Mapped[date | None] = mapped_column(Date)
     source: Mapped[str] = mapped_column(String(16), nullable=False, default="eastmoney")
     created_at: Mapped[datetime] = mapped_column(

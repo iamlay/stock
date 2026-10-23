@@ -291,6 +291,10 @@ def sync_stock_financials_batch(
                         operating_cash_flow=record.operating_cash_flow,
                         gross_margin=record.gross_margin,
                         net_margin=record.net_margin,
+                        total_assets=record.total_assets,
+                        total_liabilities=record.total_liabilities,
+                        debt_asset_ratio=record.debt_asset_ratio,
+                        roa=record.roa,
                         disclosure_date=record.disclosure_date,
                         source="eastmoney",
                     )
@@ -310,6 +314,10 @@ def sync_stock_financials_batch(
                     row.operating_cash_flow = record.operating_cash_flow
                     row.gross_margin = record.gross_margin
                     row.net_margin = record.net_margin
+                    row.total_assets = record.total_assets
+                    row.total_liabilities = record.total_liabilities
+                    row.debt_asset_ratio = record.debt_asset_ratio
+                    row.roa = record.roa
                     row.disclosure_date = record.disclosure_date
                     updated += 1
             if (index + 1) % 25 == 0:

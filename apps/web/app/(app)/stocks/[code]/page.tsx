@@ -431,7 +431,7 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
             </p>
           ) : (
             <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[1100px] text-left text-sm">
+              <table className="w-full min-w-[1250px] text-left text-sm">
                 <thead className="border-b border-line text-xs text-muted">
                   <tr>
                     <th className="py-2 font-normal">报告期</th>
@@ -443,6 +443,9 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
                     <th className="py-2 text-right font-normal">ROE</th>
                     <th className="py-2 text-right font-normal">毛利率</th>
                     <th className="py-2 text-right font-normal">净利率</th>
+                    <th className="py-2 text-right font-normal">ROA</th>
+                    <th className="py-2 text-right font-normal">资产负债率</th>
+                    <th className="py-2 text-right font-normal">总资产</th>
                     <th className="py-2 text-right font-normal">经营现金流</th>
                     <th className="py-2 text-right font-normal">披露日</th>
                   </tr>
@@ -505,6 +508,17 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
                         {item.net_margin == null
                           ? "—"
                           : `${item.net_margin.toFixed(1)}%`}
+                      </td>
+                      <td className="tnum py-3 text-right text-xs text-ink-soft">
+                        {item.roa == null ? "—" : `${item.roa.toFixed(1)}%`}
+                      </td>
+                      <td className="tnum py-3 text-right text-xs text-ink-soft">
+                        {item.debt_asset_ratio == null
+                          ? "—"
+                          : `${item.debt_asset_ratio.toFixed(1)}%`}
+                      </td>
+                      <td className="tnum py-3 text-right text-xs text-ink-soft">
+                        {yi(item.total_assets)}
                       </td>
                       <td className="tnum py-3 text-right text-xs text-ink-soft">
                         {yi(item.operating_cash_flow)}

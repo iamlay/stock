@@ -222,16 +222,17 @@ revenue, net_profit
 revenue_yoy, net_profit_yoy
 roe, operating_cash_flow_per_share
 operating_cash_flow, gross_margin, net_margin
+total_assets, total_liabilities, debt_asset_ratio, roa
 disclosure_date
 ```
 
 同步：
 
 ```bash
-python -m etl.cli stock-financials --limit 2000 --delay 0.2
+python -m etl.cli stock-financials --limit 5000 --delay 0.2
 ```
 
-当前覆盖高股息前 2,000 只；默认每月 1 日更新，也可手动触发 GitHub Actions。
+当前覆盖全市场 5,000 只；默认每月 1 日更新，也可手动触发 GitHub Actions。
 
 财务质量字段：
 

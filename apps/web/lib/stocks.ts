@@ -57,6 +57,10 @@ export type StockFinancialReport = {
   operating_cash_flow: number | null;
   gross_margin: number | null;
   net_margin: number | null;
+  total_assets: number | null;
+  total_liabilities: number | null;
+  debt_asset_ratio: number | null;
+  roa: number | null;
   disclosure_date: string | null;
 };
 
@@ -78,6 +82,8 @@ export type StockFinancialSummary = Stock & {
   latest_operating_cash_flow: number | null;
   latest_gross_margin: number | null;
   latest_net_margin: number | null;
+  latest_roa: number | null;
+  latest_debt_asset_ratio: number | null;
   disclosure_date: string | null;
 };
 
