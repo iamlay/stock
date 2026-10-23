@@ -83,8 +83,11 @@ export default async function StocksPage({
           <p className="mt-1 text-sm text-muted">
             按 TTM 股息率排序 · 默认排除 ST · 日频数据，非实时行情
           </p>
+          <p className="tnum mt-2 text-xs text-muted md:hidden">
+            共 {total.toLocaleString("zh-CN")} 只 · 股息率 = 近 12 个月现金分红 / 不复权最新价
+          </p>
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="hidden flex-col items-end gap-2 md:flex">
           <StockSearchBox />
           <div className="text-right text-xs text-muted">
             <p className="tnum">共 {total.toLocaleString("zh-CN")} 只</p>
@@ -98,27 +101,27 @@ export default async function StocksPage({
       <form
         method="get"
         action="/stocks"
-        className="card flex flex-wrap items-end gap-3 p-4 text-xs"
+        className="card grid w-full min-w-0 grid-cols-2 items-end gap-3 p-4 text-xs sm:flex sm:flex-wrap"
       >
-        <label className="flex flex-col gap-1">
+        <label className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-auto">
           <span className="text-muted">搜索</span>
           <input
             name="q"
             defaultValue={q}
             placeholder="代码或名称"
-            className="w-36 rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink"
+            className="w-full min-w-0 rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink sm:w-36"
           />
         </label>
-        <label className="flex flex-col gap-1">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className="text-muted">行业</span>
           <input
             name="industry"
             defaultValue={industry}
             placeholder="如 金融"
-            className="w-28 rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink"
+            className="w-full min-w-0 rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink sm:w-28"
           />
         </label>
-        <label className="flex flex-col gap-1">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className="text-muted">最低股息率</span>
           <input
             name="min_yield"
@@ -128,15 +131,15 @@ export default async function StocksPage({
             step="0.1"
             defaultValue={minYieldRaw}
             placeholder="如 3"
-            className="w-24 rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink"
+            className="w-full min-w-0 rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink sm:w-24"
           />
         </label>
-        <label className="flex flex-col gap-1">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className="text-muted">排序</span>
           <select
             name="sort"
             defaultValue={sort}
-            className="rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink"
+            className="w-full min-w-0 rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink sm:w-auto"
           >
             {SORTS.map(([value, label]) => (
               <option key={value} value={value}>
@@ -145,30 +148,32 @@ export default async function StocksPage({
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className="text-muted">方向</span>
           <select
             name="order"
             defaultValue={order}
-            className="rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink"
+            className="w-full min-w-0 rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink sm:w-auto"
           >
             <option value="desc">从高到低</option>
             <option value="asc">从低到高</option>
           </select>
         </label>
-        <label className="flex items-center gap-1.5 pb-2 text-muted">
+        <label className="col-span-2 flex items-center gap-1.5 pb-2 text-muted sm:col-auto">
           <input type="checkbox" name="include_st" value="true" defaultChecked={includeSt} />
           包含 ST
         </label>
-        <button
-          type="submit"
-          className="rounded-sm bg-ink px-4 py-2 text-sm font-medium text-paper hover:bg-jade-deep"
-        >
-          筛选
-        </button>
-        <Link href="/stocks" className="pb-2 text-jade-deep hover:underline">
-          重置
-        </Link>
+        <div className="col-span-2 flex items-center gap-3 sm:col-auto">
+          <button
+            type="submit"
+            className="flex-1 rounded-sm bg-ink px-4 py-2 text-sm font-medium text-paper hover:bg-jade-deep sm:flex-none"
+          >
+            筛选
+          </button>
+          <Link href="/stocks" className="text-jade-deep hover:underline">
+            重置
+          </Link>
+        </div>
       </form>
 
       <div className="card overflow-hidden">

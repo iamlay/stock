@@ -75,8 +75,8 @@ export function StockCard({ stock }: { stock: Stock }) {
           <p className="text-[10px] text-muted">股息率 TTM</p>
         </div>
       </div>
-      <div className="mt-3 flex items-end justify-between gap-3">
-        <div className="flex items-baseline gap-2">
+      <div className="mt-3 flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
+        <div className="flex min-w-0 items-baseline gap-2">
           <span className="tnum text-sm text-ink">
             {stock.price == null ? "—" : stock.price.toFixed(2)}
           </span>
@@ -88,7 +88,7 @@ export function StockCard({ stock }: { stock: Stock }) {
             {stock.change_pct == null ? "—" : fmtPct(stock.change_pct)}
           </span>
         </div>
-        <div className="flex items-center gap-2 text-[11px] text-muted">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted">
           <span>
             市值 {stock.market_cap == null ? "—" : `${stock.market_cap.toFixed(0)} 亿`}
           </span>

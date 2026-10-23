@@ -64,19 +64,19 @@ export default async function EtfListPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="font-serif text-3xl text-ink">ETF 数据</h1>
           <p className="mt-1 text-sm text-muted">100 只精选标的 · 红利 / 现金流 / 跨境 / 宽基 / 行业 / 债券 / 商品 / 货币</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Link
             href="/etf/compare"
-            className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"
+            className="whitespace-nowrap rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-jade-deep hover:border-jade"
           >
             对比
           </Link>
           <EtfSortSelect value={sort} category={active ?? undefined} query={term || undefined} />
-          <p className="tnum text-xs text-muted">
+          <p className="tnum w-full text-xs text-muted sm:w-auto">
             {filtered.length} 只 · 合计规模 {totalAum.toFixed(0)} 亿 ·{" "}
             {live
               ? `数据 ${dataDate}${quoteTime ? ` · 更新 ${quoteTime.slice(11, 16)}` : ""}`
@@ -118,7 +118,7 @@ export default async function EtfListPage({
           name="q"
           defaultValue={q ?? ""}
           placeholder="搜索代码或名称"
-          className="w-56 rounded-sm border border-line bg-surface px-3 py-2 text-sm text-ink"
+          className="w-full rounded-sm border border-line bg-surface px-3 py-2 text-sm text-ink sm:w-56"
         />
         <button
           type="submit"
