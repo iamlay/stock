@@ -193,10 +193,16 @@ export function getToken(): string | null {
 
 export function setToken(token: string) {
   window.localStorage.setItem(TOKEN_KEY, token);
+  void fetch("/api/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  }).catch(() => undefined);
 }
 
 export function clearToken() {
   window.localStorage.removeItem(TOKEN_KEY);
+  void fetch("/api/session", { method: "DELETE" }).catch(() => undefined);
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

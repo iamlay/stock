@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -18,6 +18,7 @@ from app.db.models import User
 from app.settings import settings
 
 bearer = HTTPBearer(auto_error=False)
+AUTH_COOKIE = "stocklab_token"
 
 SCRYPT_N = 2**14
 SCRYPT_R = 8
@@ -95,6 +96,19 @@ def create_access_token(user: User) -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
 
 
+def set_auth_cookie(response, token: str) -> None:
+    secure = settings.env in {"production", "staging"}
+    response.set_cookie(
+        AUTH_COOKIE,
+        token,
+        max_age=settings.jwt_ttl_minutes * 60,
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+        path="/",
+    )
+
+
 def create_action_token(user: User, purpose: str, ttl_minutes: int) -> str:
     expires = datetime.now(UTC) + timedelta(minutes=ttl_minutes)
     payload = {
@@ -130,15 +144,19 @@ def decode_token(token: str) -> dict:
 
 
 def get_current_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
     session: Annotated[Session, Depends(get_session)],
 ) -> User:
-    if credentials is None:
+    token = credentials.credentials if credentials is not None else None
+    if token is None:
+        token = request.cookies.get(AUTH_COOKIE)
+    if token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="missing bearer token",
         )
-    payload = decode_token(credentials.credentials)
+    payload = decode_token(token)
     user = session.get(User, int(payload["sub"]))
     if user is None or user.status != "active":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="user unavailable")
@@ -150,12 +168,16 @@ def get_current_user(
 
 
 def get_optional_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
     session: Annotated[Session, Depends(get_session)],
 ) -> User | None:
-    if credentials is None:
+    token = credentials.credentials if credentials is not None else None
+    if token is None:
+        token = request.cookies.get(AUTH_COOKIE)
+    if token is None:
         return None
-    payload = decode_token(credentials.credentials)
+    payload = decode_token(token)
     user = session.get(User, int(payload["sub"]))
     if user is None or user.status != "active":
         return None

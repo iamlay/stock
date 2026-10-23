@@ -67,8 +67,8 @@ def _client(session) -> TestClient:
     return TestClient(app)
 
 
-def _headers(session, role: str = "admin") -> dict[str, str]:
-    user = User(phone=f"136{role[:4]:0<8}"[:11], role=role, plan="free")
+def _headers(session, role: str = "admin", plan: str = "free") -> dict[str, str]:
+    user = User(phone=f"136{role[:4]:0<8}"[:11], role=role, plan=plan)
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -246,13 +246,36 @@ def test_stock_bollinger_requires_bars(session) -> None:
 
     client = _client(session)
     try:
-        response = client.get("/api/v1/stocks/bollinger")
+        headers = _headers(session, role="member", plan="member")
+        response = client.get("/api/v1/stocks/bollinger", headers=headers)
         assert response.status_code == 200
         body = response.json()
         assert body["total"] == 1
         assert body["items"][0]["code"] == "600519"
         assert body["items"][0]["daily"] is not None
         assert body["items"][0]["daily"]["periods"] == 20
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_stock_financials_cookie_auth(session) -> None:
+    _seed(session)
+    user = User(phone="13600007777", role="member", plan="member")
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    client = _client(session)
+    try:
+        client.cookies.set("stocklab_token", create_access_token(user))
+        response = client.get("/api/v1/stocks/financials")
+        assert response.status_code == 200
+        assert response.json()["total"] == 0
+
+        user.plan = "free"
+        session.commit()
+        free = client.get("/api/v1/stocks/financials")
+        assert free.status_code == 403
     finally:
         app.dependency_overrides.clear()
 
@@ -303,7 +326,12 @@ def test_stock_financials_list_and_detail(session) -> None:
 
     client = _client(session)
     try:
-        response = client.get("/api/v1/stocks/financials")
+        free_headers = _headers(session, role="free", plan="free")
+        denied = client.get("/api/v1/stocks/financials", headers=free_headers)
+        assert denied.status_code == 403
+
+        headers = _headers(session, role="member", plan="member")
+        response = client.get("/api/v1/stocks/financials", headers=headers)
         assert response.status_code == 200
         body = response.json()
         assert body["total"] == 1
@@ -319,7 +347,7 @@ def test_stock_financials_list_and_detail(session) -> None:
         assert item["annuals"][0]["year"] == 2025
         assert item["annuals"][0]["net_profit"] == 50
 
-        detail = client.get("/api/v1/stocks/600519")
+        detail = client.get("/api/v1/stocks/600519", headers=headers)
         assert detail.status_code == 200
         assert len(detail.json()["financials"]) == 3
     finally:

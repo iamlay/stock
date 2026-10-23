@@ -5,7 +5,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -20,6 +20,7 @@ from app.security import (
     generate_code,
     get_current_user,
     hash_password,
+    set_auth_cookie,
     verify_code,
     verify_password,
 )
@@ -153,8 +154,11 @@ def _user_out(user: User) -> UserOut:
     )
 
 
-def _token_response(user: User) -> TokenResponse:
-    return TokenResponse(access_token=create_access_token(user), user=_user_out(user))
+def _token_response(user: User, response: Response | None = None) -> TokenResponse:
+    token = create_access_token(user)
+    if response is not None:
+        set_auth_cookie(response, token)
+    return TokenResponse(access_token=token, user=_user_out(user))
 
 
 def _send_verification(user: User) -> tuple[bool, str | None]:
@@ -206,6 +210,7 @@ def send_sms_code(
 def login(
     payload: LoginRequest,
     request: Request,
+    response: Response,
     session: Annotated[Session, Depends(get_session)],
 ) -> TokenResponse:
     check_rate_limit(
@@ -231,7 +236,7 @@ def login(
     session.commit()
     session.refresh(user)
 
-    return _token_response(user)
+    return _token_response(user, response)
 
 
 @router.post("/auth/register", response_model=RegisterResponse, summary="邮箱注册")
@@ -339,6 +344,7 @@ def register(
 def login_email(
     payload: EmailLoginRequest,
     request: Request,
+    response: Response,
     session: Annotated[Session, Depends(get_session)],
 ) -> TokenResponse:
     email = str(payload.email).strip().lower()
@@ -367,7 +373,7 @@ def login_email(
     user.last_login_at = datetime.now(UTC)
     session.commit()
     session.refresh(user)
-    return _token_response(user)
+    return _token_response(user, response)
 
 
 @router.post("/auth/bind-phone", response_model=UserOut, summary="绑定手机号")

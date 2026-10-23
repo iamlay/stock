@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Analytics } from "@vercel/analytics/next";
 
 import { BaiduAnalytics } from "@/components/baidu-analytics";
+import { SessionCookieSync } from "@/components/session-cookie-sync";
 
 import "./globals.css";
 
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         {children}
         <Analytics />
         <BaiduAnalytics />
+        <SessionCookieSync />
       </body>
     </html>
   );

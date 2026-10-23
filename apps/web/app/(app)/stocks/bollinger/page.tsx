@@ -4,6 +4,7 @@ import Link from "next/link";
 import { StockSearchBox } from "@/components/stock-search-box";
 import { StockSectionTabs } from "@/components/stock-section-tabs";
 import { MemberGate } from "@/components/member-gate";
+import { getServerToken } from "@/lib/server-auth";
 import { fetchStockBollinger, type StockBand, type StockBollinger } from "@/lib/stocks";
 
 export const metadata: Metadata = { title: "股息布林" };
@@ -101,12 +102,15 @@ export default async function StockBollingerPage({
   const industry = one(params.industry);
   const page = Math.max(1, Number(one(params.page)) || 1);
 
-  const data = await fetchStockBollinger({
-    q: q || undefined,
-    industry: industry || undefined,
-    page,
-    page_size: PAGE_SIZE,
-  });
+  const data = await fetchStockBollinger(
+    {
+      q: q || undefined,
+      industry: industry || undefined,
+      page,
+      page_size: PAGE_SIZE,
+    },
+    await getServerToken(),
+  );
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 

@@ -107,6 +107,9 @@ plan_expires_at
 - [ ] 免费用户打开 `/stocks/grid` 看到升级卡片；
 - [ ] 免费用户打开布林/财务看到升级卡片；
 - [ ] 会员可正常查看三个高级页面；
+- [ ] 匿名请求 `/stocks/bollinger` 返回 401；
+- [ ] 免费用户请求 `/stocks/financials` 返回 403；
+- [ ] 会员 Cookie 请求高级接口返回 200；
 - [ ] 免费用户开启网格提醒返回 403；
 - [ ] 会员开启网格提醒成功；
 - [ ] 会员到期后 advanced 页面自动锁定；
@@ -114,21 +117,64 @@ plan_expires_at
 
 ---
 
-## 5. 当前边界
+## 5. Cookie 硬门禁
 
-这版是**产品级门禁**：
-
-- 页面内容通过客户端权限判断隐藏；
-- 自选上限、网格提醒已经在 API 强制执行；
-- 高级数据接口本身仍可被直接请求，后续可做：
+登录后：
 
 ```text
-登录 Cookie 化
-→ 服务端中间件校验会员
-→ 高级数据接口返回 403
+API 返回 access_token
+→ 前端 localStorage 保存
+→ POST /api/session 写入 HttpOnly Cookie：stocklab_token
 ```
 
-这样可以在不破坏现有 localStorage 登录的前提下，逐步收紧接口。
+Cookie 属性：
+
+```text
+HttpOnly
+Secure（生产）
+SameSite=Lax
+Path=/
+Max-Age=30 天
+```
+
+Web 服务端页面：
+
+```text
+cookies() 读取 stocklab_token
+→ 作为 Authorization: Bearer 转发给 API
+```
+
+API 认证同时接受：
+
+```text
+Authorization: Bearer <token>
+Cookie: stocklab_token=<token>
+```
+
+### 已强制返回 401 / 403 的接口
+
+```text
+GET /api/v1/stocks/bollinger    未登录 401，免费 403
+GET /api/v1/stocks/financials   未登录 401，免费 403
+GET /api/v1/stocks/{code}       财务字段仅会员返回
+```
+
+会员到期后：
+
+```text
+Cookie 仍在
+→ API 解析用户
+→ is_member=false
+→ 403
+```
+
+### 仍然公开的接口
+
+```text
+/stocks/grid 页面使用公开个股列表
+```
+
+网格页是产品级页面门禁；如果要把网格数据也做成服务端硬门禁，需要新增专用网格 API。
 
 ---
 

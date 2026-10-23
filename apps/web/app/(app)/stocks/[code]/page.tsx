@@ -9,6 +9,7 @@ import { MemberGate } from "@/components/member-gate";
 import { buildGrid } from "@/lib/grid";
 import { computeBollinger } from "@/lib/bollinger";
 import { fetchStock } from "@/lib/stocks";
+import { getServerToken } from "@/lib/server-auth";
 import { fmtPct, trendClass } from "@/lib/format";
 
 type PageProps = {
@@ -59,7 +60,7 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
   )
     ? rawTab!
     : "overview";
-  const stock = await fetchStock(code);
+  const stock = await fetchStock(code, await getServerToken());
   if (!stock) notFound();
 
   const grid = buildGrid(stock.price, stock.dividend_yield_ttm);

@@ -151,11 +151,15 @@ export async function fetchStocks(params: StockQuery = {}): Promise<StockList | 
   }
 }
 
-export async function fetchStock(code: string): Promise<StockDetail | null> {
+export async function fetchStock(
+  code: string,
+  token?: string | null,
+): Promise<StockDetail | null> {
   try {
     const response = await fetch(`${API_BASE}/api/v1/stocks/${code}`, {
       cache: "no-store",
       signal: AbortSignal.timeout(8000),
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
     if (!response.ok) return null;
     return (await response.json()) as StockDetail;
@@ -166,6 +170,7 @@ export async function fetchStock(code: string): Promise<StockDetail | null> {
 
 export async function fetchStockBollinger(
   params: { q?: string; industry?: string; page?: number; page_size?: number } = {},
+  token?: string | null,
 ): Promise<StockBollingerList | null> {
   try {
     const search = new URLSearchParams();
@@ -178,6 +183,7 @@ export async function fetchStockBollinger(
       {
         cache: "no-store",
         signal: AbortSignal.timeout(20000),
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       },
     );
     if (!response.ok) return null;
@@ -189,6 +195,7 @@ export async function fetchStockBollinger(
 
 export async function fetchStockFinancials(
   params: { q?: string; industry?: string; page?: number; page_size?: number } = {},
+  token?: string | null,
 ): Promise<StockFinancialList | null> {
   try {
     const search = new URLSearchParams();
@@ -201,6 +208,7 @@ export async function fetchStockFinancials(
       {
         cache: "no-store",
         signal: AbortSignal.timeout(20000),
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       },
     );
     if (!response.ok) return null;

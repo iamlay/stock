@@ -20,8 +20,10 @@ from app.db.models import (
     StockProfile,
     User,
 )
-from app.security import get_current_admin
+from app.security import get_current_admin, get_current_user, get_optional_user
 from app.services.bollinger import Band, compute_bollinger
+from app.services.entitlements import require_member
+from app.services.membership import is_member
 
 router = APIRouter(prefix="/stocks", tags=["stocks"])
 admin_router = APIRouter(prefix="/admin/stocks", tags=["admin-stocks"])
@@ -335,11 +337,13 @@ def search_stocks(
 )
 def list_stock_bollinger(
     session: Annotated[Session, Depends(get_session)],
+    user: Annotated[User, Depends(get_current_user)],
     q: str | None = Query(None, max_length=32),
     industry: str | None = Query(None, max_length=32),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ) -> StockBollingerList:
+    require_member(user)
     cutoff = date.today() - timedelta(days=900)
     bar_codes = (
         select(MarketDaily.code)
@@ -414,11 +418,13 @@ def list_stock_bollinger(
 )
 def list_stock_financials(
     session: Annotated[Session, Depends(get_session)],
+    user: Annotated[User, Depends(get_current_user)],
     q: str | None = Query(None, max_length=32),
     industry: str | None = Query(None, max_length=32),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ) -> StockFinancialList:
+    require_member(user)
     rows = session.execute(
         _base_query()
         .where(
@@ -537,6 +543,7 @@ def list_stock_financials(
 def get_stock(
     code: str,
     session: Annotated[Session, Depends(get_session)],
+    user: Annotated[User | None, Depends(get_optional_user)],
 ) -> StockDetail:
     row = session.execute(
         _base_query().where(
@@ -554,12 +561,16 @@ def get_stock(
         .order_by(StockDividend.ex_date.desc())
         .limit(100)
     ).all()
-    financials = session.scalars(
-        select(StockFinancial)
-        .where(StockFinancial.code == code)
-        .order_by(StockFinancial.report_date.desc())
-        .limit(24)
-    ).all()
+    financials = (
+        session.scalars(
+            select(StockFinancial)
+            .where(StockFinancial.code == code)
+            .order_by(StockFinancial.report_date.desc())
+            .limit(24)
+        ).all()
+        if user is not None and is_member(user)
+        else []
+    )
     bars = session.scalars(
         select(MarketDaily)
         .where(MarketDaily.code == code)
