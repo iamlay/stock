@@ -289,6 +289,8 @@ def test_stock_financials_list_and_detail(session) -> None:
                 net_profit=16,
                 revenue_yoy=6,
                 net_profit_yoy=7,
+                roe=15.5,
+                operating_cash_flow_per_share=2.5,
                 disclosure_date=date(2026, 4, 25),
             ),
         ]
@@ -304,6 +306,9 @@ def test_stock_financials_list_and_detail(session) -> None:
         item = body["items"][0]
         assert item["code"] == "600519"
         assert item["latest_period"] == "Q1"
+        assert item["latest_revenue_yoy"] == 6
+        assert item["latest_roe"] == 15.5
+        assert item["latest_operating_cash_flow_per_share"] == 2.5
         assert len(item["annuals"]) == 2
         assert item["annuals"][0]["year"] == 2025
         assert item["annuals"][0]["net_profit"] == 50

@@ -220,6 +220,7 @@ stock_financials
 code, report_date, period
 revenue, net_profit
 revenue_yoy, net_profit_yoy
+roe, operating_cash_flow_per_share
 disclosure_date
 ```
 
@@ -230,5 +231,12 @@ python -m etl.cli stock-financials --limit 1000 --delay 0.2
 ```
 
 当前覆盖高股息前 1,000 只；默认每月 1 日更新，也可手动触发 GitHub Actions。
+
+财务质量字段：
+
+- 营收同比；
+- 归母净利同比；
+- 加权 ROE；
+- 每股经营现金流。
 
 

@@ -450,6 +450,10 @@ class StockFinancial(Base):
     net_profit: Mapped[float | None] = mapped_column(Numeric(20, 2))
     revenue_yoy: Mapped[float | None] = mapped_column(Numeric(10, 2))
     net_profit_yoy: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    roe: Mapped[float | None] = mapped_column(Numeric(8, 2))
+    operating_cash_flow_per_share: Mapped[float | None] = mapped_column(
+        Numeric(12, 4)
+    )
     disclosure_date: Mapped[date | None] = mapped_column(Date)
     source: Mapped[str] = mapped_column(String(16), nullable=False, default="eastmoney")
     created_at: Mapped[datetime] = mapped_column(

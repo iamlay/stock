@@ -52,6 +52,8 @@ export type StockFinancialReport = {
   net_profit: number | null;
   revenue_yoy: number | null;
   net_profit_yoy: number | null;
+  roe: number | null;
+  operating_cash_flow_per_share: number | null;
   disclosure_date: string | null;
 };
 
@@ -67,6 +69,9 @@ export type StockFinancialSummary = Stock & {
   latest_report_date: string | null;
   latest_net_profit: number | null;
   latest_net_profit_yoy: number | null;
+  latest_revenue_yoy: number | null;
+  latest_roe: number | null;
+  latest_operating_cash_flow_per_share: number | null;
   disclosure_date: string | null;
 };
 

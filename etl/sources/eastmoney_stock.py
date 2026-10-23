@@ -46,6 +46,8 @@ class FinancialRecord:
     net_profit: float | None
     revenue_yoy: float | None
     net_profit_yoy: float | None
+    roe: float | None
+    operating_cash_flow_per_share: float | None
     disclosure_date: date | None
 
 
@@ -259,6 +261,8 @@ def fetch_stock_financials(
                 net_profit=_float(item.get("PARENT_NETPROFIT"), None),
                 revenue_yoy=_float(item.get("YSTZ"), None),
                 net_profit_yoy=_float(item.get("SJLTZ"), None),
+                roe=_float(item.get("WEIGHTAVG_ROE"), None),
+                operating_cash_flow_per_share=_float(item.get("MGJYXJJE"), None),
                 disclosure_date=_date(item.get("NOTICE_DATE")),
             )
         )

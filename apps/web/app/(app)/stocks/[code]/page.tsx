@@ -431,14 +431,17 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
             </p>
           ) : (
             <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm">
+              <table className="w-full min-w-[900px] text-left text-sm">
                 <thead className="border-b border-line text-xs text-muted">
                   <tr>
                     <th className="py-2 font-normal">报告期</th>
                     <th className="py-2 font-normal">类型</th>
                     <th className="py-2 text-right font-normal">营收</th>
+                    <th className="py-2 text-right font-normal">营收同比</th>
                     <th className="py-2 text-right font-normal">归母净利</th>
                     <th className="py-2 text-right font-normal">净利同比</th>
+                    <th className="py-2 text-right font-normal">ROE</th>
+                    <th className="py-2 text-right font-normal">每股现金流</th>
                     <th className="py-2 text-right font-normal">披露日</th>
                   </tr>
                 </thead>
@@ -459,6 +462,19 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
                       <td className="tnum py-3 text-right text-ink-soft">
                         {yi(item.revenue)}
                       </td>
+                      <td
+                        className={`tnum py-3 text-right text-xs ${
+                          item.revenue_yoy == null
+                            ? "text-muted"
+                            : item.revenue_yoy >= 0
+                              ? "text-loss"
+                              : "text-jade"
+                        }`}
+                      >
+                        {item.revenue_yoy == null
+                          ? "—"
+                          : `${item.revenue_yoy > 0 ? "+" : ""}${item.revenue_yoy.toFixed(1)}%`}
+                      </td>
                       <td className="tnum py-3 text-right text-ink">
                         {yi(item.net_profit)}
                       </td>
@@ -474,6 +490,14 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
                         {item.net_profit_yoy == null
                           ? "—"
                           : `${item.net_profit_yoy > 0 ? "+" : ""}${item.net_profit_yoy.toFixed(1)}%`}
+                      </td>
+                      <td className="tnum py-3 text-right text-xs text-ink-soft">
+                        {item.roe == null ? "—" : `${item.roe.toFixed(1)}%`}
+                      </td>
+                      <td className="tnum py-3 text-right text-xs text-ink-soft">
+                        {item.operating_cash_flow_per_share == null
+                          ? "—"
+                          : item.operating_cash_flow_per_share.toFixed(2)}
                       </td>
                       <td className="tnum py-3 text-right text-xs text-muted">
                         {item.disclosure_date ?? "—"}

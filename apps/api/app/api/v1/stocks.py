@@ -108,6 +108,8 @@ class FinancialOut(BaseModel):
     net_profit: float | None
     revenue_yoy: float | None
     net_profit_yoy: float | None
+    roe: float | None
+    operating_cash_flow_per_share: float | None
     disclosure_date: str | None
 
 
@@ -123,6 +125,9 @@ class StockFinancialOut(StockOut):
     latest_report_date: str | None
     latest_net_profit: float | None
     latest_net_profit_yoy: float | None
+    latest_revenue_yoy: float | None
+    latest_roe: float | None
+    latest_operating_cash_flow_per_share: float | None
     disclosure_date: str | None
 
 
@@ -466,6 +471,17 @@ def list_stock_financials(
                     if latest.net_profit_yoy is not None
                     else None
                 ),
+                latest_revenue_yoy=(
+                    float(latest.revenue_yoy)
+                    if latest.revenue_yoy is not None
+                    else None
+                ),
+                latest_roe=float(latest.roe) if latest.roe is not None else None,
+                latest_operating_cash_flow_per_share=(
+                    float(latest.operating_cash_flow_per_share)
+                    if latest.operating_cash_flow_per_share is not None
+                    else None
+                ),
                 disclosure_date=(
                     latest.disclosure_date.isoformat()
                     if latest.disclosure_date
@@ -548,6 +564,12 @@ def get_stock(
                 net_profit_yoy=(
                     float(item.net_profit_yoy)
                     if item.net_profit_yoy is not None
+                    else None
+                ),
+                roe=float(item.roe) if item.roe is not None else None,
+                operating_cash_flow_per_share=(
+                    float(item.operating_cash_flow_per_share)
+                    if item.operating_cash_flow_per_share is not None
                     else None
                 ),
                 disclosure_date=(
