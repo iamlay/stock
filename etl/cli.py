@@ -502,7 +502,7 @@ def build_parser() -> argparse.ArgumentParser:
     stock_daily.set_defaults(func=cmd_stock_daily)
 
     stock_bars = sub.add_parser("stock-bars", help="backfill stock K-line bars")
-    stock_bars.add_argument("--limit", type=int, default=1000)
+    stock_bars.add_argument("--limit", type=int, default=2000)
     stock_bars.add_argument("--codes", default="")
     stock_bars.add_argument("--force", action="store_true")
     stock_bars.add_argument("--delay", type=float, default=0.2)

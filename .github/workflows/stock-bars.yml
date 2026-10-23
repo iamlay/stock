@@ -5,7 +5,7 @@ on:
     inputs:
       limit:
         description: "Number of high-yield stocks to backfill"
-        default: "1000"
+        default: "2000"
   schedule:
     # First day of each month, 20:00 Asia/Shanghai
     - cron: "0 12 1 * *"
@@ -17,7 +17,7 @@ concurrency:
 jobs:
   bars:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
@@ -39,4 +39,4 @@ jobs:
           STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
         run: |
           LIMIT="${{ inputs.limit }}"
-          python -m etl.cli stock-bars --limit "${LIMIT:-1000}"
+          python -m etl.cli stock-bars --limit "${LIMIT:-2000}"
