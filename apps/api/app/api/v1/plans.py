@@ -29,7 +29,12 @@ PLANS: list[Plan] = [
         name="标准年付",
         price_cny=199,
         duration_days=365,
-        features=["全部行情与 ETF 数据", "策略回测 20 次/日", "回测明细导出", "会员社群"],
+        features=[
+            "股息网格 / 布林 / 财务",
+            "自选不限数量",
+            "网格提醒",
+            "回测历史与导出",
+        ],
         purchasable=False,
         purchase_channel="third_party_redeem_code",
     ),

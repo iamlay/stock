@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { StockSearchBox } from "@/components/stock-search-box";
 import { StockSectionTabs } from "@/components/stock-section-tabs";
+import { MemberGate } from "@/components/member-gate";
 import {
   fetchStockFinancials,
   type AnnualFinancial,
@@ -132,6 +133,7 @@ export default async function StockFinancialPage({
   }
 
   return (
+    <MemberGate feature="股息财务">
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -343,5 +345,6 @@ export default async function StockFinancialPage({
         财报有滞后，不构成投资建议。
       </p>
     </div>
+    </MemberGate>
   );
 }

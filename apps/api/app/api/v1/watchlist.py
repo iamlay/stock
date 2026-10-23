@@ -12,6 +12,7 @@ from app.api.v1.etfs import EtfSummary, _summaries
 from app.db import get_session
 from app.db.models import Instrument, User, WatchlistItem
 from app.security import get_current_user
+from app.services.entitlements import ensure_watchlist_slot
 
 router = APIRouter(prefix="/watchlist", tags=["watchlist"])
 
@@ -74,6 +75,7 @@ def add_watchlist(
     )
     if existing is not None:
         return WatchlistAddResponse(code=payload.code, saved=True)
+    ensure_watchlist_slot(session, user)
     session.add(WatchlistItem(user_id=user.id, code=payload.code))
     try:
         session.commit()

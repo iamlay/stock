@@ -66,6 +66,8 @@ def test_run_alerts_creates_daily_notification(session) -> None:
 
 def test_run_alerts_creates_grid_crossing(session) -> None:
     user = _seed(session)
+    user.plan = "member"
+    user.plan_expires_at = datetime.now(UTC) + timedelta(days=30)
     metric = session.get(StockMetric, "600519")
     metric.change_pct = 0
     metric.dividend_yield_ttm = 6

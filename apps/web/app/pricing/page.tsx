@@ -29,7 +29,12 @@ const plans: Plan[] = [
     price: "¥199",
     original: "¥299",
     note: "早鸟价 · 第三方平台购买",
-    features: ["全部行情与 ETF 数据", "策略回测 20 次/日", "回测明细导出", "会员社群", "到期前提醒"],
+    features: [
+      "股息网格 / 布林 / 财务",
+      "自选不限数量",
+      "网格提醒",
+      "回测历史与导出",
+    ],
     cta: "获取兑换码",
     highlight: true,
   },
@@ -97,7 +102,7 @@ export default function PricingPage() {
             ))}
           </div>
 
-          <div className="mt-12 grid gap-6 lg:grid-cols-3">
+          <div className="mt-10 grid gap-6 lg:grid-cols-3">
             {[
               ["01", "第三方平台购买", "在知识星球 / 小鹅通年费专栏完成支付，平台代收并开具凭证。"],
               ["02", "获取兑换码", "支付成功后由平台自动发货或人工发放兑换码，一码一用。"],
@@ -109,6 +114,40 @@ export default function PricingPage() {
                 <p className="mt-2 text-xs leading-6 text-muted">{body}</p>
               </div>
             ))}
+          </div>
+
+          <div className="mt-10 overflow-hidden rounded-sm border border-line bg-surface">
+            <div className="border-b border-line px-5 py-4">
+              <h2 className="text-sm font-medium text-ink">权限边界</h2>
+              <p className="mt-1 text-xs text-muted">免费账号可用基础数据；高级股息工具属于会员权益。</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-left text-sm">
+                <thead className="border-b border-line text-xs text-muted">
+                  <tr>
+                    <th className="px-5 py-3 font-normal">功能</th>
+                    <th className="px-5 py-3 text-center font-normal">免费</th>
+                    <th className="px-5 py-3 text-center font-normal">会员</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line text-xs">
+                  {[
+                    ["ETF / 个股基础数据", "可用", "可用"],
+                    ["个股自选", "最多 10 个", "不限"],
+                    ["涨跌 / 除息提醒", "可用", "可用"],
+                    ["股息网格 / 布林 / 财务", "—", "可用"],
+                    ["网格提醒", "—", "可用"],
+                    ["回测历史 / 导出", "—", "可用"],
+                  ].map(([feature, free, member]) => (
+                    <tr key={feature}>
+                      <td className="px-5 py-3 text-ink-soft">{feature}</td>
+                      <td className="px-5 py-3 text-center text-muted">{free}</td>
+                      <td className="px-5 py-3 text-center text-jade-deep">{member}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className="mt-10 rounded-sm border border-line bg-surface p-5 text-sm leading-6 text-ink-soft">

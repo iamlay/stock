@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { StockSearchBox } from "@/components/stock-search-box";
 import { StockSectionTabs } from "@/components/stock-section-tabs";
+import { MemberGate } from "@/components/member-gate";
 import { buildGrid, GRID_YIELDS, type StockGrid } from "@/lib/grid";
 import { fetchStocks, type Stock, type StockQuery } from "@/lib/stocks";
 
@@ -97,6 +98,7 @@ export default async function StockGridPage({
   }
 
   return (
+    <MemberGate feature="股息网格">
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -268,5 +270,6 @@ export default async function StockGridPage({
         不构成投资建议。绿色表示当前股息率已达到该档。
       </p>
     </div>
+    </MemberGate>
   );
 }

@@ -17,6 +17,7 @@ from app.db.models import (
     WatchlistItem,
 )
 from app.services.email import EmailNotConfigured, EmailSendError, send_email
+from app.services.membership import is_member
 
 
 def _send_digest(user: User, lines: list[str]) -> bool:
@@ -158,7 +159,7 @@ def run_stock_alerts(session: Session, *, as_of: date | None = None) -> dict:
                     lines.append(title)
                     new_count += 1
 
-            if user.alert_grid:
+            if user.alert_grid and is_member(user):
                 grid_yield = float(user.alert_grid_yield or 5)
                 for code in stock_codes:
                     metric = stock_metrics.get(code)

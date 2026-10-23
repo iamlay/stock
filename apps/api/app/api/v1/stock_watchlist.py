@@ -18,6 +18,7 @@ from app.db.models import (
     User,
 )
 from app.security import get_current_user
+from app.services.entitlements import ensure_watchlist_slot
 
 router = APIRouter(prefix="/stock-watchlist", tags=["stock-watchlist"])
 
@@ -74,6 +75,7 @@ def add_stock_watchlist(
     if existing is not None:
         return {"code": code, "saved": False}
 
+    ensure_watchlist_slot(session, user)
     session.add(StockWatchlist(user_id=user.id, code=code))
     session.commit()
     return {"code": code, "saved": True}

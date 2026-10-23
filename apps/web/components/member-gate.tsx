@@ -1,0 +1,84 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState, type ReactNode } from "react";
+
+import { fetchMe, getToken, type Me } from "@/lib/auth";
+
+type GateState = "loading" | "member" | "guest" | "free";
+
+export function MemberGate({
+  feature,
+  children,
+}: {
+  feature: string;
+  children: ReactNode;
+}) {
+  const [state, setState] = useState<GateState>("loading");
+  const [me, setMe] = useState<Me | null>(null);
+
+  useEffect(() => {
+    if (!getToken()) {
+      setState("guest");
+      return;
+    }
+    fetchMe()
+      .then((user) => {
+        setMe(user);
+        setState(user.is_member ? "member" : "free");
+      })
+      .catch(() => setState("guest"));
+  }, []);
+
+  if (state === "loading") {
+    return (
+      <div className="card p-8 text-center text-sm text-muted">
+        正在确认会员权限…
+      </div>
+    );
+  }
+
+  if (state === "member") return <>{children}</>;
+
+  return (
+    <div className="card p-8 text-center">
+      <p className="text-xs font-medium uppercase tracking-[0.18em] text-jade">
+        Members only
+      </p>
+      <h2 className="mt-2 font-serif text-2xl text-ink">{feature}为会员专享</h2>
+      <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-muted">
+        {state === "guest"
+          ? "登录并开通会员后可查看。免费账号仍可使用 ETF、个股列表、基础详情和价格/除息提醒。"
+          : `当前账号为免费用户。开通会员后可无限添加自选，并使用${feature}、布林、财务和网格提醒。`}
+      </p>
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
+        {state === "guest" ? (
+          <Link
+            href="/login"
+            className="rounded-sm bg-ink px-4 py-2 text-sm font-medium text-paper"
+          >
+            登录
+          </Link>
+        ) : (
+          <Link
+            href="/account"
+            className="rounded-sm border border-line bg-surface px-4 py-2 text-sm text-ink-soft hover:border-ink"
+          >
+            我的账号
+          </Link>
+        )}
+        <Link
+          href="/pricing"
+          className="rounded-sm bg-ink px-4 py-2 text-sm font-medium text-paper"
+        >
+          查看会员权益
+        </Link>
+      </div>
+      {me?.plan_expires_at ? (
+        <p className="mt-4 text-xs text-muted">
+          当前会员到期：{me.plan_expires_at.slice(0, 10)}
+        </p>
+      ) : null}
+    </div>
+  );
+}

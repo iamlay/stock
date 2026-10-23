@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { StockWatchlistButton } from "@/components/stock-watchlist-button";
 import { EquityCurve } from "@/components/equity-curve";
 import { StockDetailTabs } from "@/components/stock-detail-tabs";
+import { MemberGate } from "@/components/member-gate";
 import { buildGrid } from "@/lib/grid";
 import { computeBollinger } from "@/lib/bollinger";
 import { fetchStock } from "@/lib/stocks";
@@ -281,6 +282,7 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
       ) : null}
 
       {tab === "grid" ? (
+        <MemberGate feature="股息网格">
         <section className="card p-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -351,9 +353,11 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
             </>
           )}
         </section>
+        </MemberGate>
       ) : null}
 
       {tab === "bollinger" ? (
+        <MemberGate feature="股息布林">
         <section className="card p-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -409,9 +413,11 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
             月线上轨上方为“高位”；其余为“观望”。不构成投资建议。
           </p>
         </section>
+        </MemberGate>
       ) : null}
 
       {tab === "financial" ? (
+        <MemberGate feature="股息财务">
         <section className="card p-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -533,6 +539,7 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
             </div>
           )}
         </section>
+        </MemberGate>
       ) : null}
     </div>
   );

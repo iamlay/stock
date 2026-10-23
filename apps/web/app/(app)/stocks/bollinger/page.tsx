@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { StockSearchBox } from "@/components/stock-search-box";
 import { StockSectionTabs } from "@/components/stock-section-tabs";
+import { MemberGate } from "@/components/member-gate";
 import { fetchStockBollinger, type StockBand, type StockBollinger } from "@/lib/stocks";
 
 export const metadata: Metadata = { title: "股息布林" };
@@ -118,6 +119,7 @@ export default async function StockBollingerPage({
   }
 
   return (
+    <MemberGate feature="股息布林">
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -280,5 +282,6 @@ export default async function StockBollingerPage({
         评级只根据布林位置规则生成，不含基本面判断，不构成投资建议。
       </p>
     </div>
+    </MemberGate>
   );
 }
