@@ -4,10 +4,15 @@ import { notFound } from "next/navigation";
 
 import { StockWatchlistButton } from "@/components/stock-watchlist-button";
 import { EquityCurve } from "@/components/equity-curve";
+import { StockDetailTabs } from "@/components/stock-detail-tabs";
+import { buildGrid } from "@/lib/grid";
 import { fetchStock } from "@/lib/stocks";
 import { fmtPct, trendClass } from "@/lib/format";
 
-type PageProps = { params: Promise<{ code: string }> };
+type PageProps = {
+  params: Promise<{ code: string }>;
+  searchParams: Promise<{ tab?: string }>;
+};
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -33,10 +38,18 @@ const SUSTAIN_LABELS: Record<string, string> = {
   normal: "常规",
 };
 
-export default async function StockDetailPage({ params }: PageProps) {
+export default async function StockDetailPage({ params, searchParams }: PageProps) {
   const { code } = await params;
+  const { tab: rawTab } = await searchParams;
+  const tab = ["overview", "dividend", "grid", "bollinger", "financial"].includes(
+    rawTab ?? "",
+  )
+    ? rawTab!
+    : "overview";
   const stock = await fetchStock(code);
   if (!stock) notFound();
+
+  const grid = buildGrid(stock.price, stock.dividend_yield_ttm);
 
   const latestDividend = stock.dividends[0];
   const annualCash = stock.dividends
@@ -79,6 +92,8 @@ export default async function StockDetailPage({ params }: PageProps) {
         <StockWatchlistButton code={stock.code} />
       </div>
 
+      <StockDetailTabs code={stock.code} active={tab} />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card p-5">
           <p className="text-xs text-muted">最新价</p>
@@ -114,34 +129,37 @@ export default async function StockDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      <section className="card p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-medium text-ink">价格走势</h2>
-            <p className="mt-0.5 text-xs text-muted">日线收盘价 · 最近 250 个交易日</p>
+      {tab === "overview" ? (
+        <section className="card p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-medium text-ink">价格走势</h2>
+              <p className="mt-0.5 text-xs text-muted">日线收盘价 · 最近 250 个交易日</p>
+            </div>
+            {stock.bars.length > 1 ? (
+              <span className="tnum text-xs text-muted">
+                {stock.bars[0].date} 至 {stock.bars[stock.bars.length - 1].date}
+              </span>
+            ) : null}
           </div>
           {stock.bars.length > 1 ? (
-            <span className="tnum text-xs text-muted">
-              {stock.bars[0].date} 至 {stock.bars[stock.bars.length - 1].date}
-            </span>
-          ) : null}
-        </div>
-        {stock.bars.length > 1 ? (
-          <div className="mt-4">
-            <EquityCurve
-              id={`stock-${stock.code}`}
-              points={stock.bars.map((bar) => bar.close)}
-              height={180}
-            />
-          </div>
-        ) : (
-          <p className="mt-6 text-sm text-muted">
-            暂无 K 线。首次加入自选或后台手动同步后生成。
-          </p>
-        )}
-      </section>
+            <div className="mt-4">
+              <EquityCurve
+                id={`stock-${stock.code}`}
+                points={stock.bars.map((bar) => bar.close)}
+                height={180}
+              />
+            </div>
+          ) : (
+            <p className="mt-6 text-sm text-muted">
+              暂无 K 线。首次加入自选或后台手动同步后生成。
+            </p>
+          )}
+        </section>
+      ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
+      {tab === "dividend" ? (
+        <div className="grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
         <section className="card p-5">
           <div className="flex items-center justify-between">
             <div>
@@ -241,7 +259,94 @@ export default async function StockDetailPage({ params }: PageProps) {
             股息率随价格波动，历史分红不代表未来。数据来自公开分红公告，不构成投资建议。
           </p>
         </aside>
-      </div>
+        </div>
+      ) : null}
+
+      {tab === "grid" ? (
+        <section className="card p-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-base font-medium text-ink">股息网格</h2>
+              <p className="mt-0.5 text-xs text-muted">
+                按目标股息率倒推价格 · 基于近 12 个月现金分红
+              </p>
+            </div>
+            <div className="flex gap-4 text-xs text-muted">
+              <span>
+                现价 <span className="tnum text-ink">{metric(stock.price)}</span>
+              </span>
+              <span>
+                TTM <span className="tnum text-jade-deep">{pct(stock.dividend_yield_ttm)}</span>
+              </span>
+            </div>
+          </div>
+
+          {!grid ? (
+            <p className="mt-6 text-sm text-muted">
+              暂无可计算网格的股息数据。需要最新价和近 12 个月现金分红。
+            </p>
+          ) : (
+            <>
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full min-w-[620px] text-left text-sm">
+                  <thead className="border-b border-line text-xs text-muted">
+                    <tr>
+                      <th className="py-2 font-normal">目标股息率</th>
+                      <th className="py-2 text-right font-normal">目标价</th>
+                      <th className="py-2 text-right font-normal">距现价</th>
+                      <th className="py-2 text-right font-normal">对应年现金</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {grid.targets.map((target) => (
+                      <tr key={target.yield}>
+                        <td className="tnum py-3 text-ink">{target.yield}%</td>
+                        <td
+                          className={`tnum py-3 text-right ${
+                            stock.price != null && target.price <= stock.price
+                              ? "text-jade-deep"
+                              : "text-ink"
+                          }`}
+                        >
+                          {target.price.toFixed(2)}
+                        </td>
+                        <td
+                          className={`tnum py-3 text-right text-xs ${
+                            target.distancePct <= 0 ? "text-jade" : "text-muted"
+                          }`}
+                        >
+                          {target.distancePct > 0 ? "+" : ""}
+                          {target.distancePct.toFixed(1)}%
+                        </td>
+                        <td className="tnum py-3 text-right text-xs text-muted">
+                          {grid.annualCash.toFixed(3)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-4 text-xs leading-6 text-muted">
+                目标价 = 近 12 个月每股现金分红 ÷ 目标股息率。当前股息率已达到的档位用绿色标记。
+                分红下降、特别分红或股价变化都会让目标价失真，不构成投资建议。
+              </p>
+            </>
+          )}
+        </section>
+      ) : null}
+
+      {tab === "bollinger" || tab === "financial" ? (
+        <section className="card p-10 text-center">
+          <p className="text-sm text-ink">
+            {tab === "bollinger" ? "布林追踪正在开发中" : "财务追踪正在开发中"}
+          </p>
+          <p className="mx-auto mt-2 max-w-lg text-xs leading-6 text-muted">
+            {tab === "bollinger"
+              ? "将基于日线、周线、月线计算布林位置与回踩评级，先覆盖高股息前 500 只。"
+              : "将展示年报/季报净利润、同比与披露日期，先覆盖高股息前 500 只。"}
+          </p>
+        </section>
+      ) : null}
     </div>
   );
 }

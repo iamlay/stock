@@ -4,6 +4,7 @@ import Link from "next/link";
 import { fetchStocks, type StockQuery } from "@/lib/stocks";
 import { StockCard, SustainBadge } from "@/components/stock-card";
 import { StockSearchBox } from "@/components/stock-search-box";
+import { StockSectionTabs } from "@/components/stock-section-tabs";
 import { fmtPct, trendClass } from "@/lib/format";
 
 export const metadata: Metadata = { title: "高股息个股" };
@@ -91,6 +92,8 @@ export default async function StocksPage({
           </div>
         </div>
       </div>
+
+      <StockSectionTabs active="dividend" />
 
       <form
         method="get"
