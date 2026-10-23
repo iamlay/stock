@@ -525,7 +525,7 @@ def build_parser() -> argparse.ArgumentParser:
         "stock-financials",
         help="sync annual/quarterly financials",
     )
-    stock_financials.add_argument("--limit", type=int, default=1000)
+    stock_financials.add_argument("--limit", type=int, default=2000)
     stock_financials.add_argument("--codes", default="")
     stock_financials.add_argument("--delay", type=float, default=0.2)
     stock_financials.add_argument("--strict", action="store_true")

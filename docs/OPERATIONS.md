@@ -182,7 +182,7 @@ alembic -c apps/api/alembic.ini downgrade -1
 | `Stock Alerts` | 手动 | `app.cli stock-alerts` | 只跑提醒 |
 | `DB Backup` | 每天 03:00 | `pg_dump` + 加密 | 备份 |
 | `Stock Bars` | 每月 1 日 20:00 | `etl.cli stock-bars --limit 2000` | K 线 |
-| `Stock Financials` | 每月 1 日 21:00 | `etl.cli stock-financials --limit 1000` | 年报/季报 |
+| `Stock Financials` | 每月 1 日 21:00 | `etl.cli stock-financials --limit 2000` | 年报/季报 |
 | `Stock Industry Detail` | 每季度首日 20:30 | `stock-industry-detail --limit 500` | 三级行业 |
 | `Stock Full Market` | 手动 | 5,000 只初始化 | 首次/扩量 |
 | `Stock Industry` | 手动 | 申万一级行业 | 修复行业 |
@@ -221,7 +221,7 @@ python -m etl.cli stock-metrics --limit 5000
 python -m etl.cli stock-industry --limit 5000 --sina-only --sina-prefix sw_ --overwrite
 python -m etl.cli stock-industry-detail --limit 500
 python -m etl.cli stock-bars --limit 2000
-python -m etl.cli stock-financials --limit 1000
+python -m etl.cli stock-financials --limit 2000
 python -m etl.cli stock-quality --limit 5000 --write
 python -m etl.cli stock-status
 python -m app.cli stock-alerts

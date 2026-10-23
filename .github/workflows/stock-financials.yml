@@ -8,7 +8,7 @@ on:
     inputs:
       limit:
         description: "Number of stocks (highest dividend yield)"
-        default: "1000"
+        default: "2000"
       delay:
         description: "Delay seconds between stocks"
         default: "0.2"
@@ -20,7 +20,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
@@ -42,6 +42,6 @@ jobs:
           STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
         run: |
           python -m etl.cli stock-financials \
-            --limit "${{ inputs.limit || '1000' }}" \
+            --limit "${{ inputs.limit || '2000' }}" \
             --delay "${{ inputs.delay || '0.2' }}"
           python -m etl.cli stock-status
