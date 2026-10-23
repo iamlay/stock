@@ -179,6 +179,7 @@ alembic -c apps/api/alembic.ini downgrade -1
 | `ETL` | 工作日 18:30 | `etl.cli daily` + `etl.cli stock-daily` + `app.cli stock-alerts` | ETF/个股/提醒 |
 | `Stock Dividends` | 周一 19:00 | `etl.cli stock-dividends-bulk` | 分红与股息率 |
 | `Stock Quality` | 周一 20:00 | `etl.cli stock-metrics` + `stock-quality --write` | 质量检查 |
+| `Stock Alerts` | 手动 | `app.cli stock-alerts` | 只跑提醒 |
 | `DB Backup` | 每天 03:00 | `pg_dump` + 加密 | 备份 |
 | `Stock Bars` | 每月 1 日 20:00 | `etl.cli stock-bars --limit 500` | K 线 |
 | `Stock Financials` | 每月 1 日 21:00 | `etl.cli stock-financials --limit 500` | 年报/季报 |

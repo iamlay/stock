@@ -113,13 +113,32 @@ POST  /api/v1/notifications/read-all
 python -m app.cli stock-alerts
 ```
 
-`etl.yml` 每天 18:30 在个股更新后执行。
-
-输出：
+### 推荐：GitHub Actions
 
 ```text
-stock alerts users=... notifications=... emails=...
+Actions → Stock Alerts → Run workflow
 ```
+
+只生成提醒，不刷新行情。
+
+### 日常：ETL
+
+`etl.yml` 每天 18:30 在个股更新后执行：
+
+```text
+Watchlist alerts
+python -m app.cli stock-alerts
+```
+
+### Railway
+
+在 API 服务容器内执行：
+
+```bash
+python -m app.cli stock-alerts
+```
+
+Railway 容器内有邮件环境变量，可以发送邮件；GitHub Actions 通常只生成站内提醒。
 
 ---
 
