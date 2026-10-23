@@ -1,7 +1,7 @@
-# 自选涨跌 / 除息提醒
+# 自选涨跌 / 除息 / 网格提醒
 
-> 对应 V2-21
-> 更新：2026-10-21
+> 对应 V2-21、V2-30
+> 更新：2026-10-23
 
 ---
 
@@ -27,6 +27,26 @@ abs(当日涨跌幅) >= 用户阈值
 
 生成一条“将于 X 月 X 日除息”的提醒。
 
+### 网格提醒
+
+对自选股票：
+
+```text
+前一日收盘价 > 目标价 >= 当日收盘价
+```
+
+即价格**首次跌破**用户设置的股息网格目标价时提醒。
+
+目标价：
+
+```text
+近 12 个月每股现金 / 目标股息率
+```
+
+默认目标 5%，可选 4% / 4.5% / 5% / 5.5% / 6%。
+
+只在“跌破”当天提醒，不会每天重复。
+
 ---
 
 ## 2. 数据
@@ -37,6 +57,8 @@ abs(当日涨跌幅) >= 用户阈值
 users.alert_price_pct   默认 5%
 users.alert_dividend   默认 true
 users.alert_email      默认 true
+users.alert_grid       默认 true
+users.alert_grid_yield 默认 5%
 ```
 
 ### 站内提醒
@@ -52,7 +74,13 @@ user_id, type, code, title, body, link,
 dedupe_key, read_at, created_at
 ```
 
-`dedupe_key` 保证同一天同一标的只提醒一次。
+`dedupe_key` 保证同一标的同一触发日只提醒一次。
+
+网格提醒使用：
+
+```text
+grid:{trade_date}:{code}:{target_yield}
+```
 
 ---
 

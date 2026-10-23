@@ -405,6 +405,8 @@ export type AlertSettings = {
   price_pct: number;
   dividend: boolean;
   email: boolean;
+  grid: boolean;
+  grid_yield: number;
 };
 
 export async function fetchNotifications(): Promise<NotificationPage> {

@@ -143,10 +143,38 @@ TTM 股息率
 ## 7. 下一阶段
 
 ```text
-1. 布林：日/周/月，已完成 /stocks/bollinger
+1. 布林：已完成 /stocks/bollinger
 2. 财务：已完成 /stocks/financial
-3. 网格提醒：跌破目标价触发站内提醒
+3. 网格提醒：已完成，首次跌破目标价触发站内提醒
 ```
+
+## 8. 网格提醒
+
+用户设置：
+
+```text
+alert_grid       默认开启
+alert_grid_yield 默认 5%
+```
+
+触发条件：
+
+```text
+前一日收盘 > 目标价 >= 当日收盘
+```
+
+目标价按近 12 个月现金分红 / 目标股息率计算。
+
+触发后生成：
+
+```text
+type = grid
+link = /stocks/{code}?tab=grid
+dedupe_key = grid:{trade_date}:{code}:{yield}
+```
+
+只在跌破当天提醒一次，不重复每日提醒。
+
 
 ## 8. 布林
 

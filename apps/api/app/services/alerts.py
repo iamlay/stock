@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.db.models import (
     EtfShareDaily,
     Instrument,
+    MarketDaily,
     StockDividend,
     StockMetric,
     StockWatchlist,
@@ -81,6 +82,17 @@ def run_stock_alerts(session: Session, *, as_of: date | None = None) -> dict:
                     select(Instrument).where(Instrument.code.in_(stock_codes))
                 ).all()
             }
+            bars_by_code: dict[str, list[tuple[date, float]]] = {}
+            for code, trade_date, close in session.execute(
+                select(MarketDaily.code, MarketDaily.trade_date, MarketDaily.close)
+                .where(
+                    MarketDaily.code.in_(stock_codes),
+                    MarketDaily.trade_date >= today - timedelta(days=30),
+                )
+                .order_by(MarketDaily.code, MarketDaily.trade_date)
+            ).all():
+                bars_by_code.setdefault(code, []).append((trade_date, float(close)))
+
             threshold = float(user.alert_price_pct or 5)
             for code in stock_codes:
                 metric = stock_metrics.get(code)
@@ -139,6 +151,53 @@ def run_stock_alerts(session: Session, *, as_of: date | None = None) -> dict:
                                 f"每股现金 {float(dividend.cash_per_share):.4f} 元。"
                             ),
                             link=f"/stocks/{dividend.code}",
+                            dedupe_key=key,
+                        )
+                    )
+                    existing.add(key)
+                    lines.append(title)
+                    new_count += 1
+
+            if user.alert_grid:
+                grid_yield = float(user.alert_grid_yield or 5)
+                for code in stock_codes:
+                    metric = stock_metrics.get(code)
+                    instrument = instruments.get(code)
+                    bars = bars_by_code.get(code, [])
+                    if (
+                        metric is None
+                        or instrument is None
+                        or metric.dividend_yield_ttm is None
+                        or len(bars) < 2
+                    ):
+                        continue
+                    ttm = float(metric.dividend_yield_ttm)
+                    if ttm <= 0:
+                        continue
+                    _, prev_close = bars[-2]
+                    latest_date, latest_close = bars[-1]
+                    if latest_close <= 0:
+                        continue
+                    annual_cash = latest_close * ttm / 100
+                    target = annual_cash / (grid_yield / 100)
+                    if not (prev_close > target >= latest_close):
+                        continue
+                    key = f"grid:{latest_date.isoformat()}:{code}:{grid_yield:g}"
+                    if key in existing:
+                        continue
+                    title = f"{instrument.name} 跌破 {grid_yield:g}% 股息网格"
+                    session.add(
+                        UserNotification(
+                            user_id=user.id,
+                            type="grid",
+                            code=code,
+                            title=title,
+                            body=(
+                                f"{code} {instrument.name} 现价 {latest_close:.2f}，"
+                                f"跌破 {grid_yield:g}% 目标价 {target:.2f}，"
+                                f"当前 TTM 股息率约 {ttm:.2f}%。"
+                            ),
+                            link=f"/stocks/{code}?tab=grid",
                             dedupe_key=key,
                         )
                     )

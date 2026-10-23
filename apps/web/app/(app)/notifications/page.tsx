@@ -71,6 +71,8 @@ export default function NotificationsPage() {
         price_pct: value,
         dividend: settings.dividend,
         email: settings.email,
+        grid: settings.grid,
+        grid_yield: settings.grid_yield,
       });
       setSettings(updated);
       setMessage("提醒设置已保存");
@@ -91,7 +93,7 @@ export default function NotificationsPage() {
         <div>
           <h1 className="font-serif text-3xl text-ink">提醒</h1>
           <p className="mt-1 text-sm text-muted">
-            自选涨跌与除息提醒，共 {unread} 条未读
+            自选涨跌、除息与网格提醒，共 {unread} 条未读
           </p>
         </div>
         {unread > 0 ? (
@@ -133,6 +135,33 @@ export default function NotificationsPage() {
                 }
               />
               除息提醒
+            </label>
+            <label className="flex items-center gap-2 pb-2 text-sm text-ink-soft">
+              <input
+                type="checkbox"
+                checked={settings.grid}
+                onChange={(event) =>
+                  setSettings({ ...settings, grid: event.target.checked })
+                }
+              />
+              网格提醒
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-muted">
+              网格目标
+              <select
+                value={settings.grid_yield}
+                disabled={!settings.grid}
+                onChange={(event) =>
+                  setSettings({ ...settings, grid_yield: Number(event.target.value) })
+                }
+                className="rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink disabled:opacity-50"
+              >
+                {[4, 4.5, 5, 5.5, 6].map((value) => (
+                  <option key={value} value={value}>
+                    {value}%
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="flex items-center gap-2 pb-2 text-sm text-ink-soft">
               <input

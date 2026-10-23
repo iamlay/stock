@@ -208,6 +208,12 @@ class User(Base):
     alert_email: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
     )
+    alert_grid: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    alert_grid_yield: Mapped[float] = mapped_column(
+        Numeric(4, 2), nullable=False, default=5, server_default="5"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

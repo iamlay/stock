@@ -1,9 +1,10 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi.testclient import TestClient
 
 from app.db.models import (
     Instrument,
+    MarketDaily,
     StockMetric,
     StockProfile,
     StockWatchlist,
@@ -58,6 +59,39 @@ def test_run_alerts_creates_daily_notification(session) -> None:
     row = session.query(UserNotification).filter_by(user_id=user.id).one()
     assert row.type == "price"
     assert "6.00%" in row.title
+
+    again = run_stock_alerts(session, as_of=date(2026, 10, 21))
+    assert again["notifications"] == 0
+
+
+def test_run_alerts_creates_grid_crossing(session) -> None:
+    user = _seed(session)
+    metric = session.get(StockMetric, "600519")
+    metric.change_pct = 0
+    metric.dividend_yield_ttm = 6
+    base = date(2026, 10, 20)
+    for index, close in enumerate([60, 39]):
+        session.add(
+            MarketDaily(
+                code="600519",
+                trade_date=base + timedelta(days=index),
+                open=close,
+                high=close,
+                low=close,
+                close=close,
+                volume=1000,
+                amount=close * 1000,
+                source="test",
+            )
+        )
+    session.commit()
+
+    result = run_stock_alerts(session, as_of=date(2026, 10, 21))
+    assert result["notifications"] == 1
+    row = session.query(UserNotification).filter_by(user_id=user.id).one()
+    assert row.type == "grid"
+    assert "5%" in row.title
+    assert row.link == "/stocks/600519?tab=grid"
 
     again = run_stock_alerts(session, as_of=date(2026, 10, 21))
     assert again["notifications"] == 0

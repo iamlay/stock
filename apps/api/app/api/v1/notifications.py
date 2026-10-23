@@ -35,12 +35,16 @@ class AlertSettings(BaseModel):
     price_pct: float = Field(ge=1, le=20)
     dividend: bool
     email: bool
+    grid: bool
+    grid_yield: float = Field(ge=1, le=20)
 
 
 class AlertSettingsUpdate(BaseModel):
     price_pct: float | None = Field(default=None, ge=1, le=20)
     dividend: bool | None = None
     email: bool | None = None
+    grid: bool | None = None
+    grid_yield: float | None = Field(default=None, ge=1, le=20)
 
 
 def _out(item: UserNotification) -> NotificationOut:
@@ -106,6 +110,8 @@ def get_settings(
         price_pct=float(user.alert_price_pct),
         dividend=user.alert_dividend,
         email=user.alert_email,
+        grid=user.alert_grid,
+        grid_yield=float(user.alert_grid_yield),
     )
 
 
@@ -121,12 +127,18 @@ def update_settings(
         user.alert_dividend = body.dividend
     if body.email is not None:
         user.alert_email = body.email
+    if body.grid is not None:
+        user.alert_grid = body.grid
+    if body.grid_yield is not None:
+        user.alert_grid_yield = body.grid_yield
     session.commit()
     session.refresh(user)
     return AlertSettings(
         price_pct=float(user.alert_price_pct),
         dividend=user.alert_dividend,
         email=user.alert_email,
+        grid=user.alert_grid,
+        grid_yield=float(user.alert_grid_yield),
     )
 
 
