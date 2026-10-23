@@ -44,6 +44,30 @@ export type StockDetail = Stock & {
   bars: { date: string; close: number }[];
 };
 
+export type StockBand = {
+  position: string;
+  close: number;
+  mid: number;
+  upper: number;
+  lower: number;
+  percent_b: number;
+  periods: number;
+};
+
+export type StockBollinger = Stock & {
+  daily: StockBand | null;
+  weekly: StockBand | null;
+  monthly: StockBand | null;
+  rating: string;
+};
+
+export type StockBollingerList = {
+  items: StockBollinger[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
 export type StockQuery = {
   sort?: string;
   order?: "asc" | "desc";
@@ -85,6 +109,29 @@ export async function fetchStock(code: string): Promise<StockDetail | null> {
     });
     if (!response.ok) return null;
     return (await response.json()) as StockDetail;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchStockBollinger(
+  params: { q?: string; industry?: string; page?: number; page_size?: number } = {},
+): Promise<StockBollingerList | null> {
+  try {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value === undefined || value === "") continue;
+      search.set(key, String(value));
+    }
+    const response = await fetch(
+      `${API_BASE}/api/v1/stocks/bollinger?${search.toString()}`,
+      {
+        cache: "no-store",
+        signal: AbortSignal.timeout(20000),
+      },
+    );
+    if (!response.ok) return null;
+    return (await response.json()) as StockBollingerList;
   } catch {
     return null;
   }

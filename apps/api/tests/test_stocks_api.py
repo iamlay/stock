@@ -1,9 +1,10 @@
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
 
 from app.db.models import (
     Instrument,
+    MarketDaily,
     StockDividend,
     StockMetric,
     StockProfile,
@@ -219,5 +220,37 @@ def test_market_industries_aggregate_equal_weight(session) -> None:
         by_name = {item["name"]: item for item in with_st.json()["items"]}
         assert by_name["金融"]["count"] == 2
         assert by_name["金融"]["change_pct"] == 3.5
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_stock_bollinger_requires_bars(session) -> None:
+    _seed(session)
+    for index in range(30):
+        close = 10 + index * 0.02
+        session.add(
+            MarketDaily(
+                code="600519",
+                trade_date=date(2026, 6, 1) + timedelta(days=index),
+                open=close,
+                high=close,
+                low=close,
+                close=close,
+                volume=1000,
+                amount=close * 1000,
+                source="test",
+            )
+        )
+    session.commit()
+
+    client = _client(session)
+    try:
+        response = client.get("/api/v1/stocks/bollinger")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total"] == 1
+        assert body["items"][0]["code"] == "600519"
+        assert body["items"][0]["daily"] is not None
+        assert body["items"][0]["daily"]["periods"] == 20
     finally:
         app.dependency_overrides.clear()

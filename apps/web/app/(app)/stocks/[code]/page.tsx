@@ -6,6 +6,7 @@ import { StockWatchlistButton } from "@/components/stock-watchlist-button";
 import { EquityCurve } from "@/components/equity-curve";
 import { StockDetailTabs } from "@/components/stock-detail-tabs";
 import { buildGrid } from "@/lib/grid";
+import { computeBollinger } from "@/lib/bollinger";
 import { fetchStock } from "@/lib/stocks";
 import { fmtPct, trendClass } from "@/lib/format";
 
@@ -50,6 +51,12 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
   if (!stock) notFound();
 
   const grid = buildGrid(stock.price, stock.dividend_yield_ttm);
+  const bollinger = computeBollinger(stock.bars);
+  const bollingerCards = [
+    { label: "日线", band: bollinger.daily },
+    { label: "周线", band: bollinger.weekly },
+    { label: "月线", band: bollinger.monthly },
+  ];
 
   const latestDividend = stock.dividends[0];
   const annualCash = stock.dividends
@@ -335,15 +342,69 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
         </section>
       ) : null}
 
-      {tab === "bollinger" || tab === "financial" ? (
-        <section className="card p-10 text-center">
-          <p className="text-sm text-ink">
-            {tab === "bollinger" ? "布林追踪正在开发中" : "财务追踪正在开发中"}
+      {tab === "bollinger" ? (
+        <section className="card p-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-base font-medium text-ink">布林位置</h2>
+              <p className="mt-0.5 text-xs text-muted">
+                20 周期均线 ± 2 倍标准差 · 周/月由日线聚合
+              </p>
+            </div>
+            <span className="rounded-sm bg-paper px-2.5 py-1 text-xs text-ink-soft">
+              评级：{bollinger.rating}
+            </span>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {bollingerCards.map(({ label, band }) => (
+              <div key={label} className="rounded-sm border border-line p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-ink">{label}</p>
+                  <p className="text-xs text-ink-soft">
+                    {band?.position ?? "数据不足"}
+                  </p>
+                </div>
+                {band ? (
+                  <dl className="mt-3 space-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                      <dt className="text-muted">中轨</dt>
+                      <dd className="tnum text-ink">{band.mid.toFixed(2)}</dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-muted">上轨</dt>
+                      <dd className="tnum text-ink">{band.upper.toFixed(2)}</dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-muted">下轨</dt>
+                      <dd className="tnum text-ink">{band.lower.toFixed(2)}</dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-muted">%B</dt>
+                      <dd className="tnum text-ink">{band.percent_b.toFixed(1)}%</dd>
+                    </div>
+                  </dl>
+                ) : (
+                  <p className="mt-3 text-xs text-muted">
+                    需要至少 20 个周期；月线需要约 20 个月 K 线。
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-4 text-xs leading-6 text-muted">
+            评级规则：日线中下/下轨且周线中下/下轨为“回踩”；日线上轨/中上且周线上轨/中上为“偏热”；
+            月线上轨上方为“高位”；其余为“观望”。不构成投资建议。
           </p>
+        </section>
+      ) : null}
+
+      {tab === "financial" ? (
+        <section className="card p-10 text-center">
+          <p className="text-sm text-ink">财务追踪正在开发中</p>
           <p className="mx-auto mt-2 max-w-lg text-xs leading-6 text-muted">
-            {tab === "bollinger"
-              ? "将基于日线、周线、月线计算布林位置与回踩评级，先覆盖高股息前 500 只。"
-              : "将展示年报/季报净利润、同比与披露日期，先覆盖高股息前 500 只。"}
+            将展示年报/季报净利润、同比与披露日期，先覆盖高股息前 500 只。
           </p>
         </section>
       ) : null}

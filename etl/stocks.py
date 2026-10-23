@@ -291,7 +291,7 @@ def sync_stock_bars(
     session: Session,
     code: str,
     *,
-    days: int = 250,
+    days: int = 600,
     commit: bool = True,
 ) -> int:
     """Cache recent daily bars for a stock detail chart."""

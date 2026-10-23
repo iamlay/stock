@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Annotated, Literal
 
 from etl.stocks import sync_stock_quote
@@ -20,6 +20,7 @@ from app.db.models import (
     User,
 )
 from app.security import get_current_admin
+from app.services.bollinger import Band, compute_bollinger
 
 router = APIRouter(prefix="/stocks", tags=["stocks"])
 admin_router = APIRouter(prefix="/admin/stocks", tags=["admin-stocks"])
@@ -59,6 +60,30 @@ class StockList(BaseModel):
     page_size: int
     sort: str
     order: str
+
+
+class BandOut(BaseModel):
+    position: str
+    close: float
+    mid: float
+    upper: float
+    lower: float
+    percent_b: float
+    periods: int
+
+
+class StockBollingerOut(StockOut):
+    daily: BandOut | None
+    weekly: BandOut | None
+    monthly: BandOut | None
+    rating: str
+
+
+class StockBollingerList(BaseModel):
+    items: list[StockBollingerOut]
+    total: int
+    page: int
+    page_size: int
 
 
 class DividendOut(BaseModel):
@@ -132,8 +157,21 @@ def _out(
     )
 
 
-def _base_query():
-    return (
+def _band_out(band: Band | None) -> BandOut | None:
+    if band is None:
+        return None
+    return BandOut(
+        position=band.position,
+        close=band.close,
+        mid=band.mid,
+        upper=band.upper,
+        lower=band.lower,
+        percent_b=band.percent_b,
+        periods=band.periods,
+    )
+
+
+def _base_query():    return (
         select(Instrument, StockProfile, StockMetric)
         .join(StockProfile, StockProfile.code == Instrument.code)
         .join(StockMetric, StockMetric.code == Instrument.code)
@@ -239,6 +277,83 @@ def search_stocks(
     return [_out(instrument, profile, metric) for instrument, profile, metric in rows]
 
 
+@router.get(
+    "/bollinger",
+    response_model=StockBollingerList,
+    summary="个股布林位置，覆盖已有 K 线的标的",
+)
+def list_stock_bollinger(
+    session: Annotated[Session, Depends(get_session)],
+    q: str | None = Query(None, max_length=32),
+    industry: str | None = Query(None, max_length=32),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+) -> StockBollingerList:
+    cutoff = date.today() - timedelta(days=900)
+    bar_codes = (
+        select(MarketDaily.code)
+        .where(MarketDaily.trade_date >= cutoff)
+        .distinct()
+    )
+    rows = session.execute(
+        _base_query()
+        .where(
+            *_conditions(
+                q=q,
+                industry=industry,
+                min_yield=None,
+                include_st=False,
+            ),
+            Instrument.code.in_(bar_codes),
+        )
+        .order_by(
+            StockMetric.dividend_yield_ttm.desc().nulls_last(),
+            StockMetric.market_cap.desc().nulls_last(),
+        )
+    ).all()
+
+    codes = [instrument.code for instrument, _, _ in rows]
+    if not codes:
+        return StockBollingerList(items=[], total=0, page=page, page_size=page_size)
+
+    bar_rows = session.execute(
+        select(MarketDaily.code, MarketDaily.trade_date, MarketDaily.close)
+        .where(
+            MarketDaily.code.in_(codes),
+            MarketDaily.trade_date >= cutoff,
+        )
+        .order_by(MarketDaily.code, MarketDaily.trade_date)
+    ).all()
+    bars_by_code: dict[str, list[tuple[date, float]]] = {}
+    for code, trade_date, close in bar_rows:
+        bars_by_code.setdefault(code, []).append((trade_date, float(close)))
+
+    items: list[StockBollingerOut] = []
+    for instrument, profile, metric in rows:
+        bars = bars_by_code.get(instrument.code, [])
+        if len(bars) < 20:
+            continue
+        result = compute_bollinger(bars)
+        items.append(
+            StockBollingerOut(
+                **_out(instrument, profile, metric).model_dump(),
+                daily=_band_out(result["daily"]),
+                weekly=_band_out(result["weekly"]),
+                monthly=_band_out(result["monthly"]),
+                rating=result["rating"],
+            )
+        )
+
+    total = len(items)
+    start = (page - 1) * page_size
+    return StockBollingerList(
+        items=items[start : start + page_size],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
 @router.get("/{code}", response_model=StockDetail, summary="个股详情")
 def get_stock(
     code: str,
@@ -264,7 +379,7 @@ def get_stock(
         select(MarketDaily)
         .where(MarketDaily.code == code)
         .order_by(MarketDaily.trade_date.desc())
-        .limit(250)
+        .limit(600)
     ).all()
     return StockDetail(
         **_out(instrument, profile, metric).model_dump(),
