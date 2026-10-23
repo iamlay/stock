@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next";
 
+import { fetchIndustries } from "@/lib/api";
+import { categories } from "@/lib/mock";
+
 const SITE_URL = "https://stock.iamlay.com";
 const API_BASE =
   process.env.API_BASE_URL ??
@@ -60,6 +63,7 @@ async function fetchEtfCodes(): Promise<string[]> {
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const stocks = await fetchStockCodes();
   const etfs = await fetchEtfCodes();
+  const industries = (await fetchIndustries()) ?? [];
   const now = new Date();
 
   return [
@@ -88,6 +92,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
     {
+      url: `${SITE_URL}/stocks/industry`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${SITE_URL}/etf/category`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
       url: `${SITE_URL}/pricing`,
       lastModified: now,
       changeFrequency: "monthly",
@@ -104,6 +120,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: stock.updated_at ? new Date(stock.updated_at) : now,
       changeFrequency: "daily" as const,
       priority: 0.7,
+    })),
+    ...industries.map((industry) => ({
+      url: `${SITE_URL}/stocks/industry/${encodeURIComponent(industry.name)}`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+    })),
+    ...categories.map((category) => ({
+      url: `${SITE_URL}/etf/category/${encodeURIComponent(category)}`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
     })),
     ...etfs.map((code) => ({
       url: `${SITE_URL}/etf/${code}`,

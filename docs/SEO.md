@@ -67,10 +67,49 @@ https://stock.iamlay.com/sitemap.xml
 
 - 首页；
 - 今日市场；
-- ETF 列表与详情；
-- 个股列表与 5,000 只个股详情；
+- ETF 列表、分类页与 100 只 ETF 详情；
+- 个股列表、行业页与 5,000 只个股详情；
 - 会员页；
 - 隐私政策。
+
+### ETF 详情
+
+`/etf/[code]` 已支持全部 100 只 ETF，不再只预生成 20 只。
+
+包含：
+
+```text
+title / description
+canonical
+openGraph
+JSON-LD: FinancialProduct + WebPage + BreadcrumbList
+分类面包屑
+```
+
+### 行业页
+
+```text
+/stocks/industry
+/stocks/industry/[industry]
+```
+
+- 31 个申万一级行业入口；
+- 行业涨跌幅与样本数；
+- 行业个股按 TTM 股息率排序；
+- 分页；
+- canonical、JSON-LD、面包屑。
+
+### ETF 分类页
+
+```text
+/etf/category
+/etf/category/[category]
+```
+
+- 9 个 ETF 分类入口；
+- 分类 ETF 列表；
+- 分页；
+- canonical、JSON-LD、面包屑。
 
 ### Robots
 
@@ -107,11 +146,12 @@ https://stock.iamlay.com
 ## 2. 验证
 
 ```text
-next typecheck   ✅
-next build       ✅
-/robots.txt      ✅ 200
-/sitemap.xml     ✅ 200，约 811 KB
+/sitemap.xml     ✅ 200，约 822 KB
 /stocks/600519   ✅ 200
+/etf/510300      ✅ 200
+/etf/159201      ✅ 200
+/etf/category/红利 ✅ 200
+/stocks/industry/食品饮料 ✅ 200
 JSON-LD          ✅
 canonical        ✅
 ```

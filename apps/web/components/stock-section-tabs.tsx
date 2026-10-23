@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const SECTIONS = [
   { href: "/stocks", label: "高股息", key: "dividend" },
+  { href: "/stocks/industry", label: "行业", key: "industry" },
   { href: "/stocks/grid", label: "网格", key: "grid" },
   { href: "/stocks/bollinger", label: "布林", key: "bollinger" },
   { href: "/stocks/financial", label: "财务", key: "financial" },

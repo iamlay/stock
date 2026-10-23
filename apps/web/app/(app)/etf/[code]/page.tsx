@@ -5,27 +5,49 @@ import { notFound } from "next/navigation";
 import { EquityCurve } from "@/components/equity-curve";
 import { WatchlistButton } from "@/components/watchlist-button";
 import { fetchEtf } from "@/lib/api";
-import { etfs, getEtf, strategies } from "@/lib/mock";
+import { getEtf, strategies } from "@/lib/mock";
 import { fmtNumber, fmtPct, trendClass } from "@/lib/format";
 
 type PageProps = { params: Promise<{ code: string }> };
 
-export const dynamicParams = false;
 export const revalidate = 60;
 
-export function generateStaticParams() {
-  return etfs.map((etf) => ({ code: etf.code }));
-}
+const SITE_URL = "https://stock.iamlay.com";
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { code } = await params;
   const api = await fetchEtf(code);
   const fallback = getEtf(code);
   const name = api?.name ?? fallback?.name;
-  if (!name) return { title: "ETF 未找到" };
+  if (!name) {
+    return { title: "ETF 未找到", robots: { index: false, follow: false } };
+  }
+  const category = api?.category ?? fallback?.category ?? "ETF";
+  const url = `${SITE_URL}/etf/${code}`;
+  const description =
+    `${name}（${code}）最新价 ${api?.price?.toFixed(3) ?? fallback?.price.toFixed(3) ?? "—"}，` +
+    `规模 ${api?.aum == null ? "—" : `${api.aum.toFixed(1)} 亿`}，` +
+    `${category} ETF 的行情、均线、回撤、份额与估值数据。`;
+
   return {
-    title: `${name}（${code}）`,
-    description: `${name} 的行情、规模、均线、回撤与份额数据。`,
+    title: `${name}（${code}）行情、规模与估值`,
+    description,
+    keywords: [name, code, `${name} ETF`, `${category} ETF`, "ETF 行情"],
+    alternates: { canonical: url },
+    openGraph: {
+      title: `${name}（${code}）行情、规模与估值`,
+      description,
+      url,
+      siteName: "StockLab",
+      type: "article",
+      locale: "zh_CN",
+    },
+    twitter: {
+      card: "summary",
+      title: `${name}（${code}）行情、规模与估值`,
+      description,
+    },
+    robots: { index: true, follow: true },
   };
 }
 
@@ -81,14 +103,56 @@ export default async function EtfDetailPage({ params }: PageProps) {
     },
   ];
 
+  const pageUrl = `${SITE_URL}/etf/${code}`;
+  const categoryHref = `/etf/category/${encodeURIComponent(category)}`;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "FinancialProduct",
+        "@id": `${pageUrl}#product`,
+        name,
+        tickerSymbol: code,
+        category,
+        url: pageUrl,
+      },
+      {
+        "@type": "WebPage",
+        "@id": `${pageUrl}#page`,
+        url: pageUrl,
+        name: `${name}（${code}）行情、规模与估值`,
+        description: `${name}（${code}）的行情、规模、均线、回撤、份额与估值数据。`,
+        about: { "@id": `${pageUrl}#product` },
+        isPartOf: { "@type": "WebSite", name: "StockLab", url: SITE_URL },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "首页", item: SITE_URL },
+          { "@type": "ListItem", position: 2, name: "ETF 数据", item: `${SITE_URL}/etf` },
+          { "@type": "ListItem", position: 3, name: category, item: `${SITE_URL}${categoryHref}` },
+          { "@type": "ListItem", position: 4, name, item: pageUrl },
+        ],
+      },
+    ],
+  };
+
   return (
     <div className="space-y-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
       <nav className="text-xs text-muted">
         <Link href="/etf" className="hover:text-ink">
           ETF 数据
         </Link>
         <span className="mx-1.5">/</span>
-        <span>{category}</span>
+        <Link href={categoryHref} className="hover:text-ink">
+          {category}
+        </Link>
         <span className="mx-1.5">/</span>
         <span className="text-ink">{code}</span>
       </nav>
