@@ -340,7 +340,7 @@ cron: quotes=20 latest=2026-10-20T14:35:00 expired_invites=0
 | `stock-seed.yml` | 手动 | 首次灌 500 只 + 行业 |
 | `stock-full.yml` | 手动 | 扩到 5,000 只 + 批量分红 + 粗行业 |
 | `stock-bars.yml` | 每月 1 日 20:00 | 高股息前 500 只 K 线补全 |
-| `stock-financials.yml` | 每月 1 日 21:00 | 高股息前 500 只年报/季报 |
+| `stock-financials.yml` | 每月 1 日 21:00 | 高股息前 1,000 只年报/季报 |
 | `stock-industry-detail.yml` | 每季度首日 20:30 | 高股息前 500 只三级行业 |
 
 必须配置的 Secret：

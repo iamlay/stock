@@ -2,7 +2,7 @@
 
 > 日期：2026-10-23
 > 对应：V2-30
-> 状态：网格追踪已上线，布林/财务为占位
+> 状态：网格、布林、财务均已上线
 
 ---
 
@@ -14,7 +14,7 @@
 /stocks             高股息
 /stocks/grid        股息网格
 /stocks/bollinger   布林（占位）
-/stocks/financial   财务（占位）
+/stocks/financial   财务
 ```
 
 个股详情拆成 5 个 Tab：
@@ -225,9 +225,9 @@ disclosure_date
 同步：
 
 ```bash
-python -m etl.cli stock-financials --limit 500 --delay 0.2
+python -m etl.cli stock-financials --limit 1000 --delay 0.2
 ```
 
-当前覆盖高股息前 500 只；默认每月 1 日更新，也可手动触发 GitHub Actions。
+当前覆盖高股息前 1,000 只；默认每月 1 日更新，也可手动触发 GitHub Actions。
 
 
