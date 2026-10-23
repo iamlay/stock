@@ -347,13 +347,17 @@ def list_stock_bollinger(
     ).all()
 
     codes = [instrument.code for instrument, _, _ in rows]
+    total = len(codes)
     if not codes:
         return StockBollingerList(items=[], total=0, page=page, page_size=page_size)
 
+    start = (page - 1) * page_size
+    page_rows = rows[start : start + page_size]
+    page_codes = [instrument.code for instrument, _, _ in page_rows]
     bar_rows = session.execute(
         select(MarketDaily.code, MarketDaily.trade_date, MarketDaily.close)
         .where(
-            MarketDaily.code.in_(codes),
+            MarketDaily.code.in_(page_codes),
             MarketDaily.trade_date >= cutoff,
         )
         .order_by(MarketDaily.code, MarketDaily.trade_date)
@@ -363,7 +367,7 @@ def list_stock_bollinger(
         bars_by_code.setdefault(code, []).append((trade_date, float(close)))
 
     items: list[StockBollingerOut] = []
-    for instrument, profile, metric in rows:
+    for instrument, profile, metric in page_rows:
         bars = bars_by_code.get(instrument.code, [])
         if len(bars) < 20:
             continue
@@ -378,10 +382,8 @@ def list_stock_bollinger(
             )
         )
 
-    total = len(items)
-    start = (page - 1) * page_size
     return StockBollingerList(
-        items=items[start : start + page_size],
+        items=items,
         total=total,
         page=page,
         page_size=page_size,

@@ -422,7 +422,7 @@ def sync_stock_bars(
 def sync_stock_bars_batch(
     session: Session,
     *,
-    limit: int = 500,
+    limit: int = 1000,
     codes: list[str] | None = None,
     force: bool = False,
     delay: float = 0.2,
