@@ -184,7 +184,7 @@ def sync_stock_dividends_bulk(
     session: Session,
     *,
     codes: list[str] | None = None,
-    days: int = 730,
+    days: int = 3650,
 ) -> dict:
     """Sync all dividends in bulk, then recompute yields for selected stocks."""
     targets = codes or list(

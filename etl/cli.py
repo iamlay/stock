@@ -499,7 +499,7 @@ def build_parser() -> argparse.ArgumentParser:
         "stock-dividends-bulk",
         help="sync all dividends in bulk",
     )
-    stock_dividends_bulk.add_argument("--days", type=int, default=730)
+    stock_dividends_bulk.add_argument("--days", type=int, default=3650)
     stock_dividends_bulk.set_defaults(func=cmd_stock_dividends_bulk)
 
     stock_metrics = sub.add_parser("stock-metrics", help="recompute stock yields")

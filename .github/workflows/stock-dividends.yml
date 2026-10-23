@@ -8,7 +8,7 @@ on:
     inputs:
       days:
         description: "Dividend lookback days"
-        default: "730"
+        default: "3650"
 
 concurrency:
   group: stock-dividends

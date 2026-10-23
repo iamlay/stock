@@ -214,7 +214,7 @@ python -m etl.cli daily
 
 # 个股
 python -m etl.cli stock-universe --limit 5000
-python -m etl.cli stock-dividends-bulk --days 730
+python -m etl.cli stock-dividends-bulk --days 3650
 python -m etl.cli stock-metrics --limit 5000
 python -m etl.cli stock-industry --limit 5000 --sina-only --sina-prefix sw_ --overwrite
 python -m etl.cli stock-industry-detail --limit 500

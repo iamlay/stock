@@ -42,6 +42,18 @@ export default async function StockDetailPage({ params }: PageProps) {
   const annualCash = stock.dividends
     .filter((item) => item.fiscal_year === latestDividend?.fiscal_year)
     .reduce((sum, item) => sum + item.cash_per_share, 0);
+  const annualTotals = Array.from(
+    stock.dividends.reduce((totals, item) => {
+      if (!item.fiscal_year) return totals;
+      totals.set(
+        item.fiscal_year,
+        (totals.get(item.fiscal_year) ?? 0) + item.cash_per_share,
+      );
+      return totals;
+    }, new Map<number, number>()),
+  )
+    .sort((a, b) => b[0] - a[0])
+    .slice(0, 5);
 
   return (
     <div className="space-y-6">
@@ -138,6 +150,19 @@ export default async function StockDetailPage({ params }: PageProps) {
             </div>
             <span className="text-xs text-muted">{stock.dividends.length} 条</span>
           </div>
+          {annualTotals.length > 0 ? (
+            <div className="mt-4 rounded-sm border border-line bg-paper/60 p-3">
+              <p className="text-[11px] text-muted">最近财年每股现金分红合计</p>
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                {annualTotals.map(([year, total]) => (
+                  <div key={year} className="rounded-sm bg-surface px-2.5 py-2">
+                    <p className="tnum text-[11px] text-muted">{year}</p>
+                    <p className="tnum mt-0.5 text-sm text-ink">{total.toFixed(3)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {stock.dividends.length === 0 ? (
             <p className="mt-6 text-sm text-muted">暂无分红记录。</p>
           ) : (
