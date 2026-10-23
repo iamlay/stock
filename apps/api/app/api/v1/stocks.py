@@ -110,6 +110,9 @@ class FinancialOut(BaseModel):
     net_profit_yoy: float | None
     roe: float | None
     operating_cash_flow_per_share: float | None
+    operating_cash_flow: float | None
+    gross_margin: float | None
+    net_margin: float | None
     disclosure_date: str | None
 
 
@@ -128,6 +131,9 @@ class StockFinancialOut(StockOut):
     latest_revenue_yoy: float | None
     latest_roe: float | None
     latest_operating_cash_flow_per_share: float | None
+    latest_operating_cash_flow: float | None
+    latest_gross_margin: float | None
+    latest_net_margin: float | None
     disclosure_date: str | None
 
 
@@ -482,6 +488,21 @@ def list_stock_financials(
                     if latest.operating_cash_flow_per_share is not None
                     else None
                 ),
+                latest_operating_cash_flow=(
+                    float(latest.operating_cash_flow)
+                    if latest.operating_cash_flow is not None
+                    else None
+                ),
+                latest_gross_margin=(
+                    float(latest.gross_margin)
+                    if latest.gross_margin is not None
+                    else None
+                ),
+                latest_net_margin=(
+                    float(latest.net_margin)
+                    if latest.net_margin is not None
+                    else None
+                ),
                 disclosure_date=(
                     latest.disclosure_date.isoformat()
                     if latest.disclosure_date
@@ -571,6 +592,17 @@ def get_stock(
                     float(item.operating_cash_flow_per_share)
                     if item.operating_cash_flow_per_share is not None
                     else None
+                ),
+                operating_cash_flow=(
+                    float(item.operating_cash_flow)
+                    if item.operating_cash_flow is not None
+                    else None
+                ),
+                gross_margin=(
+                    float(item.gross_margin) if item.gross_margin is not None else None
+                ),
+                net_margin=(
+                    float(item.net_margin) if item.net_margin is not None else None
                 ),
                 disclosure_date=(
                     item.disclosure_date.isoformat() if item.disclosure_date else None

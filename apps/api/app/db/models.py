@@ -454,6 +454,9 @@ class StockFinancial(Base):
     operating_cash_flow_per_share: Mapped[float | None] = mapped_column(
         Numeric(12, 4)
     )
+    operating_cash_flow: Mapped[float | None] = mapped_column(Numeric(20, 2))
+    gross_margin: Mapped[float | None] = mapped_column(Numeric(8, 2))
+    net_margin: Mapped[float | None] = mapped_column(Numeric(8, 2))
     disclosure_date: Mapped[date | None] = mapped_column(Date)
     source: Mapped[str] = mapped_column(String(16), nullable=False, default="eastmoney")
     created_at: Mapped[datetime] = mapped_column(

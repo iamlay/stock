@@ -44,7 +44,7 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W61 财务质量指标 |
+| 阶段 | ✅ W62 财务利润率与现金流 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v1.2 + ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码 / 订单 / 用户 / 邀请码后台 |
@@ -129,7 +129,7 @@ python -m etl.cli cron
 | `GET /api/v1/stocks` | 个股列表，按 TTM 股息率/市值/PE 排序，支持行业筛选 |
 | `GET /api/v1/stocks/{code}` | 个股详情 + 分红历史 + 财务 |
 | `GET /api/v1/stocks/bollinger` | 布林位置与评级 |
-| `GET /api/v1/stocks/financials` | 年报/季报净利润、营收同比、ROE、现金流概览 |
+| `GET /api/v1/stocks/financials` | 年报/季报净利润、营收同比、ROE、毛利率、净利率、现金流概览 |
 | `GET/POST/DELETE /api/v1/stock-watchlist` | 个股自选 |
 | `GET /api/v1/data/status` | 行数、最新交易日、份额快照、最近任务 |
 | `POST /api/v1/auth/register` | 邮箱 + 密码注册，发送验证邮件，**不返回 JWT** |

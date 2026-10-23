@@ -221,6 +221,7 @@ code, report_date, period
 revenue, net_profit
 revenue_yoy, net_profit_yoy
 roe, operating_cash_flow_per_share
+operating_cash_flow, gross_margin, net_margin
 disclosure_date
 ```
 
@@ -237,6 +238,9 @@ python -m etl.cli stock-financials --limit 1000 --delay 0.2
 - 营收同比；
 - 归母净利同比；
 - 加权 ROE；
-- 每股经营现金流。
+- 每股经营现金流；
+- 经营现金流总额；
+- 毛利率；
+- 净利率。
 
 

@@ -431,7 +431,7 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
             </p>
           ) : (
             <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[900px] text-left text-sm">
+              <table className="w-full min-w-[1100px] text-left text-sm">
                 <thead className="border-b border-line text-xs text-muted">
                   <tr>
                     <th className="py-2 font-normal">报告期</th>
@@ -441,7 +441,9 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
                     <th className="py-2 text-right font-normal">归母净利</th>
                     <th className="py-2 text-right font-normal">净利同比</th>
                     <th className="py-2 text-right font-normal">ROE</th>
-                    <th className="py-2 text-right font-normal">每股现金流</th>
+                    <th className="py-2 text-right font-normal">毛利率</th>
+                    <th className="py-2 text-right font-normal">净利率</th>
+                    <th className="py-2 text-right font-normal">经营现金流</th>
                     <th className="py-2 text-right font-normal">披露日</th>
                   </tr>
                 </thead>
@@ -495,9 +497,17 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
                         {item.roe == null ? "—" : `${item.roe.toFixed(1)}%`}
                       </td>
                       <td className="tnum py-3 text-right text-xs text-ink-soft">
-                        {item.operating_cash_flow_per_share == null
+                        {item.gross_margin == null
                           ? "—"
-                          : item.operating_cash_flow_per_share.toFixed(2)}
+                          : `${item.gross_margin.toFixed(1)}%`}
+                      </td>
+                      <td className="tnum py-3 text-right text-xs text-ink-soft">
+                        {item.net_margin == null
+                          ? "—"
+                          : `${item.net_margin.toFixed(1)}%`}
+                      </td>
+                      <td className="tnum py-3 text-right text-xs text-ink-soft">
+                        {yi(item.operating_cash_flow)}
                       </td>
                       <td className="tnum py-3 text-right text-xs text-muted">
                         {item.disclosure_date ?? "—"}

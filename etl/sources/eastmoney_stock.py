@@ -48,6 +48,9 @@ class FinancialRecord:
     net_profit_yoy: float | None
     roe: float | None
     operating_cash_flow_per_share: float | None
+    operating_cash_flow: float | None
+    gross_margin: float | None
+    net_margin: float | None
     disclosure_date: date | None
 
 
@@ -242,6 +245,26 @@ def fetch_stock_financials(
         }
     )
     payload = _get_json(f"{DIVIDEND_API}?{query}", "https://data.eastmoney.com/")
+    cash_query = urllib.parse.urlencode(
+        {
+            "reportName": "RPT_DMSK_FN_CASHFLOW",
+            "columns": "ALL",
+            "filter": f'(SECURITY_CODE="{code}")',
+            "pageNumber": 1,
+            "pageSize": limit,
+            "sortColumns": "REPORT_DATE",
+            "sortTypes": -1,
+        }
+    )
+    cash_payload = _get_json(
+        f"{DIVIDEND_API}?{cash_query}",
+        "https://data.eastmoney.com/",
+    )
+    cash_by_date = {
+        item_date: _float(item.get("NETCASH_OPERATE"), None)
+        for item in (cash_payload.get("result") or {}).get("data") or []
+        if (item_date := _date(item.get("REPORT_DATE")))
+    }
     result = payload.get("result") or {}
     rows: list[FinancialRecord] = []
     for item in result.get("data") or []:
@@ -252,17 +275,27 @@ def fetch_stock_financials(
         period = (
             "Q1" if month == 3 else "H1" if month == 6 else "Q3" if month == 9 else "FY"
         )
+        revenue = _float(item.get("TOTAL_OPERATE_INCOME"), None)
+        net_profit = _float(item.get("PARENT_NETPROFIT"), None)
+        net_margin = (
+            net_profit / revenue * 100
+            if revenue and net_profit is not None and revenue > 0
+            else None
+        )
         rows.append(
             FinancialRecord(
                 code=code,
                 report_date=report_date,
                 period=period,
-                revenue=_float(item.get("TOTAL_OPERATE_INCOME"), None),
-                net_profit=_float(item.get("PARENT_NETPROFIT"), None),
+                revenue=revenue,
+                net_profit=net_profit,
                 revenue_yoy=_float(item.get("YSTZ"), None),
                 net_profit_yoy=_float(item.get("SJLTZ"), None),
                 roe=_float(item.get("WEIGHTAVG_ROE"), None),
                 operating_cash_flow_per_share=_float(item.get("MGJYXJJE"), None),
+                operating_cash_flow=cash_by_date.get(report_date),
+                gross_margin=_float(item.get("XSMLL"), None),
+                net_margin=net_margin,
                 disclosure_date=_date(item.get("NOTICE_DATE")),
             )
         )

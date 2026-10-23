@@ -288,6 +288,9 @@ def sync_stock_financials_batch(
                         net_profit_yoy=record.net_profit_yoy,
                         roe=record.roe,
                         operating_cash_flow_per_share=record.operating_cash_flow_per_share,
+                        operating_cash_flow=record.operating_cash_flow,
+                        gross_margin=record.gross_margin,
+                        net_margin=record.net_margin,
                         disclosure_date=record.disclosure_date,
                         source="eastmoney",
                     )
@@ -304,6 +307,9 @@ def sync_stock_financials_batch(
                     row.operating_cash_flow_per_share = (
                         record.operating_cash_flow_per_share
                     )
+                    row.operating_cash_flow = record.operating_cash_flow
+                    row.gross_margin = record.gross_margin
+                    row.net_margin = record.net_margin
                     row.disclosure_date = record.disclosure_date
                     updated += 1
             if (index + 1) % 25 == 0:
