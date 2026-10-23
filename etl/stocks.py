@@ -448,6 +448,7 @@ def sync_stock_bars_batch(
     delay: float = 0.2,
 ) -> dict:
     """Backfill K-line bars for the highest-yield stocks."""
+    target_bars = 600
     if codes:
         targets = codes
     else:
@@ -485,7 +486,12 @@ def sync_stock_bars_batch(
     errors: list[str] = []
     for index, code in enumerate(targets, start=1):
         count, latest = existing.get(code, (0, None))
-        if not force and count >= 200 and latest is not None and (today - latest).days <= 3:
+        if (
+            not force
+            and count >= target_bars
+            and latest is not None
+            and (today - latest).days <= 3
+        ):
             skipped += 1
             continue
         try:
