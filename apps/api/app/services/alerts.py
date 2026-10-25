@@ -89,7 +89,7 @@ def run_stock_alerts(session: Session, *, as_of: date | None = None) -> dict:
                 select(MarketDaily.code, MarketDaily.trade_date, MarketDaily.close)
                 .where(
                     MarketDaily.code.in_(stock_codes),
-                    MarketDaily.trade_date >= today - timedelta(days=30),
+                    MarketDaily.trade_date >= today - timedelta(days=900),
                 )
                 .order_by(MarketDaily.code, MarketDaily.trade_date)
             ).all():
