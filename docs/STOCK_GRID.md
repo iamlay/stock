@@ -364,6 +364,48 @@ python -m etl.cli stock-metrics --limit 5000
 
 BOLL 低位排序按周线、月线位置 rank 求和，越低越靠前。
 
+## 13. 筛选条件保存与共振提醒
+
+自选页会把以下条件保存到浏览器：
+
+```text
+ETF 排序
+个股排序
+低位共振
+低估值
+```
+
+存储键：
+
+```text
+stocklab.watchlist.prefs
+```
+
+新增用户设置：
+
+```text
+users.alert_resonance  默认 true
+```
+
+会员满足以下条件时生成站内提醒：
+
+```text
+10 年股息率分位 >= 80%
+周线 BOLL 位置 = 中下 / 下轨下方
+月线 BOLL 位置 = 中下 / 下轨下方
+```
+
+提醒：
+
+```text
+type = resonance
+link = /stocks/{code}?tab=bollinger
+dedupe = resonance:{year}-W{week}:{code}
+```
+
+每周最多提醒一次，避免长期低位每天重复。
+
+
 
 
 
