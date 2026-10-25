@@ -182,6 +182,11 @@ def test_stock_watchlist_roundtrip(session) -> None:
         assert listed.status_code == 200
         assert [item["code"] for item in listed.json()] == ["600519"]
 
+        enriched = client.get("/api/v1/stock-watchlist/enriched", headers=headers)
+        assert enriched.status_code == 200
+        assert enriched.json()[0]["code"] == "600519"
+        assert "bollinger_daily" in enriched.json()[0]
+
         missing = client.post(
             "/api/v1/stock-watchlist",
             json={"code": "ABC"},

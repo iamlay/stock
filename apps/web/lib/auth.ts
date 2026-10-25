@@ -1,8 +1,27 @@
 import type { ApiEtf, BacktestResult } from "@/lib/api";
-import type { Stock } from "@/lib/stocks";
+import type { Stock, StockBand } from "@/lib/stocks";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 const TOKEN_KEY = "stocklab.token";
+
+export type StockWatchlistItem = Stock & {
+  bollinger_daily: StockBand | null;
+  bollinger_weekly: StockBand | null;
+  bollinger_monthly: StockBand | null;
+  bollinger_rating: string | null;
+  latest_financial: {
+    report_date: string;
+    period: string;
+    net_profit: number | null;
+    net_profit_yoy: number | null;
+    disclosure_date: string | null;
+  } | null;
+  grid_targets: {
+    target_yield: number;
+    target_price: number;
+    distance_pct: number;
+  }[];
+};
 
 export type Me = {
   id: number;
@@ -375,6 +394,10 @@ export type AdminStockPage = {
 
 export async function fetchStockWatchlist(): Promise<Stock[]> {
   return request<Stock[]>("/api/v1/stock-watchlist");
+}
+
+export async function fetchEnrichedStockWatchlist(): Promise<StockWatchlistItem[]> {
+  return request<StockWatchlistItem[]>("/api/v1/stock-watchlist/enriched");
 }
 
 export async function addStockWatchlist(

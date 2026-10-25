@@ -5,21 +5,68 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import {
+  fetchEnrichedStockWatchlist,
   fetchMe,
-  fetchStockWatchlist,
   fetchWatchlist,
   getToken,
   removeStockWatchlist,
   removeWatchlist,
+  type StockWatchlistItem,
 } from "@/lib/auth";
 import type { ApiEtf } from "@/lib/api";
-import type { Stock } from "@/lib/stocks";
 import { fmtNumber, fmtPct, trendClass } from "@/lib/format";
+
+const PERIOD_LABELS: Record<string, string> = {
+  Q1: "一季报",
+  H1: "中报",
+  Q3: "三季报",
+  FY: "年报",
+};
+
+function pct(value: number | null): string {
+  return value == null ? "—" : `${value.toFixed(2)}%`;
+}
+
+function BandPill({ value }: { value: string | null }) {
+  if (!value) return <span className="text-muted">—</span>;
+  const low = value.includes("下轨") || value === "中下";
+  return (
+    <span
+      className={`inline-flex rounded-sm px-1.5 py-0.5 text-[10px] ${
+        low ? "bg-jade-soft text-jade-deep" : "bg-amber-soft text-amber"
+      }`}
+    >
+      {value.replace("上轨上方", "上").replace("下轨下方", "下")}
+    </span>
+  );
+}
+
+function RatingPill({ value }: { value: string | null }) {
+  if (!value) return null;
+  const hot = value === "偏热" || value === "高位";
+  return (
+    <span
+      className={`inline-flex rounded-sm px-1.5 py-0.5 text-[10px] ${
+        hot ? "bg-loss/10 text-loss" : "bg-jade-soft text-jade-deep"
+      }`}
+    >
+      {value}
+    </span>
+  );
+}
+
+function getBands(item: StockWatchlistItem) {
+  return [
+    ["日", item.bollinger_daily],
+    ["周", item.bollinger_weekly],
+    ["月", item.bollinger_monthly],
+  ] as const;
+}
 
 export default function WatchlistPage() {
   const router = useRouter();
   const [items, setItems] = useState<ApiEtf[]>([]);
-  const [stocks, setStocks] = useState<Stock[]>([]);
+  const [stocks, setStocks] = useState<StockWatchlistItem[]>([]);
   const [etfSort, setEtfSort] = useState("default");
   const [stockSort, setStockSort] = useState("yield");
   const [selectedStocks, setSelectedStocks] = useState<Set<string>>(new Set());
@@ -30,7 +77,7 @@ export default function WatchlistPage() {
   async function load() {
     const [etfs, stockItems] = await Promise.all([
       fetchWatchlist(),
-      fetchStockWatchlist(),
+      fetchEnrichedStockWatchlist(),
     ]);
     setItems(etfs);
     setStocks(stockItems);
@@ -331,9 +378,10 @@ export default function WatchlistPage() {
                   移除
                 </button>
               </div>
-              <div className="mt-2 flex items-baseline justify-between gap-3 text-sm">
-                <div className="flex items-baseline gap-3">
-                  <span className="tnum text-ink">
+
+              <div className="mt-2 flex items-end justify-between gap-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="tnum text-sm text-ink">
                     {item.price == null ? "—" : item.price.toFixed(2)}
                   </span>
                   <span
@@ -344,18 +392,49 @@ export default function WatchlistPage() {
                     {item.change_pct == null ? "—" : fmtPct(item.change_pct)}
                   </span>
                 </div>
-                <span className="tnum text-xs font-medium text-jade-deep">
-                  TTM{" "}
-                  {item.dividend_yield_ttm == null
-                    ? "—"
-                    : `${item.dividend_yield_ttm.toFixed(2)}%`}
+                <div className="text-right">
+                  <p className="tnum text-lg font-semibold text-jade-deep">
+                    {pct(item.dividend_yield_ttm)}
+                  </p>
+                  <p className="text-[10px] text-muted">
+                    静态 {pct(item.dividend_yield_fy)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] text-muted">BOLL</span>
+                {getBands(item).map(([label, band]) => (
+                  <span key={label} className="inline-flex items-center gap-1">
+                    <span className="text-[10px] text-muted">{label}</span>
+                    <BandPill value={band?.position ?? null} />
+                  </span>
+                ))}
+                <RatingPill value={item.bollinger_rating} />
+              </div>
+
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[10px] text-muted">
+                <span>
+                  {item.latest_financial
+                    ? `${PERIOD_LABELS[item.latest_financial.period] ?? item.latest_financial.period} · 披露 ${item.latest_financial.disclosure_date ?? "—"}`
+                    : "财务披露 —"}
+                </span>
+                <span>
+                  {item.grid_targets.length > 0
+                    ? item.grid_targets
+                        .map(
+                          (target) =>
+                            `${target.target_yield}% ${target.target_price.toFixed(2)}`,
+                        )
+                        .join(" / ")
+                    : "网格 —"}
                 </span>
               </div>
             </div>
           ))}
         </div>
         <div className="hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[820px] text-sm">
+          <table className="w-full min-w-[1280px] text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">
                 <th className="w-10 px-4 py-3">
@@ -373,8 +452,12 @@ export default function WatchlistPage() {
                 <th className="px-4 py-3 font-medium">行业</th>
                 <th className="px-4 py-3 text-right font-medium">最新价</th>
                 <th className="px-4 py-3 text-right font-medium">日涨跌</th>
-                <th className="px-4 py-3 text-right font-medium">股息率 TTM</th>
-                <th className="px-4 py-3 text-right font-medium">市值</th>
+                <th className="px-4 py-3 text-right font-medium">TTM</th>
+                <th className="px-4 py-3 text-right font-medium">静态</th>
+                <th className="px-4 py-3 font-medium">BOLL 日/周/月</th>
+                <th className="px-4 py-3 font-medium">评级</th>
+                <th className="px-4 py-3 text-right font-medium">披露</th>
+                <th className="px-4 py-3 text-right font-medium">网格 5/5.5/6%</th>
                 <th className="px-4 py-3 text-right font-medium">操作</th>
               </tr>
             </thead>
@@ -412,12 +495,33 @@ export default function WatchlistPage() {
                     {item.change_pct == null ? "—" : fmtPct(item.change_pct)}
                   </td>
                   <td className="tnum px-4 py-3 text-right font-medium text-jade-deep">
-                    {item.dividend_yield_ttm == null
-                      ? "—"
-                      : `${item.dividend_yield_ttm.toFixed(2)}%`}
+                    {pct(item.dividend_yield_ttm)}
                   </td>
                   <td className="tnum px-4 py-3 text-right text-ink-soft">
-                    {item.market_cap == null ? "—" : `${fmtNumber(item.market_cap, 0)} 亿`}
+                    {pct(item.dividend_yield_fy)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      {getBands(item).map(([label, band]) => (
+                        <span key={label} className="inline-flex items-center gap-1">
+                          <span className="text-[10px] text-muted">{label}</span>
+                          <BandPill value={band?.position ?? null} />
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <RatingPill value={item.bollinger_rating} />
+                  </td>
+                  <td className="tnum px-4 py-3 text-right text-xs text-muted">
+                    {item.latest_financial?.disclosure_date ?? "—"}
+                  </td>
+                  <td className="tnum px-4 py-3 text-right text-[11px] text-muted">
+                    {item.grid_targets.length === 0
+                      ? "—"
+                      : item.grid_targets
+                          .map((target) => target.target_price.toFixed(2))
+                          .join(" / ")}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button
