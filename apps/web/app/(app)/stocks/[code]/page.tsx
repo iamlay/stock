@@ -342,7 +342,9 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
                 <tbody className="divide-y divide-line">
                   {stock.dividends.map((item) => (
                     <tr key={`${item.ex_date}-${item.plan}`}>
-                      <td className="tnum py-3 text-xs text-muted">{item.ex_date}</td>
+                      <td className="tnum py-3 text-xs text-muted">
+                        {item.ex_date ?? "待除息"}
+                      </td>
                       <td className="tnum py-3 text-xs text-ink-soft">{item.fiscal_year}</td>
                       <td className="tnum py-3 text-right text-ink">
                         {item.cash_per_share.toFixed(4)}

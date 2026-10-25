@@ -5,6 +5,7 @@ from etl.sources.eastmoney_stock import (
     latest_fiscal_year_yield,
     parse_dividends,
     parse_stock_rows,
+    rly_dividend_yield,
     ttm_dividend_yield,
 )
 from etl.sources.industry import parse_eastmoney_company, parse_sina_nodes
@@ -75,9 +76,11 @@ def test_parse_dividends_converts_per_ten_shares() -> None:
         }
     }
     records = parse_dividends(payload)
-    assert len(records) == 1
+    assert len(records) == 2
     assert records[0].cash_per_share == 28.02423
     assert records[0].fiscal_year == 2025
+    assert records[1].ex_date is None
+    assert records[1].cash_per_share == 10.0
 
 
 def test_ttm_and_fiscal_year_yield() -> None:
@@ -92,6 +95,34 @@ def test_ttm_and_fiscal_year_yield() -> None:
 
     fy = latest_fiscal_year_yield(records, 1325.0, as_of=date(2026, 10, 20))
     assert fy == 3.92
+
+
+def test_rly_combines_latest_annual_and_interim() -> None:
+    records = [
+        DividendRecord(
+            "600519",
+            "贵州茅台",
+            date(2026, 6, 26),
+            2025,
+            1.0,
+            "annual",
+            False,
+            notice_date=date(2026, 4, 1),
+            report_date=date(2025, 12, 31),
+        ),
+        DividendRecord(
+            "600519",
+            "贵州茅台",
+            date(2026, 9, 1),
+            2026,
+            0.5,
+            "interim",
+            False,
+            notice_date=date(2026, 8, 1),
+            report_date=date(2026, 6, 30),
+        ),
+    ]
+    assert rly_dividend_yield(records, 10.0, as_of=date(2026, 10, 1)) == 15.0
 
 
 def test_fiscal_year_ignores_current_partial_year() -> None:

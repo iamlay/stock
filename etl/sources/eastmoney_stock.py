@@ -30,11 +30,14 @@ class StockRow:
 class DividendRecord:
     code: str
     name: str
-    ex_date: date
+    ex_date: date | None
     fiscal_year: int
     cash_per_share: float
     plan: str
     is_special: bool
+    notice_date: date | None = None
+    report_date: date | None = None
+    progress: str = ""
 
 
 @dataclass(frozen=True)
@@ -151,11 +154,10 @@ def parse_dividends(payload: dict) -> list[DividendRecord]:
     for item in data:
         progress = str(item.get("ASSIGN_PROGRESS") or "")
         ex_date = _date(item.get("EX_DIVIDEND_DATE"))
+        notice_date = _date(item.get("NOTICE_DATE"))
         report_date = _date(item.get("REPORT_DATE"))
         per_ten = _float(item.get("PRETAX_BONUS_RMB"), 0.0) or 0.0
-        if ex_date is None or report_date is None or per_ten <= 0:
-            continue
-        if "实施" not in progress and "分配" not in progress:
+        if report_date is None or per_ten <= 0:
             continue
         plan = str(item.get("IMPL_PLAN_PROFILE") or "")
         records.append(
@@ -163,6 +165,9 @@ def parse_dividends(payload: dict) -> list[DividendRecord]:
                 code=str(item.get("SECURITY_CODE") or ""),
                 name=str(item.get("SECURITY_NAME_ABBR") or ""),
                 ex_date=ex_date,
+                notice_date=notice_date,
+                report_date=report_date,
+                progress=progress,
                 fiscal_year=report_date.year,
                 cash_per_share=round(per_ten / 10, 6),
                 plan=plan,
@@ -185,7 +190,7 @@ def fetch_dividends(code: str) -> list[DividendRecord]:
                 "pageNumber": page,
                 "pageSize": 100,
                 "sortTypes": -1,
-                "sortColumns": "EX_DIVIDEND_DATE",
+                "sortColumns": "NOTICE_DATE",
             }
         )
         payload = _get_json(
@@ -213,11 +218,11 @@ def fetch_dividends_bulk(
             {
                 "reportName": "RPT_SHAREBONUS_DET",
                 "columns": "ALL",
-                "filter": f"(EX_DIVIDEND_DATE>='{cutoff.isoformat()}')",
+                "filter": f"(NOTICE_DATE>='{cutoff.isoformat()}')",
                 "pageNumber": page,
                 "pageSize": page_size,
                 "sortTypes": -1,
-                "sortColumns": "EX_DIVIDEND_DATE",
+                "sortColumns": "NOTICE_DATE",
             }
         )
         payload = _get_json(
@@ -354,18 +359,78 @@ def ttm_dividend_yield(
     cash = sum(
         float(record.cash_per_share)
         for record in records
-        if cutoff < record.ex_date <= today
+        if record.ex_date is not None and cutoff < record.ex_date <= today
     )
     if cash <= 0:
         return None, 0.0
     return round(cash / price * 100, 2), round(cash, 6)
 
 
+def rly_dividend_yield(
+    records: list[DividendRecord],
+    price: float,
+    *,
+    as_of: date | None = None,
+) -> float | None:
+    """Latest annual + current interim announced cash / current price."""
+    if price <= 0:
+        return None
+    today = as_of or date.today()
+
+    def event_date(record: DividendRecord) -> date | None:
+        return record.notice_date or record.ex_date
+
+    announced = [
+        record
+        for record in records
+        if record.cash_per_share > 0
+        and event_date(record) is not None
+        and event_date(record) <= today
+    ]
+    if not announced:
+        return None
+    annuals = [
+        record
+        for record in announced
+        if (record.report_date or record.ex_date) is not None
+        and (record.report_date or record.ex_date).month == 12
+    ]
+    interims = [
+        record
+        for record in announced
+        if (record.report_date or record.ex_date) is not None
+        and (record.report_date or record.ex_date).month != 12
+    ]
+
+    latest_annual = (
+        max(annuals, key=lambda item: item.report_date or item.ex_date) if annuals else None
+    )
+    latest_interim = (
+        max(interims, key=lambda item: item.report_date or item.ex_date)
+        if interims
+        else None
+    )
+    cash = float(latest_annual.cash_per_share) if latest_annual else 0.0
+    annual_date = (latest_annual.report_date or latest_annual.ex_date) if latest_annual else None
+    interim_date = (
+        (latest_interim.report_date or latest_interim.ex_date) if latest_interim else None
+    )
+    if latest_interim is not None and (annual_date is None or interim_date > annual_date):
+        cash += float(latest_interim.cash_per_share)
+    if cash <= 0:
+        return None
+    return round(cash / price * 100, 2)
+
+
 def latest_fiscal_year_yield(
     records: list[DividendRecord], price: float, *, as_of: date | None = None
 ) -> float | None:
     today = as_of or date.today()
-    years = [record.fiscal_year for record in records if record.ex_date <= today]
+    years = [
+        record.fiscal_year
+        for record in records
+        if record.ex_date is not None and record.ex_date <= today
+    ]
     if not years or price <= 0:
         return None
     # Prefer the latest completed fiscal year; the current year usually only
@@ -375,6 +440,8 @@ def latest_fiscal_year_yield(
     cash = sum(
         float(record.cash_per_share)
         for record in records
-        if record.fiscal_year == year and record.ex_date <= today
+        if record.fiscal_year == year
+        and record.ex_date is not None
+        and record.ex_date <= today
     )
     return round(cash / price * 100, 2) if cash > 0 else None

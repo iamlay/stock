@@ -421,7 +421,10 @@ class StockDividend(Base):
     code: Mapped[str] = mapped_column(
         String(16), ForeignKey("instruments.code", ondelete="CASCADE"), nullable=False
     )
-    ex_date: Mapped[date] = mapped_column(Date, nullable=False)
+    ex_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notice_date: Mapped[date | None] = mapped_column(Date)
+    report_date: Mapped[date | None] = mapped_column(Date)
+    progress: Mapped[str] = mapped_column(String(32), nullable=False, default="")
     fiscal_year: Mapped[int] = mapped_column(Integer, nullable=False)
     cash_per_share: Mapped[float] = mapped_column(Numeric(12, 6), nullable=False)
     plan: Mapped[str] = mapped_column(String(128), nullable=False)

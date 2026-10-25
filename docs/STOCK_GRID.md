@@ -287,7 +287,7 @@ python -m etl.cli stock-yield-percentile --limit 500 --days 3650
 - 不足 52 周历史的股票会跳过；
 - 与参考图的 RLY 口径仍有差异：当前使用已除息分红，不是已宣告未除息。
 
-## 11. LY 已宣告分红
+## 11. RLY 已宣告分红
 
 新增字段：
 
@@ -295,26 +295,45 @@ python -m etl.cli stock-yield-percentile --limit 500 --days 3650
 stock_metrics.dividend_yield_ly
 ```
 
-计算：
+严格 RLY 口径：
 
 ```text
-最近财年已入库现金分红合计 / 当前价
+最新年报现金分红
++ 最新中报/季报现金分红（报告期晚于最新年报）
+/ 当前价
 ```
 
-页面：
+公告过滤：
 
 ```text
-/watchlist
-  TTM
-  LY 已宣告
-  静态
+公告日或除息日 <= 今天
+公告金额 > 0
+年报按报告期 12-31
+中报/季报按 3-31 / 6-30 / 9-30
+```
+
+新增公告字段：
+
+```text
+stock_dividends.notice_date
+stock_dividends.report_date
+stock_dividends.progress
+stock_dividends.ex_date 允许为空
+```
+
+同步：
+
+```bash
+python -m etl.cli stock-dividends-bulk --days 3650
+python -m etl.cli stock-metrics --limit 5000
 ```
 
 说明：
 
-- 当前 LY 口径基于已入库的分红记录（含未来除息日），不是完整公告事件流；
-- 如果分红公告尚未生成 `StockDividend` 记录，LY 不会包含；
-- 与 TTM 的差异主要来自报告期归属，而不是价格。
+- 未公布金额的“预披露”记录不会进入 RLY；
+- 分红金额仍按每股现金，未额外处理送转复权；
+- 与 TTM 的差异来自“已宣告/未来除息”与“已除息”的口径差异；
+- 页面 `/watchlist` 显示 `RLY`。
 
 
 

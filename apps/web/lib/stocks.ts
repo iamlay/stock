@@ -33,7 +33,7 @@ export type StockList = {
 };
 
 export type StockDividend = {
-  ex_date: string;
+  ex_date: string | null;
   fiscal_year: number;
   cash_per_share: number;
   plan: string;

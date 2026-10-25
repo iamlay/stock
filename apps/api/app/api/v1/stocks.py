@@ -92,7 +92,7 @@ class StockBollingerList(BaseModel):
 
 
 class DividendOut(BaseModel):
-    ex_date: str
+    ex_date: str | None
     fiscal_year: int
     cash_per_share: float
     plan: str
@@ -684,7 +684,9 @@ def get_stock(
         **_out(instrument, profile, metric).model_dump(),
         dividends=[
             DividendOut(
-                ex_date=item.ex_date.isoformat(),
+                ex_date=(
+                    item.ex_date.isoformat() if item.ex_date is not None else None
+                ),
                 fiscal_year=item.fiscal_year,
                 cash_per_share=float(item.cash_per_share),
                 plan=item.plan,

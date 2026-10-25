@@ -20,6 +20,7 @@ from etl.sources.eastmoney_stock import (
     fetch_dividends_bulk,
     fetch_stock_financials,
     latest_fiscal_year_yield,
+    rly_dividend_yield,
     ttm_dividend_yield,
 )
 from etl.sources.industry import (
@@ -112,13 +113,13 @@ def upsert_stock_universe(
 
 def _existing_dividends(
     session: Session, codes: list[str]
-) -> dict[tuple[str, date, str], StockDividend]:
+) -> dict[tuple[str, int, str], StockDividend]:
     if not codes:
         return {}
     rows = session.scalars(
         select(StockDividend).where(StockDividend.code.in_(codes))
     ).all()
-    return {(row.code, row.ex_date, row.plan): row for row in rows}
+    return {(row.code, row.fiscal_year, row.plan): row for row in rows}
 
 
 def refresh_stock_metrics(
@@ -159,17 +160,7 @@ def refresh_stock_metrics(
 
         ttm, _ = ttm_dividend_yield(records, price, as_of=today)
         fy = latest_fiscal_year_yield(records, price, as_of=today)
-        latest_year = max((row.fiscal_year for row in records), default=None)
-        ly_cash = (
-            sum(
-                float(row.cash_per_share)
-                for row in records
-                if row.fiscal_year == latest_year
-            )
-            if latest_year is not None
-            else 0.0
-        )
-        ly = round(ly_cash / price * 100, 2) if price > 0 and ly_cash > 0 else None
+        ly = rly_dividend_yield(records, price, as_of=today)
         metric.dividend_yield_ttm = ttm
         metric.dividend_yield_fy = fy
         metric.dividend_yield_ly = ly
@@ -218,12 +209,15 @@ def sync_stock_dividends_bulk(
     for record in records:
         if record.code not in target_set:
             continue
-        key = (record.code, record.ex_date, record.plan)
+        key = (record.code, record.fiscal_year, record.plan)
         row = existing.get(key)
         if row is None:
             row = StockDividend(
                 code=record.code,
                 ex_date=record.ex_date,
+                notice_date=record.notice_date,
+                report_date=record.report_date,
+                progress=record.progress,
                 fiscal_year=record.fiscal_year,
                 cash_per_share=record.cash_per_share,
                 plan=record.plan,
@@ -234,6 +228,10 @@ def sync_stock_dividends_bulk(
             existing[key] = row
             written += 1
         else:
+            row.ex_date = record.ex_date
+            row.notice_date = record.notice_date
+            row.report_date = record.report_date
+            row.progress = record.progress
             row.cash_per_share = record.cash_per_share
             row.fiscal_year = record.fiscal_year
             row.is_special = record.is_special
@@ -371,12 +369,15 @@ def sync_stock_dividends(
         try:
             records = fetch_dividends(code)
             for record in records:
-                key = (record.code, record.ex_date, record.plan)
+                key = (record.code, record.fiscal_year, record.plan)
                 row = existing.get(key)
                 if row is None:
                     row = StockDividend(
                         code=record.code,
                         ex_date=record.ex_date,
+                        notice_date=record.notice_date,
+                        report_date=record.report_date,
+                        progress=record.progress,
                         fiscal_year=record.fiscal_year,
                         cash_per_share=record.cash_per_share,
                         plan=record.plan,
@@ -387,6 +388,10 @@ def sync_stock_dividends(
                     existing[key] = row
                     written += 1
                 else:
+                    row.ex_date = record.ex_date
+                    row.notice_date = record.notice_date
+                    row.report_date = record.report_date
+                    row.progress = record.progress
                     row.cash_per_share = record.cash_per_share
                     row.fiscal_year = record.fiscal_year
                     row.is_special = record.is_special
