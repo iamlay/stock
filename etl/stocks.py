@@ -159,8 +159,20 @@ def refresh_stock_metrics(
 
         ttm, _ = ttm_dividend_yield(records, price, as_of=today)
         fy = latest_fiscal_year_yield(records, price, as_of=today)
+        latest_year = max((row.fiscal_year for row in records), default=None)
+        ly_cash = (
+            sum(
+                float(row.cash_per_share)
+                for row in records
+                if row.fiscal_year == latest_year
+            )
+            if latest_year is not None
+            else 0.0
+        )
+        ly = round(ly_cash / price * 100, 2) if price > 0 and ly_cash > 0 else None
         metric.dividend_yield_ttm = ttm
         metric.dividend_yield_fy = fy
+        metric.dividend_yield_ly = ly
         if not records:
             metric.sustainability = "none"
         elif one_off:

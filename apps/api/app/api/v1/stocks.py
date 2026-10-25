@@ -51,6 +51,7 @@ class StockOut(BaseModel):
     pb: float | None
     dividend_yield_ttm: float | None
     dividend_yield_fy: float | None
+    dividend_yield_ly: float | None
     yield_percentile: float | None
     sustainability: str | None
     last_ex_date: str | None
@@ -221,6 +222,11 @@ def _out(
         dividend_yield_fy=(
             float(metric.dividend_yield_fy)
             if metric.dividend_yield_fy is not None
+            else None
+        ),
+        dividend_yield_ly=(
+            float(metric.dividend_yield_ly)
+            if metric.dividend_yield_ly is not None
             else None
         ),
         yield_percentile=(

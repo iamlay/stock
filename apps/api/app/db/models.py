@@ -485,6 +485,7 @@ class StockMetric(Base):
     pb: Mapped[float | None] = mapped_column(Numeric(12, 4))
     dividend_yield_ttm: Mapped[float | None] = mapped_column(Numeric(8, 4))
     dividend_yield_fy: Mapped[float | None] = mapped_column(Numeric(8, 4))
+    dividend_yield_ly: Mapped[float | None] = mapped_column(Numeric(8, 4))
     yield_percentile: Mapped[float | None] = mapped_column(Numeric(6, 2))
     sustainability: Mapped[str | None] = mapped_column(String(16))
     last_ex_date: Mapped[date | None] = mapped_column(Date)

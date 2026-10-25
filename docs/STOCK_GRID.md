@@ -287,4 +287,34 @@ python -m etl.cli stock-yield-percentile --limit 500 --days 3650
 - 不足 52 周历史的股票会跳过；
 - 与参考图的 RLY 口径仍有差异：当前使用已除息分红，不是已宣告未除息。
 
+## 11. LY 已宣告分红
+
+新增字段：
+
+```text
+stock_metrics.dividend_yield_ly
+```
+
+计算：
+
+```text
+最近财年已入库现金分红合计 / 当前价
+```
+
+页面：
+
+```text
+/watchlist
+  TTM
+  LY 已宣告
+  静态
+```
+
+说明：
+
+- 当前 LY 口径基于已入库的分红记录（含未来除息日），不是完整公告事件流；
+- 如果分红公告尚未生成 `StockDividend` 记录，LY 不会包含；
+- 与 TTM 的差异主要来自报告期归属，而不是价格。
+
+
 

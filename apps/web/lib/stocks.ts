@@ -16,6 +16,7 @@ export type Stock = {
   pb: number | null;
   dividend_yield_ttm: number | null;
   dividend_yield_fy: number | null;
+  dividend_yield_ly: number | null;
   yield_percentile: number | null;
   sustainability: string | null;
   last_ex_date: string | null;

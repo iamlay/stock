@@ -406,6 +406,9 @@ export default function WatchlistPage() {
                   <p className="text-[10px] text-muted">
                     静态 {pct(item.dividend_yield_fy)}
                   </p>
+                  <p className="text-[10px] text-muted">
+                    LY {pct(item.dividend_yield_ly)}
+                  </p>
                   {item.yield_percentile != null ? (
                     <p className="tnum mt-0.5 text-[10px] text-amber">
                       分位 {item.yield_percentile.toFixed(0)}% ·{" "}
@@ -466,6 +469,7 @@ export default function WatchlistPage() {
                 <th className="px-4 py-3 text-right font-medium">最新价</th>
                 <th className="px-4 py-3 text-right font-medium">日涨跌</th>
                 <th className="px-4 py-3 text-right font-medium">TTM</th>
+                <th className="px-4 py-3 text-right font-medium">LY</th>
                 <th className="px-4 py-3 text-right font-medium">静态</th>
                 <th className="px-4 py-3 text-right font-medium">10年分位</th>
                 <th className="px-4 py-3 font-medium">BOLL 日/周/月</th>
@@ -510,6 +514,9 @@ export default function WatchlistPage() {
                   </td>
                   <td className="tnum px-4 py-3 text-right font-medium text-jade-deep">
                     {pct(item.dividend_yield_ttm)}
+                  </td>
+                  <td className="tnum px-4 py-3 text-right text-ink-soft">
+                    {pct(item.dividend_yield_ly)}
                   </td>
                   <td className="tnum px-4 py-3 text-right text-ink-soft">
                     {pct(item.dividend_yield_fy)}
