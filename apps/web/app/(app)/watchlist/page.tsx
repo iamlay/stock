@@ -11,6 +11,8 @@ import {
   getToken,
   removeStockWatchlist,
   removeWatchlist,
+  updateEtfWatchlistGroup,
+  updateStockWatchlistGroup,
   type StockWatchlistItem,
 } from "@/lib/auth";
 import type { ApiEtf } from "@/lib/api";
@@ -95,6 +97,117 @@ function isLowValue(item: StockWatchlistItem): boolean {
   return (item.yield_percentile ?? -1) >= 80;
 }
 
+function GroupSelect({
+  scope,
+  code,
+  value,
+  groups,
+  onChanged,
+}: {
+  scope: "stock" | "etf";
+  code: string;
+  value: string;
+  groups: string[];
+  onChanged: (group: string) => void;
+}) {
+  const options = groups.includes(value) ? groups : [...groups, value];
+  return (
+    <select
+      value={value}
+      onChange={async (event) => {
+        let next = event.target.value;
+        if (next === "__new") {
+          const name = window.prompt("新分组名称（最多 20 字）")?.trim();
+          if (!name) return;
+          next = name.slice(0, 20);
+        }
+        if (next === value) return;
+        try {
+          if (scope === "stock") {
+            await updateStockWatchlistGroup(code, next);
+          } else {
+            await updateEtfWatchlistGroup(code, next);
+          }
+          onChanged(next);
+        } catch (err) {
+          window.alert(err instanceof Error ? err.message : "修改分组失败");
+        }
+      }}
+      className="max-w-28 rounded-sm border border-line bg-surface px-1.5 py-1 text-[11px] text-ink-soft"
+      aria-label="自选分组"
+    >
+      {options.map((group) => (
+        <option key={group} value={group}>
+          {group}
+        </option>
+      ))}
+      <option value="__new">+ 新建分组</option>
+    </select>
+  );
+}
+
+function csvCell(value: string | number | null | undefined): string {
+  const text = value == null ? "" : String(value);
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+function exportWatchlistCsv(items: StockWatchlistItem[]): void {
+  const header = [
+    "分组",
+    "代码",
+    "名称",
+    "行业",
+    "现价",
+    "涨跌幅%",
+    "TTM股息率%",
+    "RLY%",
+    "静态股息率%",
+    "10年分位%",
+    "日BOLL",
+    "周BOLL",
+    "月BOLL",
+    "评级",
+    "最新报告",
+    "披露日",
+    "网格5%",
+    "网格5.5%",
+    "网格6%",
+  ];
+  const rows = items.map((item) => {
+    const financial = item.latest_financial;
+    const targets = item.grid_targets;
+    return [
+      item.group_name || "默认",
+      item.code,
+      item.name,
+      item.industry,
+      item.price,
+      item.change_pct,
+      item.dividend_yield_ttm,
+      item.dividend_yield_ly,
+      item.dividend_yield_fy,
+      item.yield_percentile,
+      item.bollinger_daily?.position,
+      item.bollinger_weekly?.position,
+      item.bollinger_monthly?.position,
+      item.bollinger_rating,
+      financial?.period,
+      financial?.disclosure_date,
+      targets[0]?.target_price,
+      targets[1]?.target_price,
+      targets[2]?.target_price,
+    ].map(csvCell);
+  });
+  const csv = `\uFEFF${[header.map(csvCell), ...rows].map((row) => row.join(",")).join("\r\n")}`;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `stocklab-watchlist-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function WatchlistPage() {
   const router = useRouter();
   const [items, setItems] = useState<ApiEtf[]>([]);
@@ -103,6 +216,8 @@ export default function WatchlistPage() {
   const [stockSort, setStockSort] = useState("yield");
   const [onlyResonance, setOnlyResonance] = useState(false);
   const [onlyLowValue, setOnlyLowValue] = useState(false);
+  const [etfGroup, setEtfGroup] = useState("全部");
+  const [stockGroup, setStockGroup] = useState("全部");
   const [prefsReady, setPrefsReady] = useState(false);
   const [selectedStocks, setSelectedStocks] = useState<Set<string>>(new Set());
   const [batchBusy, setBatchBusy] = useState(false);
@@ -138,11 +253,15 @@ export default function WatchlistPage() {
           stockSort?: string;
           onlyResonance?: boolean;
           onlyLowValue?: boolean;
+          etfGroup?: string;
+          stockGroup?: string;
         };
         if (saved.etfSort) setEtfSort(saved.etfSort);
         if (saved.stockSort) setStockSort(saved.stockSort);
         setOnlyResonance(Boolean(saved.onlyResonance));
         setOnlyLowValue(Boolean(saved.onlyLowValue));
+        if (saved.etfGroup) setEtfGroup(saved.etfGroup);
+        if (saved.stockGroup) setStockGroup(saved.stockGroup);
       }
     } catch {
       // ignore invalid local preferences
@@ -154,9 +273,24 @@ export default function WatchlistPage() {
     if (!prefsReady) return;
     window.localStorage.setItem(
       WATCHLIST_PREFS_KEY,
-      JSON.stringify({ etfSort, stockSort, onlyResonance, onlyLowValue }),
+      JSON.stringify({
+        etfSort,
+        stockSort,
+        onlyResonance,
+        onlyLowValue,
+        etfGroup,
+        stockGroup,
+      }),
     );
-  }, [etfSort, stockSort, onlyResonance, onlyLowValue, prefsReady]);
+  }, [
+    etfSort,
+    stockSort,
+    onlyResonance,
+    onlyLowValue,
+    etfGroup,
+    stockGroup,
+    prefsReady,
+  ]);
 
   async function onRemove(code: string) {
     setError(null);
@@ -183,22 +317,44 @@ export default function WatchlistPage() {
     }
   }
 
+  const etfGroups = useMemo(
+    () => ["全部", ...new Set(items.map((item) => item.group_name || "默认"))],
+    [items],
+  );
+  const stockGroups = useMemo(
+    () => ["全部", ...new Set(stocks.map((item) => item.group_name || "默认"))],
+    [stocks],
+  );
+
+  useEffect(() => {
+    if (etfGroup !== "全部" && !etfGroups.includes(etfGroup)) setEtfGroup("全部");
+  }, [etfGroup, etfGroups]);
+
+  useEffect(() => {
+    if (stockGroup !== "全部" && !stockGroups.includes(stockGroup)) {
+      setStockGroup("全部");
+    }
+  }, [stockGroup, stockGroups]);
+
   const sortedItems = useMemo(() => {
-    const copy = [...items];
+    const copy = items.filter(
+      (item) => etfGroup === "全部" || (item.group_name || "默认") === etfGroup,
+    );
     if (etfSort === "change") copy.sort((a, b) => b.change_pct - a.change_pct);
     if (etfSort === "aum") copy.sort((a, b) => (b.aum ?? 0) - (a.aum ?? 0));
     if (etfSort === "name") copy.sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
     return copy;
-  }, [items, etfSort]);
+  }, [items, etfSort, etfGroup]);
 
   const visibleStocks = useMemo(
     () =>
       stocks.filter(
         (item) =>
+          (stockGroup === "全部" || (item.group_name || "默认") === stockGroup) &&
           (!onlyResonance || isResonance(item)) &&
           (!onlyLowValue || isLowValue(item)),
       ),
-    [stocks, onlyResonance, onlyLowValue],
+    [stocks, onlyResonance, onlyLowValue, stockGroup],
   );
 
   const sortedStocks = useMemo(() => {
@@ -302,18 +458,32 @@ export default function WatchlistPage() {
       {error ? <p className="text-xs text-loss">{error}</p> : null}
 
       <section className="card overflow-hidden">
-        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
           <h2 className="text-sm font-medium text-ink">自选 ETF</h2>
-          <select
-            value={etfSort}
-            onChange={(event) => setEtfSort(event.target.value)}
-            className="rounded-sm border border-line bg-surface px-2 py-1 text-xs text-ink-soft"
-          >
-            <option value="default">默认顺序</option>
-            <option value="change">按日涨跌</option>
-            <option value="aum">按规模</option>
-            <option value="name">按名称</option>
-          </select>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={etfGroup}
+              onChange={(event) => setEtfGroup(event.target.value)}
+              className="rounded-sm border border-line bg-surface px-2 py-1 text-xs text-ink-soft"
+            >
+              {etfGroups.map((group) => (
+                <option key={group} value={group}>
+                  {group === "全部" ? "全部分组" : group}
+                </option>
+              ))}
+            </select>
+            <select
+              value={etfSort}
+              onChange={(event) => setEtfSort(event.target.value)}
+              className="rounded-sm border border-line bg-surface px-2 py-1 text-xs text-ink-soft"
+            >
+              <option value="default">默认顺序</option>
+              <option value="change">按日涨跌</option>
+              <option value="aum">按规模</option>
+              <option value="name">按名称</option>
+            </select>
+            <span className="text-xs text-muted">{sortedItems.length} 只</span>
+          </div>
         </div>
         <div className="divide-y divide-line md:hidden">
           {sortedItems.map((item) => (
@@ -347,6 +517,21 @@ export default function WatchlistPage() {
                   规模 {item.aum == null ? "—" : `${fmtNumber(item.aum, 1)} 亿`}
                 </span>
               </div>
+              <div className="mt-2">
+                <GroupSelect
+                  scope="etf"
+                  code={item.code}
+                  value={item.group_name || "默认"}
+                  groups={etfGroups.filter((group) => group !== "全部")}
+                  onChanged={(group) =>
+                    setItems((current) =>
+                      current.map((row) =>
+                        row.code === item.code ? { ...row, group_name: group } : row,
+                      ),
+                    )
+                  }
+                />
+              </div>
             </div>
           ))}
         </div>
@@ -356,6 +541,7 @@ export default function WatchlistPage() {
               <tr className="border-b border-line text-left text-xs text-muted">
                 <th className="px-4 py-3 font-medium">名称</th>
                 <th className="px-4 py-3 font-medium">分类</th>
+                <th className="px-4 py-3 font-medium">分组</th>
                 <th className="px-4 py-3 text-right font-medium">最新价</th>
                 <th className="px-4 py-3 text-right font-medium">日涨跌</th>
                 <th className="px-4 py-3 text-right font-medium">MA20</th>
@@ -376,6 +562,21 @@ export default function WatchlistPage() {
                     <p className="tnum mt-0.5 text-[11px] text-muted">{item.code}</p>
                   </td>
                   <td className="px-4 py-3 text-xs text-ink-soft">{item.category}</td>
+                  <td className="px-4 py-3">
+                    <GroupSelect
+                      scope="etf"
+                      code={item.code}
+                      value={item.group_name || "默认"}
+                      groups={etfGroups.filter((group) => group !== "全部")}
+                      onChanged={(group) =>
+                        setItems((current) =>
+                          current.map((row) =>
+                            row.code === item.code ? { ...row, group_name: group } : row,
+                          ),
+                        )
+                      }
+                    />
+                  </td>
                   <td className="tnum px-4 py-3 text-right">{fmtNumber(item.price, 3)}</td>
                   <td className={`tnum px-4 py-3 text-right ${trendClass(item.change_pct)}`}>
                     {fmtPct(item.change_pct)}
@@ -444,6 +645,17 @@ export default function WatchlistPage() {
               低估值
             </label>
             <select
+              value={stockGroup}
+              onChange={(event) => setStockGroup(event.target.value)}
+              className="rounded-sm border border-line bg-surface px-2 py-1 text-xs text-ink-soft"
+            >
+              {stockGroups.map((group) => (
+                <option key={group} value={group}>
+                  {group === "全部" ? "全部分组" : group}
+                </option>
+              ))}
+            </select>
+            <select
               value={stockSort}
               onChange={(event) => setStockSort(event.target.value)}
               className="rounded-sm border border-line bg-surface px-2 py-1 text-xs text-ink-soft"
@@ -455,6 +667,13 @@ export default function WatchlistPage() {
               <option value="cap">按市值</option>
               <option value="name">按名称</option>
             </select>
+            <button
+              type="button"
+              onClick={() => exportWatchlistCsv(sortedStocks)}
+              className="rounded-sm border border-line bg-surface px-2 py-1 text-xs text-jade-deep hover:border-jade"
+            >
+              导出 CSV
+            </button>
             <span className="text-xs text-muted">
               {sortedStocks.length}/{stocks.length} 只
             </span>
@@ -491,6 +710,22 @@ export default function WatchlistPage() {
                 >
                   移除
                 </button>
+              </div>
+
+              <div className="mt-2">
+                <GroupSelect
+                  scope="stock"
+                  code={item.code}
+                  value={item.group_name || "默认"}
+                  groups={stockGroups.filter((group) => group !== "全部")}
+                  onChanged={(group) =>
+                    setStocks((current) =>
+                      current.map((row) =>
+                        row.code === item.code ? { ...row, group_name: group } : row,
+                      ),
+                    )
+                  }
+                />
               </div>
 
               <div className="mt-2 flex items-end justify-between gap-3">
@@ -604,6 +839,7 @@ export default function WatchlistPage() {
                 </th>
                 <th className="px-4 py-3 font-medium">名称</th>
                 <th className="px-4 py-3 font-medium">行业</th>
+                <th className="px-4 py-3 font-medium">分组</th>
                 <th className="px-4 py-3 text-right font-medium">最新价</th>
                 <th className="px-4 py-3 text-right font-medium">日涨跌</th>
                 <th className="px-4 py-3 text-right font-medium">TTM</th>
@@ -639,6 +875,21 @@ export default function WatchlistPage() {
                   </td>
                   <td className="px-4 py-3 text-xs text-ink-soft">
                     {item.industry ?? "未分类"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <GroupSelect
+                      scope="stock"
+                      code={item.code}
+                      value={item.group_name || "默认"}
+                      groups={stockGroups.filter((group) => group !== "全部")}
+                      onChanged={(group) =>
+                        setStocks((current) =>
+                          current.map((row) =>
+                            row.code === item.code ? { ...row, group_name: group } : row,
+                          ),
+                        )
+                      }
+                    />
                   </td>
                   <td className="tnum px-4 py-3 text-right">
                     {item.price == null ? "—" : item.price.toFixed(2)}

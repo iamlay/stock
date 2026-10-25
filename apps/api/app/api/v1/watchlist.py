@@ -31,6 +31,10 @@ class WatchlistRemoveResponse(BaseModel):
     removed: bool
 
 
+class GroupRequest(BaseModel):
+    group_name: str
+
+
 def _active_etf(session: Session, code: str) -> Instrument:
     instrument = session.scalar(
         select(Instrument).where(
@@ -57,7 +61,34 @@ def list_watchlist(
     if not rows:
         return []
     summaries = {item.code: item for item in _summaries(session)}
-    return [summaries[row.code] for row in rows if row.code in summaries]
+    return [
+        summaries[row.code].model_copy(update={"group_name": row.group_name})
+        for row in rows
+        if row.code in summaries
+    ]
+
+
+@router.patch("/{code}/group", summary="修改自选分组")
+def update_watchlist_group(
+    code: str,
+    payload: GroupRequest,
+    session: Annotated[Session, Depends(get_session)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> dict:
+    name = payload.group_name.strip()
+    if not name or len(name) > 20:
+        raise HTTPException(status_code=400, detail="分组名称需在 1–20 字之间")
+    row = session.scalar(
+        select(WatchlistItem).where(
+            WatchlistItem.user_id == user.id,
+            WatchlistItem.code == code,
+        )
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="ETF not in watchlist")
+    row.group_name = name
+    session.commit()
+    return {"code": code, "group_name": name}
 
 
 @router.post("", response_model=WatchlistAddResponse, summary="加入自选")

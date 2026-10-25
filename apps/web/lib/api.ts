@@ -25,6 +25,7 @@ export type ApiEtf = {
   pe_percentile: number | null;
   dividend_yield: number | null;
   quote_time: string | null;
+  group_name?: string;
 };
 
 export type ApiEtfDetail = ApiEtf & {

@@ -5,6 +5,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"
 const TOKEN_KEY = "stocklab.token";
 
 export type StockWatchlistItem = Stock & {
+  group_name: string;
   bollinger_daily: StockBand | null;
   bollinger_weekly: StockBand | null;
   bollinger_monthly: StockBand | null;
@@ -398,6 +399,26 @@ export async function fetchStockWatchlist(): Promise<Stock[]> {
 
 export async function fetchEnrichedStockWatchlist(): Promise<StockWatchlistItem[]> {
   return request<StockWatchlistItem[]>("/api/v1/stock-watchlist/enriched");
+}
+
+export async function updateStockWatchlistGroup(
+  code: string,
+  groupName: string,
+): Promise<void> {
+  await request(`/api/v1/stock-watchlist/${code}/group`, {
+    method: "PATCH",
+    body: JSON.stringify({ group_name: groupName }),
+  });
+}
+
+export async function updateEtfWatchlistGroup(
+  code: string,
+  groupName: string,
+): Promise<void> {
+  await request(`/api/v1/watchlist/${code}/group`, {
+    method: "PATCH",
+    body: JSON.stringify({ group_name: groupName }),
+  });
 }
 
 export async function addStockWatchlist(

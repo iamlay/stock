@@ -46,6 +46,7 @@ class EtfSummary(BaseModel):
     pe_percentile: float | None
     dividend_yield: float | None
     quote_time: str | None
+    group_name: str = "默认"
 
 
 class Bar(BaseModel):

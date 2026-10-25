@@ -32,6 +32,10 @@ class WatchIn(BaseModel):
     code: str
 
 
+class GroupIn(BaseModel):
+    group_name: str
+
+
 class FinancialLite(BaseModel):
     report_date: str
     period: str
@@ -47,6 +51,7 @@ class GridTargetLite(BaseModel):
 
 
 class WatchlistStockOut(StockOut):
+    group_name: str = "默认"
     bollinger_daily: BandOut | None = None
     bollinger_weekly: BandOut | None = None
     bollinger_monthly: BandOut | None = None
@@ -88,6 +93,14 @@ def list_enriched_stock_watchlist(
         return []
 
     codes = [instrument.code for instrument, _, _ in rows]
+    group_by_code = {
+        code: group
+        for code, group in session.execute(
+            select(StockWatchlist.code, StockWatchlist.group_name).where(
+                StockWatchlist.user_id == user.id
+            )
+        ).all()
+    }
     cutoff = date.today() - timedelta(days=900)
     bar_rows = session.execute(
         select(MarketDaily.code, MarketDaily.trade_date, MarketDaily.close)
@@ -113,7 +126,10 @@ def list_enriched_stock_watchlist(
     member = is_member(user)
     items: list[WatchlistStockOut] = []
     for instrument, profile, metric in rows:
-        item = WatchlistStockOut(**_out(instrument, profile, metric).model_dump())
+        item = WatchlistStockOut(
+            **_out(instrument, profile, metric).model_dump(),
+            group_name=group_by_code.get(instrument.code, "默认"),
+        )
         if member:
             bars = bars_by_code.get(instrument.code, [])
             if len(bars) >= 20:
@@ -199,6 +215,29 @@ def add_stock_watchlist(
     session.add(StockWatchlist(user_id=user.id, code=code))
     session.commit()
     return {"code": code, "saved": True}
+
+
+@router.patch("/{code}/group", summary="修改自选分组")
+def update_stock_group(
+    code: str,
+    body: GroupIn,
+    session: Annotated[Session, Depends(get_session)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> dict:
+    name = body.group_name.strip()
+    if not name or len(name) > 20:
+        raise HTTPException(status_code=400, detail="分组名称需在 1–20 字之间")
+    row = session.scalar(
+        select(StockWatchlist).where(
+            StockWatchlist.user_id == user.id,
+            StockWatchlist.code == code,
+        )
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="stock not in watchlist")
+    row.group_name = name
+    session.commit()
+    return {"code": code, "group_name": name}
 
 
 @router.delete("/{code}", summary="移出个股自选")

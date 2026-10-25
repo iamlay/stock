@@ -328,6 +328,9 @@ class WatchlistItem(Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     code: Mapped[str] = mapped_column(String(16), nullable=False)
+    group_name: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="默认", server_default="默认"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -510,4 +513,10 @@ class StockWatchlist(TimestampMixin, Base):
     )
     code: Mapped[str] = mapped_column(
         String(16), ForeignKey("instruments.code", ondelete="CASCADE"), nullable=False
+    )
+    group_name: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="默认", server_default="默认"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )

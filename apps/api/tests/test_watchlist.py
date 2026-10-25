@@ -55,6 +55,21 @@ def test_watchlist_add_list_remove(session) -> None:
         assert listed.status_code == 200
         assert isinstance(listed.json(), list)
 
+        grouped = client.patch(
+            "/api/v1/watchlist/510300/group",
+            json={"group_name": "红利"},
+            headers=headers,
+        )
+        assert grouped.status_code == 200
+        assert grouped.json()["group_name"] == "红利"
+
+        invalid_group = client.patch(
+            "/api/v1/watchlist/510300/group",
+            json={"group_name": "   "},
+            headers=headers,
+        )
+        assert invalid_group.status_code == 400
+
         removed = client.delete("/api/v1/watchlist/510300", headers=headers)
         assert removed.status_code == 200
         assert removed.json()["removed"] is True

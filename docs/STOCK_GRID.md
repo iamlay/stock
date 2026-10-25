@@ -414,6 +414,52 @@ dedupe = resonance:{year}-W{week}:{code}
 
 不在前 1,000 的自选股不会触发共振提醒。
 
+## 14. CSV 导出与自选分组
+
+自选个股支持导出当前筛选结果：
+
+```text
+导出 CSV
+```
+
+文件名：
+
+```text
+stocklab-watchlist-YYYY-MM-DD.csv
+```
+
+字段：
+
+```text
+分组、代码、名称、行业、现价、涨跌幅
+TTM、RLY、静态、10 年分位
+日/周/月 BOLL、评级
+最新报告、披露日
+网格 5% / 5.5% / 6%
+```
+
+自选分组：
+
+```text
+stock_watchlist.group_name
+watchlist_items.group_name
+```
+
+接口：
+
+```text
+PATCH /api/v1/stock-watchlist/{code}/group
+PATCH /api/v1/watchlist/{code}/group
+```
+
+页面支持：
+
+- 个股/ETF 分组筛选；
+- 单只修改分组；
+- 新建分组；
+- 分组条件随筛选偏好保存。
+
+
 
 
 
