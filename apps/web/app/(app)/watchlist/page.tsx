@@ -23,6 +23,8 @@ const PERIOD_LABELS: Record<string, string> = {
   FY: "年报",
 };
 
+const WATCHLIST_PREFS_KEY = "stocklab.watchlist.prefs";
+
 function pct(value: number | null): string {
   return value == null ? "—" : `${value.toFixed(2)}%`;
 }
@@ -101,6 +103,7 @@ export default function WatchlistPage() {
   const [stockSort, setStockSort] = useState("yield");
   const [onlyResonance, setOnlyResonance] = useState(false);
   const [onlyLowValue, setOnlyLowValue] = useState(false);
+  const [prefsReady, setPrefsReady] = useState(false);
   const [selectedStocks, setSelectedStocks] = useState<Set<string>>(new Set());
   const [batchBusy, setBatchBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -125,6 +128,35 @@ export default function WatchlistPage() {
       .catch(() => router.replace("/login"))
       .finally(() => setLoading(false));
   }, [router]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(WATCHLIST_PREFS_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as {
+          etfSort?: string;
+          stockSort?: string;
+          onlyResonance?: boolean;
+          onlyLowValue?: boolean;
+        };
+        if (saved.etfSort) setEtfSort(saved.etfSort);
+        if (saved.stockSort) setStockSort(saved.stockSort);
+        setOnlyResonance(Boolean(saved.onlyResonance));
+        setOnlyLowValue(Boolean(saved.onlyLowValue));
+      }
+    } catch {
+      // ignore invalid local preferences
+    }
+    setPrefsReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!prefsReady) return;
+    window.localStorage.setItem(
+      WATCHLIST_PREFS_KEY,
+      JSON.stringify({ etfSort, stockSort, onlyResonance, onlyLowValue }),
+    );
+  }, [etfSort, stockSort, onlyResonance, onlyLowValue, prefsReady]);
 
   async function onRemove(code: string) {
     setError(null);
@@ -531,6 +563,27 @@ export default function WatchlistPage() {
                     : "网格 —"}
                 </span>
               </div>
+
+              <div className="mt-2 flex gap-3 text-[11px]">
+                <Link
+                  href={`/stocks/${item.code}?tab=grid`}
+                  className="text-jade-deep hover:underline"
+                >
+                  股息网格
+                </Link>
+                <Link
+                  href={`/stocks/${item.code}?tab=bollinger`}
+                  className="text-jade-deep hover:underline"
+                >
+                  布林详情
+                </Link>
+                <Link
+                  href={`/stocks/${item.code}?tab=financial`}
+                  className="text-jade-deep hover:underline"
+                >
+                  财务
+                </Link>
+              </div>
             </div>
           ))}
         </div>
@@ -638,13 +691,33 @@ export default function WatchlistPage() {
                           .join(" / ")}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => onRemoveStock(item.code)}
-                      className="text-xs text-loss hover:underline"
-                    >
-                      移除
-                    </button>
+                    <div className="flex flex-wrap justify-end gap-2 text-[11px]">
+                      <Link
+                        href={`/stocks/${item.code}?tab=grid`}
+                        className="text-jade-deep hover:underline"
+                      >
+                        网格
+                      </Link>
+                      <Link
+                        href={`/stocks/${item.code}?tab=bollinger`}
+                        className="text-jade-deep hover:underline"
+                      >
+                        布林
+                      </Link>
+                      <Link
+                        href={`/stocks/${item.code}?tab=financial`}
+                        className="text-jade-deep hover:underline"
+                      >
+                        财务
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveStock(item.code)}
+                        className="text-loss hover:underline"
+                      >
+                        移除
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

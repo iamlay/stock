@@ -73,6 +73,7 @@ export default function NotificationsPage() {
         email: settings.email,
         grid: settings.grid,
         grid_yield: settings.grid_yield,
+        resonance: settings.resonance,
       });
       setSettings(updated);
       setMessage("提醒设置已保存");
@@ -162,6 +163,16 @@ export default function NotificationsPage() {
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="flex items-center gap-2 pb-2 text-sm text-ink-soft">
+              <input
+                type="checkbox"
+                checked={settings.resonance}
+                onChange={(event) =>
+                  setSettings({ ...settings, resonance: event.target.checked })
+                }
+              />
+              低估值 + 低位共振
             </label>
             <label className="flex items-center gap-2 pb-2 text-sm text-ink-soft">
               <input

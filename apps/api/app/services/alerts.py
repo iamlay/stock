@@ -16,6 +16,7 @@ from app.db.models import (
     UserNotification,
     WatchlistItem,
 )
+from app.services.bollinger import compute_bollinger
 from app.services.email import EmailNotConfigured, EmailSendError, send_email
 from app.services.membership import is_member
 
@@ -199,6 +200,56 @@ def run_stock_alerts(session: Session, *, as_of: date | None = None) -> dict:
                                 f"当前 TTM 股息率约 {ttm:.2f}%。"
                             ),
                             link=f"/stocks/{code}?tab=grid",
+                            dedupe_key=key,
+                        )
+                    )
+                    existing.add(key)
+                    lines.append(title)
+                    new_count += 1
+
+            if user.alert_resonance and is_member(user):
+                iso = today.isocalendar()
+                week_key = f"{iso.year}-W{iso.week:02d}"
+                for code in stock_codes:
+                    metric = stock_metrics.get(code)
+                    instrument = instruments.get(code)
+                    bars = bars_by_code.get(code, [])
+                    if (
+                        metric is None
+                        or instrument is None
+                        or metric.yield_percentile is None
+                        or float(metric.yield_percentile) < 80
+                        or len(bars) < 20
+                    ):
+                        continue
+                    result = compute_bollinger(bars)
+                    weekly = result["weekly"]
+                    monthly = result["monthly"]
+                    if weekly is None or monthly is None:
+                        continue
+                    low_positions = {"中下", "下轨下方"}
+                    if (
+                        weekly.position not in low_positions
+                        or monthly.position not in low_positions
+                    ):
+                        continue
+                    key = f"resonance:{week_key}:{code}"
+                    if key in existing:
+                        continue
+                    title = f"{instrument.name} 低估值 + 低位共振"
+                    session.add(
+                        UserNotification(
+                            user_id=user.id,
+                            type="resonance",
+                            code=code,
+                            title=title,
+                            body=(
+                                f"{code} {instrument.name} 10 年股息率分位 "
+                                f"{float(metric.yield_percentile):.0f}%，"
+                                f"周线 {weekly.position}、月线 {monthly.position}，"
+                                "处于低估值与低位共振区间。"
+                            ),
+                            link=f"/stocks/{code}?tab=bollinger",
                             dedupe_key=key,
                         )
                     )

@@ -440,6 +440,7 @@ export type AlertSettings = {
   email: boolean;
   grid: boolean;
   grid_yield: number;
+  resonance: boolean;
 };
 
 export async function fetchNotifications(): Promise<NotificationPage> {

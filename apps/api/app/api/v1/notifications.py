@@ -38,6 +38,7 @@ class AlertSettings(BaseModel):
     email: bool
     grid: bool
     grid_yield: float = Field(ge=1, le=20)
+    resonance: bool
 
 
 class AlertSettingsUpdate(BaseModel):
@@ -46,6 +47,7 @@ class AlertSettingsUpdate(BaseModel):
     email: bool | None = None
     grid: bool | None = None
     grid_yield: float | None = Field(default=None, ge=1, le=20)
+    resonance: bool | None = None
 
 
 def _out(item: UserNotification) -> NotificationOut:
@@ -113,6 +115,7 @@ def get_settings(
         email=user.alert_email,
         grid=user.alert_grid and is_member(user),
         grid_yield=float(user.alert_grid_yield),
+        resonance=user.alert_resonance and is_member(user),
     )
 
 
@@ -136,6 +139,10 @@ def update_settings(
         if not is_member(user):
             raise HTTPException(status_code=403, detail="网格目标为会员专享")
         user.alert_grid_yield = body.grid_yield
+    if body.resonance is not None:
+        if body.resonance and not is_member(user):
+            raise HTTPException(status_code=403, detail="低位共振提醒为会员专享")
+        user.alert_resonance = body.resonance
     session.commit()
     session.refresh(user)
     return AlertSettings(
@@ -144,6 +151,7 @@ def update_settings(
         email=user.alert_email,
         grid=user.alert_grid and is_member(user),
         grid_yield=float(user.alert_grid_yield),
+        resonance=user.alert_resonance and is_member(user),
     )
 
 
