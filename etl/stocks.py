@@ -449,7 +449,7 @@ def sync_stock_bars_batch(
     delay: float = 0.2,
 ) -> dict:
     """Backfill K-line bars for the highest-yield stocks."""
-    target_bars = max(250, round(days * 0.7))
+    target_bars = max(420, round(days * 0.66))
     if codes:
         targets = codes
     else:
