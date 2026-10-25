@@ -4,6 +4,7 @@ from app.api.v1 import (
     admin,
     auth,
     backtests,
+    billing,
     data,
     etfs,
     market,
@@ -27,3 +28,4 @@ api_router.include_router(stock_watchlist.router)
 api_router.include_router(notifications.router)
 api_router.include_router(watchlist.router)
 api_router.include_router(plans.router)
+api_router.include_router(billing.router)

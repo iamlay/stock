@@ -28,12 +28,14 @@ def test_market_overview_demo_without_data(session) -> None:
     assert body["turnover_billion"] is None
 
 
-def test_plans_have_no_in_app_checkout() -> None:
+def test_plans_use_ezfpy_checkout() -> None:
     response = client.get("/api/v1/plans")
     assert response.status_code == 200
     plans = response.json()
     assert plans, "plans should not be empty"
-    assert all(plan["purchasable"] is False for plan in plans)
+    standard = next(plan for plan in plans if plan["id"] == "standard-yearly")
+    assert standard["purchasable"] is True
+    assert standard["purchase_channel"] == "ezfpy"
     assert all(plan["purchase_channel"] != "wechat" for plan in plans)
 
 

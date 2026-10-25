@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { CheckoutButtons } from "@/components/checkout-buttons";
 import { SiteFooter, SiteHeader } from "@/components/chrome";
 
-export const metadata: Metadata = { title: "会员与兑换" };
+export const metadata: Metadata = { title: "会员与在线支付" };
 
 type Plan = {
+  id: string;
   name: string;
   price: string;
   original?: string;
@@ -13,30 +15,35 @@ type Plan = {
   features: string[];
   cta: string;
   highlight: boolean;
+  purchasable: boolean;
 };
 
 const plans: Plan[] = [
   {
+    id: "trial",
     name: "7 天试用",
     price: "¥0",
     note: "邀请码开通",
     features: ["今日市场与 ETF 数据", "策略回测 5 次/日", "基础估值与份额数据", "到期自动降级"],
     cta: "使用邀请码",
     highlight: false,
+    purchasable: false,
   },
   {
+    id: "standard-yearly",
     name: "标准年付",
     price: "¥199",
     original: "¥299",
-    note: "早鸟价 · 第三方平台购买",
+    note: "早鸟价 · 支付宝 / 微信",
     features: [
       "股息网格 / 布林 / 财务",
       "自选不限数量",
-      "网格提醒",
+      "网格提醒 / 共振提醒",
       "回测历史与导出",
     ],
-    cta: "获取兑换码",
+    cta: "立即开通",
     highlight: true,
+    purchasable: true,
   },
 ];
 
@@ -48,9 +55,9 @@ export default function PricingPage() {
         <section className="border-b border-line">
           <div className="mx-auto max-w-6xl px-6 py-14">
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-jade">Membership</p>
-            <h1 className="mt-3 font-serif text-4xl text-ink">会员与兑换</h1>
+            <h1 className="mt-3 font-serif text-4xl text-ink">会员与在线支付</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-soft">
-              内测阶段不开放公开注册，站内也不接入在线支付。会员通过第三方平台购买后获得兑换码，在站内兑换开通。
+              支持支付宝 / 微信在线支付，支付成功后会员权益自动到账。也可以继续使用邀请码或兑换码开通。
             </p>
           </div>
         </section>
@@ -87,26 +94,25 @@ export default function PricingPage() {
                     </li>
                   ))}
                 </ul>
-                <button
-                  type="button"
-                  disabled
-                  className={`mt-8 w-full rounded-sm px-4 py-2.5 text-sm font-medium ${
-                    plan.highlight
-                      ? "bg-ink text-paper/70"
-                      : "border border-line bg-surface text-ink/50"
-                  }`}
-                >
-                  {plan.cta}（即将开放）
-                </button>
+                {plan.purchasable ? (
+                  <CheckoutButtons planId={plan.id} />
+                ) : (
+                  <Link
+                    href="/login"
+                    className="mt-8 block w-full rounded-sm border border-line bg-surface px-4 py-2.5 text-center text-sm font-medium text-ink-soft hover:border-ink hover:text-ink"
+                  >
+                    {plan.cta}
+                  </Link>
+                )}
               </div>
             ))}
           </div>
 
           <div className="mt-10 grid gap-6 lg:grid-cols-3">
             {[
-              ["01", "第三方平台购买", "在知识星球 / 小鹅通年费专栏完成支付，平台代收并开具凭证。"],
-              ["02", "获取兑换码", "支付成功后由平台自动发货或人工发放兑换码，一码一用。"],
-              ["03", "站内兑换开通", "登录后输入兑换码，立即开通对应时长；到期前站内信提醒。"],
+              ["01", "扫码或跳转支付", "支持支付宝与微信支付，支付页面由易支付通道承接。"],
+              ["02", "自动开通", "支付成功后异步回调验签，会员权益自动到账。"],
+              ["03", "个人中心确认", "返回个人中心查看会员状态与有效期；未到账可刷新重试。"],
             ].map(([step, title, body]) => (
               <div key={step} className="card p-5">
                 <span className="tnum text-xs text-muted">{step}</span>
@@ -153,7 +159,8 @@ export default function PricingPage() {
           <div className="mt-10 rounded-sm border border-line bg-surface p-5 text-sm leading-6 text-ink-soft">
             <p className="font-medium text-ink">关于支付与登录</p>
             <p className="mt-2 text-xs leading-6 text-muted">
-              本项目不提供微信登录、微信支付或支付宝直连。所有交易由第三方知识付费平台承接，站内仅负责兑换与权益发放。这样可以在没有经营主体的阶段，仍然合规地验证付费意愿。
+              支付通道为易支付，支持支付宝和微信。站内不保存银行卡信息，也不接入微信登录。
+              支付结果以异步回调验签为准；兑换码通道继续保留。
             </p>
           </div>
 

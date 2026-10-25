@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
     guest_daily_limit: int = 20
     free_daily_limit: int = 50
+    ezfpy_base_url: str = "https://www.ezfpy.cn"
+    ezfpy_pid: str = ""
+    ezfpy_key: str = ""
+    ezfpy_notify_url: str = ""
+    ezfpy_return_url: str = ""
 
     @property
     def from_address(self) -> str:

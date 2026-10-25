@@ -421,6 +421,24 @@ export async function updateEtfWatchlistGroup(
   });
 }
 
+export type CheckoutResponse = {
+  order_no: string;
+  amount: number;
+  pay_url: string;
+  method: string;
+  fields: Record<string, string>;
+};
+
+export async function createCheckout(
+  planId: string,
+  paymentType: "alipay" | "wxpay",
+): Promise<CheckoutResponse> {
+  return request<CheckoutResponse>("/api/v1/billing/checkout", {
+    method: "POST",
+    body: JSON.stringify({ plan_id: planId, payment_type: paymentType }),
+  });
+}
+
 export async function addStockWatchlist(
   code: string,
 ): Promise<{ code: string; saved: boolean }> {

@@ -35,14 +35,14 @@ PLANS: list[Plan] = [
             "网格提醒",
             "回测历史与导出",
         ],
-        purchasable=False,
-        purchase_channel="third_party_redeem_code",
+        purchasable=True,
+        purchase_channel="ezfpy",
     ),
 ]
 
 NOTICE = (
-    "站内不提供在线支付，也不接入微信登录或微信支付。"
-    "会员通过第三方知识付费平台购买后获得兑换码，在站内兑换开通。"
+    "会员支持支付宝 / 微信在线支付，由易支付通道收款；"
+    "也可以继续使用兑换码开通。支付成功后会员权益自动到账。"
 )
 
 
