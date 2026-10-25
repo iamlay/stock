@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.v1.plans import PLANS
+from app.api.v1.plans import LEGACY_PLANS, PLANS
 from app.db import get_session
 from app.db.models import PaymentOrder, User
 from app.security import get_current_user
@@ -21,7 +21,7 @@ from app.settings import settings
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
-PLAN_BY_ID = {plan.id: plan for plan in PLANS}
+PLAN_BY_ID = {plan.id: plan for plan in [*PLANS, *LEGACY_PLANS]}
 PAYMENT_TYPES = {"alipay", "wxpay", "qqpay"}
 
 

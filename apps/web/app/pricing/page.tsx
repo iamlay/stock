@@ -30,10 +30,10 @@ const plans: Plan[] = [
     purchasable: false,
   },
   {
-    id: "standard-yearly",
-    name: "标准年付",
+    id: "standard-monthly",
+    name: "标准月付",
     price: "¥9.99",
-    note: "早鸟价 · 支付宝 / 微信",
+    note: "9.99 元/月 · 支付宝 / 微信",
     features: [
       "股息网格 / 布林 / 财务",
       "自选不限数量",

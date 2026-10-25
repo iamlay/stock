@@ -25,14 +25,14 @@ PLANS: list[Plan] = [
         purchase_channel="invite_code",
     ),
     Plan(
-        id="standard-yearly",
-        name="标准年付",
+        id="standard-monthly",
+        name="标准月付",
         price_cny=9.99,
-        duration_days=365,
+        duration_days=30,
         features=[
             "股息网格 / 布林 / 财务",
             "自选不限数量",
-            "网格提醒",
+            "网格提醒 / 共振提醒",
             "回测历史与导出",
         ],
         purchasable=True,
@@ -40,8 +40,22 @@ PLANS: list[Plan] = [
     ),
 ]
 
+# Keep old order products resolvable for already-created orders, but do not
+# expose them in the pricing list.
+LEGACY_PLANS: list[Plan] = [
+    Plan(
+        id="standard-yearly",
+        name="标准年付（历史订单）",
+        price_cny=199,
+        duration_days=365,
+        features=[],
+        purchasable=False,
+        purchase_channel="ezfpy",
+    ),
+]
+
 NOTICE = (
-    "会员支持支付宝 / 微信在线支付，由易支付通道收款；"
+    "会员支持支付宝 / 微信在线支付，9.99 元/月，由易支付通道收款；"
     "也可以继续使用兑换码开通。支付成功后会员权益自动到账。"
 )
 

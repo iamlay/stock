@@ -50,7 +50,7 @@ def test_checkout_and_notify_activate_membership(session, monkeypatch) -> None:
     try:
         checkout = client.post(
             "/api/v1/billing/checkout",
-            json={"plan_id": "standard-yearly", "payment_type": "alipay"},
+            json={"plan_id": "standard-monthly", "payment_type": "alipay"},
             headers=headers,
         )
         assert checkout.status_code == 200

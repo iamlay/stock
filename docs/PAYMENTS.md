@@ -77,7 +77,7 @@ Authorization: Bearer <token>
 Content-Type: application/json
 
 {
-  "plan_id": "standard-yearly",
+  "plan_id": "standard-monthly",
   "payment_type": "alipay"
 }
 ```
@@ -96,9 +96,8 @@ Content-Type: application/json
     "out_trade_no": "SL...",
     "notify_url": "https://.../api/v1/billing/notify",
     "return_url": "https://stock.iamlay.com/account?payment=return",
-    "name": "StockLab 标准年付",
-    "money": "9.99",
-    "sign_type": "MD5",
+    "name": "StockLab 标准月付",
+    "money": "9.99",    "sign_type": "MD5",
     "sign": "..."
   }
 }

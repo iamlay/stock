@@ -33,9 +33,12 @@ def test_plans_use_ezfpy_checkout() -> None:
     assert response.status_code == 200
     plans = response.json()
     assert plans, "plans should not be empty"
-    standard = next(plan for plan in plans if plan["id"] == "standard-yearly")
+    standard = next(plan for plan in plans if plan["id"] == "standard-monthly")
     assert standard["purchasable"] is True
+    assert standard["price_cny"] == 9.99
+    assert standard["duration_days"] == 30
     assert standard["purchase_channel"] == "ezfpy"
+    assert all(plan["id"] != "standard-yearly" for plan in plans)
     assert all(plan["purchase_channel"] != "wechat" for plan in plans)
 
 

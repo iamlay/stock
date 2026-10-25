@@ -40,7 +40,7 @@ export default function AdminOrdersPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [amount, setAmount] = useState(9.99);
-  const [days, setDays] = useState(365);
+  const [days, setDays] = useState(30);
   const [product, setProduct] = useState("member-365");
   const [note, setNote] = useState("");
   const [createdCode, setCreatedCode] = useState<string | null>(null);
