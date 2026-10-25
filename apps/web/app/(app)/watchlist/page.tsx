@@ -55,6 +55,13 @@ function RatingPill({ value }: { value: string | null }) {
   );
 }
 
+function percentileLabel(value: number | null): string | null {
+  if (value == null) return null;
+  if (value >= 80) return "10年高位";
+  if (value <= 20) return "10年低位";
+  return "10年中位";
+}
+
 function getBands(item: StockWatchlistItem) {
   return [
     ["日", item.bollinger_daily],
@@ -399,6 +406,12 @@ export default function WatchlistPage() {
                   <p className="text-[10px] text-muted">
                     静态 {pct(item.dividend_yield_fy)}
                   </p>
+                  {item.yield_percentile != null ? (
+                    <p className="tnum mt-0.5 text-[10px] text-amber">
+                      分位 {item.yield_percentile.toFixed(0)}% ·{" "}
+                      {percentileLabel(item.yield_percentile)}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
@@ -454,6 +467,7 @@ export default function WatchlistPage() {
                 <th className="px-4 py-3 text-right font-medium">日涨跌</th>
                 <th className="px-4 py-3 text-right font-medium">TTM</th>
                 <th className="px-4 py-3 text-right font-medium">静态</th>
+                <th className="px-4 py-3 text-right font-medium">10年分位</th>
                 <th className="px-4 py-3 font-medium">BOLL 日/周/月</th>
                 <th className="px-4 py-3 font-medium">评级</th>
                 <th className="px-4 py-3 text-right font-medium">披露</th>
@@ -499,6 +513,14 @@ export default function WatchlistPage() {
                   </td>
                   <td className="tnum px-4 py-3 text-right text-ink-soft">
                     {pct(item.dividend_yield_fy)}
+                  </td>
+                  <td className="tnum px-4 py-3 text-right text-xs text-amber">
+                    {item.yield_percentile == null
+                      ? "—"
+                      : `${item.yield_percentile.toFixed(0)}%`}
+                    {item.yield_percentile != null
+                      ? ` · ${percentileLabel(item.yield_percentile)}`
+                      : ""}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">

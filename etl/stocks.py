@@ -445,10 +445,11 @@ def sync_stock_bars_batch(
     limit: int = 2000,
     codes: list[str] | None = None,
     force: bool = False,
+    days: int = 600,
     delay: float = 0.2,
 ) -> dict:
     """Backfill K-line bars for the highest-yield stocks."""
-    target_bars = 600
+    target_bars = max(250, round(days * 0.7))
     if codes:
         targets = codes
     else:
@@ -495,7 +496,7 @@ def sync_stock_bars_batch(
             skipped += 1
             continue
         try:
-            sync_stock_bars(session, code, commit=False)
+            sync_stock_bars(session, code, days=days, commit=False)
             updated += 1
         except Exception as exc:  # noqa: BLE001 - continue per stock
             errors.append(f"{code}: {exc}"[:200])
@@ -508,6 +509,110 @@ def sync_stock_bars_batch(
         "updated": updated,
         "skipped": skipped,
         "errors": errors,
+    }
+
+
+def compute_yield_percentile(
+    bars: list[tuple[date, float]],
+    dividends: list[tuple[date, float]],
+    current_yield: float | None,
+) -> float | None:
+    """Percentile of the current weekly TTM yield over available history."""
+    if len(bars) < 52:
+        return None
+    weekly: dict[tuple[int, int], tuple[date, float]] = {}
+    for trade_date, close in bars:
+        iso = trade_date.isocalendar()
+        weekly[(iso.year, iso.week)] = (trade_date, close)
+
+    series: list[float] = []
+    for trade_date, close in sorted(weekly.values()):
+        if close <= 0:
+            continue
+        cutoff = trade_date - timedelta(days=365)
+        cash = sum(
+            value
+            for ex_date, value in dividends
+            if cutoff < ex_date <= trade_date and value > 0
+        )
+        if cash > 0:
+            series.append(cash / close * 100)
+
+    series = series[-520:]
+    if len(series) < 52:
+        return None
+    current = (
+        float(current_yield)
+        if current_yield is not None and current_yield > 0
+        else series[-1]
+    )
+    below = sum(1 for value in series if value <= current)
+    return round(below / len(series) * 100, 2)
+
+
+def refresh_yield_percentiles(
+    session: Session,
+    *,
+    limit: int = 500,
+    days: int = 3650,
+) -> dict:
+    """Compute 10-year weekly TTM yield percentiles for high-yield stocks."""
+    today = date.today()
+    cutoff = today - timedelta(days=days)
+    targets = list(
+        session.scalars(
+            select(StockMetric.code)
+            .join(StockProfile, StockProfile.code == StockMetric.code)
+            .where(
+                StockProfile.status == "active",
+                StockMetric.dividend_yield_ttm.is_not(None),
+                StockMetric.dividend_yield_ttm > 0,
+            )
+            .order_by(StockMetric.dividend_yield_ttm.desc())
+            .limit(limit)
+        ).all()
+    )
+    dividends: dict[str, list[tuple[date, float]]] = {}
+    for row in session.scalars(
+        select(StockDividend).where(StockDividend.code.in_(targets))
+    ).all():
+        dividends.setdefault(row.code, []).append(
+            (row.ex_date, float(row.cash_per_share))
+        )
+
+    updated = 0
+    insufficient = 0
+    for code in targets:
+        metric = session.get(StockMetric, code)
+        if metric is None:
+            continue
+        bars = [
+            (trade_date, float(close))
+            for trade_date, close in session.execute(
+                select(MarketDaily.trade_date, MarketDaily.close)
+                .where(
+                    MarketDaily.code == code,
+                    MarketDaily.trade_date >= cutoff,
+                )
+                .order_by(MarketDaily.trade_date)
+            ).all()
+        ]
+        percentile = compute_yield_percentile(
+            bars,
+            dividends.get(code, []),
+            float(metric.dividend_yield_ttm or 0),
+        )
+        if percentile is None:
+            insufficient += 1
+            continue
+        metric.yield_percentile = percentile
+        updated += 1
+
+    session.commit()
+    return {
+        "selected": len(targets),
+        "updated": updated,
+        "insufficient": insufficient,
     }
 
 

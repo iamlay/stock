@@ -42,6 +42,7 @@ from etl.stocks import (
     enrich_stock_industries,
     enrich_stock_industry_details,
     refresh_stock_metrics,
+    refresh_yield_percentiles,
     sync_stock_bars_batch,
     sync_stock_daily,
     sync_stock_dividends,
@@ -319,6 +320,7 @@ def cmd_stock_bars(args: argparse.Namespace) -> int:
             limit=args.limit,
             codes=codes,
             force=args.force,
+            days=args.days,
             delay=args.delay,
         )
     print(
@@ -327,6 +329,20 @@ def cmd_stock_bars(args: argparse.Namespace) -> int:
     )
     for error in result["errors"][:10]:
         print(f"  ERROR {error}")
+    return 0
+
+
+def cmd_stock_yield_percentile(args: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        result = refresh_yield_percentiles(
+            session,
+            limit=args.limit,
+            days=args.days,
+        )
+    print(
+        f"yield percentile selected={result['selected']} "
+        f"updated={result['updated']} insufficient={result['insufficient']}"
+    )
     return 0
 
 
@@ -503,10 +519,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     stock_bars = sub.add_parser("stock-bars", help="backfill stock K-line bars")
     stock_bars.add_argument("--limit", type=int, default=2000)
+    stock_bars.add_argument("--days", type=int, default=600)
     stock_bars.add_argument("--codes", default="")
     stock_bars.add_argument("--force", action="store_true")
     stock_bars.add_argument("--delay", type=float, default=0.2)
     stock_bars.set_defaults(func=cmd_stock_bars)
+
+    stock_yield_percentile = sub.add_parser(
+        "stock-yield-percentile",
+        help="compute 10-year weekly dividend yield percentile",
+    )
+    stock_yield_percentile.add_argument("--limit", type=int, default=500)
+    stock_yield_percentile.add_argument("--days", type=int, default=3650)
+    stock_yield_percentile.set_defaults(func=cmd_stock_yield_percentile)
 
     stock_dividends = sub.add_parser("stock-dividends", help="sync stock dividends")
     stock_dividends.add_argument("--limit", type=int, default=None)

@@ -6,6 +6,9 @@ on:
       limit:
         description: "Number of high-yield stocks to backfill"
         default: "2000"
+      days:
+        description: "History days (600 for BOLL, 3650 for 10-year percentile)"
+        default: "600"
   schedule:
     # First day of each month, 20:00 Asia/Shanghai
     - cron: "0 12 1 * *"
@@ -39,4 +42,5 @@ jobs:
           STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
         run: |
           LIMIT="${{ inputs.limit }}"
-          python -m etl.cli stock-bars --limit "${LIMIT:-2000}"
+          DAYS="${{ inputs.days }}"
+          python -m etl.cli stock-bars --limit "${LIMIT:-2000}" --days "${DAYS:-600}"

@@ -246,4 +246,45 @@ python -m etl.cli stock-financials --limit 5000 --delay 0.2
 - 毛利率；
 - 净利率。
 
+## 10. 10 年股息率分位
+
+新增字段：
+
+```text
+stock_metrics.yield_percentile
+```
+
+计算：
+
+```text
+每周取最后一个交易日
+→ 近 12 个月已除息现金 / 收盘价
+→ 得到 10 年周频股息率序列
+→ 当前 TTM 股息率在序列中的百分位
+```
+
+分位标签：
+
+```text
+>= 80%  10年高位
+20-80%  10年中位
+<= 20%  10年低位
+```
+
+执行：
+
+```bash
+# 先补 10 年 K 线（建议先 500 只）
+python -m etl.cli stock-bars --limit 500 --days 3650
+
+# 再算分位
+python -m etl.cli stock-yield-percentile --limit 500 --days 3650
+```
+
+说明：
+
+- 分位只对已补足 10 年 K 线且有分红记录的股票生效；
+- 不足 52 周历史的股票会跳过；
+- 与参考图的 RLY 口径仍有差异：当前使用已除息分红，不是已宣告未除息。
+
 
