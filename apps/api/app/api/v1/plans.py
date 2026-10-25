@@ -7,7 +7,7 @@ router = APIRouter(prefix="/plans", tags=["billing"])
 class Plan(BaseModel):
     id: str
     name: str
-    price_cny: int
+    price_cny: float
     duration_days: int
     features: list[str]
     purchasable: bool
@@ -27,7 +27,7 @@ PLANS: list[Plan] = [
     Plan(
         id="standard-yearly",
         name="标准年付",
-        price_cny=199,
+        price_cny=9.99,
         duration_days=365,
         features=[
             "股息网格 / 布林 / 财务",

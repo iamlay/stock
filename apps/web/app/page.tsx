@@ -316,8 +316,7 @@ export default async function HomePage() {
               <div className="card border-jade/40 bg-jade-soft/50 p-5">
                 <p className="text-sm font-medium text-jade-deep">标准年付</p>
                 <p className="tnum mt-2 text-2xl font-semibold text-ink">
-                  ¥199
-                  <span className="ml-1 text-xs font-normal text-muted line-through">¥299</span>
+                  ¥9.99
                 </p>
                 <p className="mt-3 text-xs leading-5 text-muted">早鸟价 · 行情 + ETF + 20 次/日回测</p>
               </div>

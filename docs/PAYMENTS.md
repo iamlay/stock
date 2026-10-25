@@ -87,7 +87,7 @@ Content-Type: application/json
 ```json
 {
   "order_no": "SL20261025213000ABC123",
-  "amount": 199.0,
+  "amount": 9.99,
   "pay_url": "https://www.ezfpy.cn/submit.php",
   "method": "POST",
   "fields": {
@@ -97,7 +97,7 @@ Content-Type: application/json
     "notify_url": "https://.../api/v1/billing/notify",
     "return_url": "https://stock.iamlay.com/account?payment=return",
     "name": "StockLab 标准年付",
-    "money": "199.00",
+    "money": "9.99",
     "sign_type": "MD5",
     "sign": "..."
   }

@@ -20,11 +20,11 @@ def test_sign_params_is_ascii_sorted_and_skips_sign() -> None:
         "pid": "1000",
         "type": "alipay",
         "out_trade_no": "SL1",
-        "money": "199.00",
+        "money": "9.99",
         "sign": "ignored",
         "sign_type": "MD5",
     }
-    expected_source = "money=199.00&out_trade_no=SL1&pid=1000&type=alipaysecret"
+    expected_source = "money=9.99&out_trade_no=SL1&pid=1000&type=alipaysecret"
     import hashlib
 
     assert sign_params(params, "secret") == hashlib.md5(
@@ -55,7 +55,7 @@ def test_checkout_and_notify_activate_membership(session, monkeypatch) -> None:
         )
         assert checkout.status_code == 200
         body = checkout.json()
-        assert body["amount"] == 199.0
+        assert body["amount"] == 9.99
         assert body["fields"]["sign"] == sign_params(body["fields"], "secret")
 
         notify_params = {
@@ -64,7 +64,7 @@ def test_checkout_and_notify_activate_membership(session, monkeypatch) -> None:
             "out_trade_no": body["order_no"],
             "type": "alipay",
             "name": "StockLab 标准年付",
-            "money": "199.00",
+            "money": "9.99",
             "trade_status": "TRADE_SUCCESS",
             "sign_type": "MD5",
         }

@@ -32,8 +32,7 @@ const plans: Plan[] = [
   {
     id: "standard-yearly",
     name: "标准年付",
-    price: "¥199",
-    original: "¥299",
+    price: "¥9.99",
     note: "早鸟价 · 支付宝 / 微信",
     features: [
       "股息网格 / 布林 / 财务",
