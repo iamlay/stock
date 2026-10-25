@@ -70,12 +70,37 @@ function getBands(item: StockWatchlistItem) {
   ] as const;
 }
 
+function bandRank(position: string | null | undefined): number {
+  if (position === "下轨下方") return 0;
+  if (position === "中下") return 1;
+  if (position === "中上") return 2;
+  if (position === "上轨上方") return 3;
+  return 9;
+}
+
+function lowBand(position: string | null | undefined): boolean {
+  return position === "中下" || position === "下轨下方";
+}
+
+function isResonance(item: StockWatchlistItem): boolean {
+  return (
+    lowBand(item.bollinger_weekly?.position) &&
+    lowBand(item.bollinger_monthly?.position)
+  );
+}
+
+function isLowValue(item: StockWatchlistItem): boolean {
+  return (item.yield_percentile ?? -1) >= 80;
+}
+
 export default function WatchlistPage() {
   const router = useRouter();
   const [items, setItems] = useState<ApiEtf[]>([]);
   const [stocks, setStocks] = useState<StockWatchlistItem[]>([]);
   const [etfSort, setEtfSort] = useState("default");
   const [stockSort, setStockSort] = useState("yield");
+  const [onlyResonance, setOnlyResonance] = useState(false);
+  const [onlyLowValue, setOnlyLowValue] = useState(false);
   const [selectedStocks, setSelectedStocks] = useState<Set<string>>(new Set());
   const [batchBusy, setBatchBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -134,17 +159,46 @@ export default function WatchlistPage() {
     return copy;
   }, [items, etfSort]);
 
+  const visibleStocks = useMemo(
+    () =>
+      stocks.filter(
+        (item) =>
+          (!onlyResonance || isResonance(item)) &&
+          (!onlyLowValue || isLowValue(item)),
+      ),
+    [stocks, onlyResonance, onlyLowValue],
+  );
+
   const sortedStocks = useMemo(() => {
-    const copy = [...stocks];
+    const copy = [...visibleStocks];
     if (stockSort === "yield") {
       copy.sort(
         (a, b) => (b.dividend_yield_ttm ?? -1) - (a.dividend_yield_ttm ?? -1),
       );
     }
+    if (stockSort === "rly") {
+      copy.sort(
+        (a, b) => (b.dividend_yield_ly ?? -1) - (a.dividend_yield_ly ?? -1),
+      );
+    }
+    if (stockSort === "percentile") {
+      copy.sort(
+        (a, b) => (b.yield_percentile ?? -1) - (a.yield_percentile ?? -1),
+      );
+    }
+    if (stockSort === "bollinger") {
+      copy.sort(
+        (a, b) =>
+          bandRank(a.bollinger_weekly?.position) +
+          bandRank(a.bollinger_monthly?.position) -
+          (bandRank(b.bollinger_weekly?.position) +
+            bandRank(b.bollinger_monthly?.position)),
+      );
+    }
     if (stockSort === "cap") copy.sort((a, b) => (b.market_cap ?? 0) - (a.market_cap ?? 0));
     if (stockSort === "name") copy.sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
     return copy;
-  }, [stocks, stockSort]);
+  }, [visibleStocks, stockSort]);
 
   function toggleStock(code: string) {
     setSelectedStocks((current) => {
@@ -330,7 +384,7 @@ export default function WatchlistPage() {
       <section className="card overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
           <h2 className="text-sm font-medium text-ink">自选个股</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {selectedStocks.size > 0 ? (
               <button
                 type="button"
@@ -341,16 +395,37 @@ export default function WatchlistPage() {
                 {batchBusy ? "移除中…" : `移除选中 ${selectedStocks.size} 只`}
               </button>
             ) : null}
+            <label className="flex items-center gap-1 text-xs text-ink-soft">
+              <input
+                type="checkbox"
+                checked={onlyResonance}
+                onChange={(event) => setOnlyResonance(event.target.checked)}
+              />
+              低位共振
+            </label>
+            <label className="flex items-center gap-1 text-xs text-ink-soft">
+              <input
+                type="checkbox"
+                checked={onlyLowValue}
+                onChange={(event) => setOnlyLowValue(event.target.checked)}
+              />
+              低估值
+            </label>
             <select
               value={stockSort}
               onChange={(event) => setStockSort(event.target.value)}
               className="rounded-sm border border-line bg-surface px-2 py-1 text-xs text-ink-soft"
             >
-              <option value="yield">按股息率</option>
+              <option value="yield">按 TTM 股息率</option>
+              <option value="rly">按 RLY</option>
+              <option value="percentile">按 10 年分位</option>
+              <option value="bollinger">按 BOLL 低位</option>
               <option value="cap">按市值</option>
               <option value="name">按名称</option>
             </select>
-            <span className="text-xs text-muted">{stocks.length} 只</span>
+            <span className="text-xs text-muted">
+              {sortedStocks.length}/{stocks.length} 只
+            </span>
           </div>
         </div>
         <div className="divide-y divide-line md:hidden">
@@ -427,6 +502,16 @@ export default function WatchlistPage() {
                   </span>
                 ))}
                 <RatingPill value={item.bollinger_rating} />
+                {isResonance(item) ? (
+                  <span className="rounded-sm bg-jade-soft px-1.5 py-0.5 text-[10px] text-jade-deep">
+                    低位共振
+                  </span>
+                ) : null}
+                {isLowValue(item) ? (
+                  <span className="rounded-sm bg-amber-soft px-1.5 py-0.5 text-[10px] text-amber">
+                    低估值
+                  </span>
+                ) : null}
               </div>
 
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[10px] text-muted">
@@ -566,6 +651,11 @@ export default function WatchlistPage() {
             </tbody>
           </table>
         </div>
+        {stocks.length > 0 && sortedStocks.length === 0 ? (
+          <div className="px-4 py-12 text-center text-sm text-muted">
+            没有符合当前筛选的自选股。取消“低位共振”或“低估值”后再试。
+          </div>
+        ) : null}
         {stocks.length === 0 ? (
           <div className="px-4 py-12 text-center">
             <p className="text-sm text-muted">还没有自选个股。</p>
