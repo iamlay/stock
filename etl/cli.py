@@ -529,7 +529,7 @@ def build_parser() -> argparse.ArgumentParser:
         "stock-yield-percentile",
         help="compute 10-year weekly dividend yield percentile",
     )
-    stock_yield_percentile.add_argument("--limit", type=int, default=500)
+    stock_yield_percentile.add_argument("--limit", type=int, default=1000)
     stock_yield_percentile.add_argument("--days", type=int, default=3650)
     stock_yield_percentile.set_defaults(func=cmd_stock_yield_percentile)
 

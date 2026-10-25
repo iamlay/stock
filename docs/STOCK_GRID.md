@@ -274,11 +274,11 @@ stock_metrics.yield_percentile
 执行：
 
 ```bash
-# 先补 10 年 K 线（建议先 500 只）
-python -m etl.cli stock-bars --limit 500 --days 3650
+# 先补 10 年 K 线（建议先 1,000 只）
+python -m etl.cli stock-bars --limit 1000 --days 3650
 
 # 再算分位
-python -m etl.cli stock-yield-percentile --limit 500 --days 3650
+python -m etl.cli stock-yield-percentile --limit 1000 --days 3650
 ```
 
 说明：
@@ -404,6 +404,15 @@ dedupe = resonance:{year}-W{week}:{code}
 ```
 
 每周最多提醒一次，避免长期低位每天重复。
+
+覆盖范围：
+
+```text
+10 年股息率分位：前 1,000 只
+共振提醒：自选股 + 已计算分位
+```
+
+不在前 1,000 的自选股不会触发共振提醒。
 
 
 

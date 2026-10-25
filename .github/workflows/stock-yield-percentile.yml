@@ -8,7 +8,7 @@ on:
     inputs:
       limit:
         description: "Number of high-yield stocks"
-        default: "500"
+        default: "1000"
       days:
         description: "History days"
         default: "3650"
@@ -42,6 +42,6 @@ jobs:
           STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
         run: |
           python -m etl.cli stock-yield-percentile \
-            --limit "${{ inputs.limit || '500' }}" \
+            --limit "${{ inputs.limit || '1000' }}" \
             --days "${{ inputs.days || '3650' }}"
           python -m etl.cli stock-status
