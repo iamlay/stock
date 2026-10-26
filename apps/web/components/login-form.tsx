@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { emailLogin, login, registerEmail, sendSms } from "@/lib/auth";
+import { safeReturnPath, withReturnPath } from "@/lib/return-path";
 
 type Mode = "email" | "phone";
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string }) {
   const router = useRouter();
+  const returnTo = safeReturnPath(next);
   const [mode, setMode] = useState<Mode>("email");
   const [registering, setRegistering] = useState(false);
   const [email, setEmail] = useState("");
@@ -61,18 +63,24 @@ export function LoginForm() {
             password,
             inviteCode || undefined,
             registerPhone || undefined,
+            returnTo,
           );
           if (result.devVerificationToken) {
             router.push(
-              `/verify-email?token=${encodeURIComponent(result.devVerificationToken)}`,
+              withReturnPath(
+                `/verify-email?token=${encodeURIComponent(result.devVerificationToken)}`,
+                returnTo,
+              ),
             );
           } else {
-            router.push(`/verify-email/sent?email=${encodeURIComponent(email)}`);
+            router.push(
+              withReturnPath(`/verify-email/sent?email=${encodeURIComponent(email)}`, returnTo),
+            );
           }
           router.refresh();
         } else {
           await emailLogin(email, password);
-          router.push("/account");
+          router.push(returnTo);
           router.refresh();
         }
       } catch (err) {
@@ -86,7 +94,7 @@ export function LoginForm() {
     setSubmitting(true);
     try {
       await login(phone, code);
-      router.push("/account");
+      router.push(returnTo);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "登录失败");

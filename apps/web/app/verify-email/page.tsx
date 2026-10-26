@@ -8,14 +8,14 @@ export const metadata: Metadata = { title: "验证邮箱" };
 export default async function VerifyEmailPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string; next?: string | string[] }>;
 }) {
   const params = await searchParams;
   return (
     <div className="min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-6xl px-6 py-14">
-        <VerifyEmailPanel token={params.token ?? ""} />
+        <VerifyEmailPanel token={params.token ?? ""} next={params.next} />
       </main>
       <SiteFooter />
     </div>

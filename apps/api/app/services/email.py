@@ -119,8 +119,11 @@ def send_email(to: str, subject: str, body: str) -> None:
         raise EmailNotConfigured(f"unknown email provider: {provider}")
 
 
-def send_verification_email(to: str, token: str) -> None:
+def send_verification_email(to: str, token: str, next_path: str | None = None) -> None:
     link = f"{settings.frontend_url.rstrip('/')}/verify-email?token={quote(token)}"
+    if next_path:
+        # The verification page validates this before it can become a redirect.
+        link += f"&next={quote(next_path, safe='')}"
     send_email(
         to,
         "验证你的 StockLab 邮箱",

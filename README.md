@@ -14,7 +14,7 @@
 >
 > ### **[docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md)**
 >
-> **v1.2 · 2026-10-19 · 目标上线 2027-01-22**
+> **v2.1 · 2026-10-26 · 新增会员转化专项与验收计划（第 19 节）**
 >
 > 14 周、4 个阶段、10 个 Epic：产品范围、技术架构、数据体系、模块设计、排期、测试、合规、运维与风险。
 > 本文件是项目唯一事实来源（SSOT），每次迭代评审后更新。
@@ -398,7 +398,8 @@ stock/
 |---|---|
 | [开发计划](docs/DEVELOPMENT_PLAN.md) | 总纲：范围、架构、数据、模块、排期、风险 |
 | [ETF 覆盖清单](docs/etf-universe.md) | 首批 20 只标的与字段 |
-| [商业化方案](docs/DEVELOPMENT_PLAN.md#17-无主体无站内支付的商业化方案) | 无主体、无站内支付如何变现 |
+| [商业化方案](docs/DEVELOPMENT_PLAN.md#17-商业化渠道与权益交付2026-10-26-更新) | 当前支付渠道、权益交付与运营依赖 |
+| [会员转化计划](docs/DEVELOPMENT_PLAN.md#19-会员转化与持续使用专项2026-10-26) | 试用、购买闭环、价值体验、漏斗与续费验收 |
 | [部署手册](docs/DEPLOYMENT.md) | Vercel + Railway + GitHub Actions |
 | [运维操作手册](docs/OPERATIONS.md) | 部署、迁移、定时任务、备份、故障排查、回滚 |
 | [测试环境方案](docs/STAGING.md) | 独立 Railway staging、隔离数据库、E2E 与验收 |

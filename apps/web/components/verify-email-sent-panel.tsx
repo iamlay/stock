@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { resendVerification } from "@/lib/auth";
+import { safeReturnPath, withReturnPath } from "@/lib/return-path";
 
-export function VerifyEmailSentPanel({ email }: { email: string }) {
+export function VerifyEmailSentPanel({ email, next }: { email: string; next?: string | string[] }) {
+  const returnTo = safeReturnPath(next);
   const [message, setMessage] = useState<string | null>(null);
   const [devToken, setDevToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -20,7 +22,7 @@ export function VerifyEmailSentPanel({ email }: { email: string }) {
     setError(null);
     setMessage(null);
     try {
-      const result = await resendVerification(email);
+      const result = await resendVerification(email, returnTo);
       setMessage("验证邮件已重新发送，请检查收件箱和垃圾箱。");
       setDevToken(result.dev_verification_token);
     } catch (err) {
@@ -45,7 +47,7 @@ export function VerifyEmailSentPanel({ email }: { email: string }) {
       {error ? <p className="mt-3 text-xs text-loss">{error}</p> : null}
       {devToken ? (
         <Link
-          href={`/verify-email?token=${encodeURIComponent(devToken)}`}
+          href={withReturnPath(`/verify-email?token=${encodeURIComponent(devToken)}`, returnTo)}
           className="mt-3 block text-xs text-jade-deep hover:underline"
         >
           开发模式：打开验证链接
@@ -61,7 +63,7 @@ export function VerifyEmailSentPanel({ email }: { email: string }) {
         >
           {busy ? "发送中…" : "重新发送"}
         </button>
-        <Link href="/login" className="text-sm text-jade-deep hover:underline">
+        <Link href={withReturnPath("/login", returnTo)} className="text-sm text-jade-deep hover:underline">
           返回登录
         </Link>
       </div>

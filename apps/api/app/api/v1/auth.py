@@ -59,6 +59,7 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     invite_code: str | None = Field(default=None, max_length=64)
     phone: str | None = Field(default=None, pattern=r"^1[3-9]\d{9}$")
+    next_path: str | None = Field(default=None, max_length=2048)
 
 
 class BindPhoneRequest(BaseModel):
@@ -96,6 +97,7 @@ class RegisterResponse(BaseModel):
 
 class ResendVerificationRequest(BaseModel):
     email: EmailStr
+    next_path: str | None = Field(default=None, max_length=2048)
 
 
 class VerifyEmailRequest(BaseModel):
@@ -161,12 +163,12 @@ def _token_response(user: User, response: Response | None = None) -> TokenRespon
     return TokenResponse(access_token=token, user=_user_out(user))
 
 
-def _send_verification(user: User) -> tuple[bool, str | None]:
+def _send_verification(user: User, next_path: str | None = None) -> tuple[bool, str | None]:
     if not user.email:
         return False, None
     token = create_action_token(user, "verify_email", 60 * 24)
     try:
-        send_verification_email(user.email, token)
+        send_verification_email(user.email, token, next_path)
     except EmailNotConfigured:
         logger.warning(
             "SMTP not configured; set STOCKLAB_SMTP_HOST and STOCKLAB_SMTP_FROM"
@@ -308,7 +310,7 @@ def register(
         raise HTTPException(status_code=409, detail="该邮箱已注册") from exc
     session.refresh(user)
 
-    sent, dev_token = _send_verification(user)
+    sent, dev_token = _send_verification(user, payload.next_path)
     if not sent:
         session.delete(user)
         session.commit()
@@ -438,7 +440,7 @@ def resend_verification(
     user = session.scalar(select(User).where(User.email == email))
     dev_token: str | None = None
     if user is not None and user.email_verified_at is None:
-        _sent, dev_token = _send_verification(user)
+        _sent, dev_token = _send_verification(user, payload.next_path)
     return ResendVerificationResponse(sent=True, dev_verification_token=dev_token)
 
 

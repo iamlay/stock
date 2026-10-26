@@ -287,6 +287,7 @@ export async function registerEmail(
   password: string,
   inviteCode?: string,
   phone?: string,
+  nextPath?: string,
 ): Promise<{
   email: string;
   verificationSent: boolean;
@@ -303,6 +304,7 @@ export async function registerEmail(
       password,
       invite_code: inviteCode || undefined,
       phone: phone || undefined,
+      next_path: nextPath,
     }),
   }).then((result) => ({
     email: result.email,
@@ -325,7 +327,7 @@ export async function verifyEmail(token: string): Promise<{ verified: boolean; e
   });
 }
 
-export async function resendVerification(email: string): Promise<{
+export async function resendVerification(email: string, nextPath?: string): Promise<{
   sent: boolean;
   dev_verification_token: string | null;
 }> {
@@ -333,7 +335,7 @@ export async function resendVerification(email: string): Promise<{
     "/api/v1/auth/resend-verification",
     {
       method: "POST",
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, next_path: nextPath }),
     },
   );
 }

@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { verifyEmail } from "@/lib/auth";
+import { withReturnPath } from "@/lib/return-path";
 
-export function VerifyEmailPanel({ token }: { token: string }) {
+export function VerifyEmailPanel({ token, next }: { token: string; next?: string | string[] }) {
+  const loginHref = withReturnPath("/login", next);
   const [state, setState] = useState<"loading" | "done" | "error">("loading");
   const [email, setEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,7 @@ export function VerifyEmailPanel({ token }: { token: string }) {
             {email} 已完成验证，可以正常使用账号和找回密码。
           </p>
           <Link
-            href="/login"
+            href={loginHref}
             className="mt-6 inline-block rounded-sm bg-ink px-4 py-2 text-sm text-paper hover:bg-jade-deep"
           >
             去登录
@@ -57,7 +59,7 @@ export function VerifyEmailPanel({ token }: { token: string }) {
             链接 24 小时内有效。登录后可以在个人中心重新发送验证邮件。
           </p>
           <Link
-            href="/login"
+            href={loginHref}
             className="mt-6 inline-block text-sm text-jade-deep hover:underline"
           >
             返回登录

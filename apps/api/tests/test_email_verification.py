@@ -1,3 +1,6 @@
+import re
+from urllib.parse import parse_qs, urlsplit
+
 from fastapi.testclient import TestClient
 
 from app.db.session import get_session
@@ -121,5 +124,45 @@ def test_resend_ignores_verified_email(session) -> None:
         assert response.status_code == 200
         assert response.json()["sent"] is True
         assert response.json()["dev_verification_token"] is None
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_purchase_return_path_survives_registration_email_and_resend(session, monkeypatch) -> None:
+    messages = []
+    monkeypatch.setattr("app.services.email.send_email", lambda *args: messages.append(args))
+    client = _client(session)
+    destination = "/pricing?plan=standard-monthly#checkout"
+    try:
+        registered = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "purchase@example.com",
+                "password": "correct-horse-1",
+                "next_path": destination,
+            },
+        )
+        assert registered.status_code == 200
+        resent = client.post(
+            "/api/v1/auth/resend-verification",
+            json={"email": "purchase@example.com", "next_path": destination},
+        )
+        assert resent.status_code == 200
+        assert len(messages) == 2
+        for _, _, body in messages:
+            link = re.search(r"https?://\S+", body).group()
+            url = urlsplit(link)
+            assert url.path == "/verify-email"
+            assert url.fragment == ""
+            query = parse_qs(url.query)
+            assert query["next"] == [destination]
+            verified = client.post("/api/v1/auth/verify-email", json={"token": query["token"][0]})
+            assert verified.status_code == 200
+
+        login = client.post(
+            "/api/v1/auth/login/email",
+            json={"email": "purchase@example.com", "password": "correct-horse-1"},
+        )
+        assert login.status_code == 200
     finally:
         app.dependency_overrides.clear()

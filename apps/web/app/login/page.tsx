@@ -3,10 +3,16 @@ import Link from "next/link";
 
 import { SiteFooter, SiteHeader } from "@/components/chrome";
 import { LoginForm } from "@/components/login-form";
+import { safeReturnPath } from "@/lib/return-path";
 
 export const metadata: Metadata = { title: "登录" };
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string | string[] }>;
+}) {
+  const next = safeReturnPath((await searchParams).next);
   return (
     <div className="min-h-screen">
       <SiteHeader />
@@ -41,7 +47,7 @@ export default function LoginPage() {
           <h2 className="mt-2 font-serif text-3xl text-ink">登录 / 注册</h2>
           <p className="mt-2 text-sm text-muted">使用邮箱和密码，或手机号验证码。</p>
 
-          <LoginForm />
+          <LoginForm next={next} />
 
           <div className="mt-6 rounded-sm border border-line bg-surface p-4 text-xs leading-6 text-muted">
             还没有兑换码？

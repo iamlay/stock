@@ -22,6 +22,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @stocklab/web typecheck
+      - run: pnpm --filter @stocklab/web test:return-path
       - run: pnpm --filter @stocklab/web build
 
   api:
