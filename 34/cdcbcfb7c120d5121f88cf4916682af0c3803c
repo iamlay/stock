@@ -1,0 +1,73 @@
+apps/api/app/api/v1/plans.py
+  s_d90564a5b68cd9::t_6aa9c1bf22e158 2-5,19-25,27-28,32,36-38,40,47,63-79,84-91
+README.md
+  s_d90564a5b68cd9::t_e1d85c05efdbcc 49
+  s_d90564a5b68cd9::t_b1ec1c6f1fbc0b 7,34,38,40,200-208,366,375,401
+apps/web/components/chrome.tsx
+  s_d90564a5b68cd9::t_6aa9c1bf22e158 123
+apps/web/app/(app)/account/page.tsx
+  s_d90564a5b68cd9::t_6aa9c1bf22e158 7,270-277,318
+apps/web/components/membership-plans.tsx
+  s_d90564a5b68cd9::t_6aa9c1bf22e158 1-34
+apps/web/lib/server-plans.ts
+  s_d90564a5b68cd9::t_6aa9c1bf22e158 1-15
+.github/workflows/ci.yml
+  s_d90564a5b68cd9::t_396818436fe9a6 26
+apps/web/package.json
+  s_d90564a5b68cd9::t_396818436fe9a6 10-11
+apps/web/components/membership-summary.tsx
+  s_d90564a5b68cd9::t_6aa9c1bf22e158 1-28
+apps/web/tests/plans.test.ts
+  s_d90564a5b68cd9::t_396818436fe9a6 1-39
+docs/MEMBERSHIP.md
+  s_d90564a5b68cd9::t_e1d85c05efdbcc 96
+  s_d90564a5b68cd9::t_dd374af5a32883 3-4,19,23-24,86,88-94,98
+apps/web/components/checkout-buttons.tsx
+  s_d90564a5b68cd9::t_6aa9c1bf22e158 7,9,22-25,66
+docs/DEVELOPMENT_PLAN.md
+  s_d90564a5b68cd9::t_e1d85c05efdbcc 1144,1150-1151,1190-1198,1201
+apps/web/app/api/plans/route.ts
+  s_d90564a5b68cd9::t_6aa9c1bf22e158 1-9
+apps/web/app/pricing/page.tsx
+  s_d90564a5b68cd9::t_6aa9c1bf22e158 5-6,10-51
+apps/web/lib/plans.ts
+  s_d90564a5b68cd9::t_6aa9c1bf22e158 1-32
+apps/web/app/page.tsx
+  s_d90564a5b68cd9::t_6aa9c1bf22e158 6-7,36,40,305,307,310,313
+apps/api/tests/test_plans.py
+  s_d90564a5b68cd9::t_b1c55813bfc0bc 11
+  s_d90564a5b68cd9::t_396818436fe9a6 2-10,12-47,50-92,95-110
+  s_d90564a5b68cd9::t_3f11dc38268b4a 1,48-49,93-94
+apps/web/app/login/page.tsx
+  s_d90564a5b68cd9::t_6aa9c1bf22e158 5,26,32,54,56,58
+apps/web/components/member-gate.tsx
+  s_d90564a5b68cd9::t_6aa9c1bf22e158 6,53,55
+apps/web/components/login-form.tsx
+  s_d90564a5b68cd9::t_6aa9c1bf22e158 226
+apps/web/app/(app)/admin/orders/page.tsx
+  s_d90564a5b68cd9::t_80953d30d90d63 42-44,93-96,190,238,240,250,252,259
+apps/web/app/legal/disclaimer/page.tsx
+  s_d90564a5b68cd9::t_a7ece11b93827f 11,65-66
+apps/web/app/legal/privacy/page.tsx
+  s_d90564a5b68cd9::t_55326954e09593 11,32,35,51,61-62,77
+apps/web/app/legal/terms/page.tsx
+  s_d90564a5b68cd9::t_e2ffbcc7fae54a 3-4,13,24,59-65,68-69
+docs/PAYMENTS.md
+  s_d90564a5b68cd9::t_5f5a4307598d5a 3-4,101-103,172-174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "34cdcbcfb7c120d5121f88cf4916682af0c3803c",
+  "prompts": {},
+  "sessions": {
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
