@@ -1,0 +1,79 @@
+apps/api/app/services/entitlements.py
+  s_d90564a5b68cd9::t_55eff32e685788 8,28,41
+apps/api/app/api/v1/stocks.py
+  s_d90564a5b68cd9::t_55eff32e685788 26,674
+apps/api/app/api/v1/notifications.py
+  s_d90564a5b68cd9::t_55eff32e685788 14,116,118,135,139,143,152,154
+apps/web/components/member-gate.tsx
+  s_d90564a5b68cd9::t_51421efa26d730 29
+apps/api/app/services/alerts.py
+  s_d90564a5b68cd9::t_55eff32e685788 21,163,210
+apps/api/tests/test_alerts.py
+  s_d90564a5b68cd9::t_5d812655c32023 3,68-69,71-72,74,96-99
+apps/api/app/services/membership.py
+  s_21701fd56cd8c0::t_4c58e002646975 82-85,89,91,95,97
+  s_d90564a5b68cd9::t_55eff32e685788 15-16,38-81,86-88,90,92-94,96,98-103,132,152-159,163-164,167,195-197,208-209,242
+  s_d90564a5b68cd9::t_e99b425b71e89d 177
+apps/api/alembic/versions/e6a2c9f08314_membership_entitlements.py
+  s_d90564a5b68cd9::t_51421efa26d730 1-39
+apps/api/app/api/v1/auth.py
+  s_d90564a5b68cd9::t_55eff32e685788 91,150,164,528,536-543,545-558
+  s_d90564a5b68cd9::t_e99b425b71e89d 162,544
+  s_21701fd56cd8c0::t_4c58e002646975 34-41,517-521,524-526
+  s_21701fd56cd8c0::t_4e274a13ef599d 559
+apps/api/app/api/v1/billing.py
+  s_d90564a5b68cd9::t_55eff32e685788 162,191
+apps/web/lib/auth.ts
+  s_d90564a5b68cd9::t_51421efa26d730 36-50
+  s_21701fd56cd8c0::t_25ade09a6269a6 557-558
+apps/api/app/api/v1/backtests.py
+  s_d90564a5b68cd9::t_55eff32e685788 17,290,317
+apps/api/tests/test_membership_entitlements.py
+  s_21701fd56cd8c0::t_fbd747b2597e69 1-131
+  s_d90564a5b68cd9::t_7835f6857f64fd 132-156
+apps/web/app/(app)/account/page.tsx
+  s_d90564a5b68cd9::t_51421efa26d730 75,93,95,259,265,344,347,354
+apps/api/tests/test_membership_concurrency.py
+  s_d90564a5b68cd9::t_5d812655c32023 151-153
+  s_d90564a5b68cd9::t_aa716a1887892e 130-150,154-164
+  s_d90564a5b68cd9::t_d6cbc382eab0b7 1-67,69-129
+  s_21701fd56cd8c0::t_2aa8e90cc35484 68
+docs/DEVELOPMENT_PLAN.md
+  s_d90564a5b68cd9::t_52cd9762333d79 1206
+  s_21701fd56cd8c0::t_2046720dd409ed 1197-1205,1211
+apps/api/app/api/v1/stock_watchlist.py
+  s_d90564a5b68cd9::t_55eff32e685788 26,126
+apps/api/app/api/v1/admin.py
+  s_d90564a5b68cd9::t_e99b425b71e89d 26,1263
+  s_d90564a5b68cd9::t_51421efa26d730 657-660,669,677-678
+apps/api/app/db/models.py
+  s_d90564a5b68cd9::t_55eff32e685788 201-202
+README.md
+  s_21701fd56cd8c0::t_71b50bb1b41988 206
+docs/DEPLOYMENT.md
+  s_21701fd56cd8c0::t_8225e1cbdd0835 448-466
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3545a57734b7063a065e0f2198640d8edfc24229",
+  "prompts": {},
+  "sessions": {
+    "s_21701fd56cd8c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "unknown"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    },
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
