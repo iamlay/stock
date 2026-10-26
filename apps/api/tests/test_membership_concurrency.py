@@ -55,7 +55,7 @@ def seed(engine):
             RedeemCode(code="SLTRIALB", plan="trial", duration_days=7),
         ])
         for number in ("PAY1", "PAY2"):
-            session.add(PaymentOrder(order_no=number, user_id=user_id,
+            session.add(PaymentOrder(order_no=number, user_id=user_id, platform="ezfpy",
                                      product="standard-monthly", amount=9.99, status="pending"))
         session.commit()
         return user_id
@@ -162,3 +162,40 @@ def test_legacy_trial_migration_preserves_expiry_and_consumption(pg_engine):
             migration.downgrade()
             migration.upgrade()
         assert conn.execute(text("SELECT trial_started_at FROM users")).scalar() is not None
+
+
+def test_failed_delivery_rolls_back_and_retry_delivers_once(pg_engine, monkeypatch):
+    from app.api.v1 import billing
+
+    monkeypatch.setattr(settings, "ezfpy_pid", "test")
+    monkeypatch.setattr(settings, "ezfpy_key", "secret")
+    user_id = seed(pg_engine)
+    params = {"pid": "test", "out_trade_no": "PAY1", "money": "9.99",
+              "trade_status": "TRADE_SUCCESS"}
+    params["sign"] = sign_params(params, "secret")
+    real_activate = billing.activate_membership
+
+    def failed_activate(*args, **kwargs):
+        real_activate(*args, **kwargs)
+        args[0].flush()  # Fail after a real write but before the transaction commits.
+        raise RuntimeError("simulated delivery failure")
+
+    def deliver():
+        request = Request({"type": "http", "method": "GET", "headers": [],
+                           "query_string": urlencode(params).encode()})
+        with Session(pg_engine) as session:
+            return asyncio.run(notify(request, session))
+
+    monkeypatch.setattr(billing, "activate_membership", failed_activate)
+    with pytest.raises(RuntimeError, match="simulated"):
+        deliver()
+    with Session(pg_engine) as session:
+        assert session.get(User, user_id).plan == "free"
+        assert session.query(PaymentOrder).filter_by(order_no="PAY1").one().status == "pending"
+    monkeypatch.setattr(billing, "activate_membership", real_activate)
+    assert deliver().status_code == 200
+    with Session(pg_engine) as session:
+        expiry = session.get(User, user_id).plan_expires_at
+    assert deliver().status_code == 200
+    with Session(pg_engine) as session:
+        assert session.get(User, user_id).plan_expires_at == expiry

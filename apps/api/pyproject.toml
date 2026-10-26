@@ -5,6 +5,7 @@ description = "StockLab API: market data, ETF research and strategy backtests"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.115,<1",
+  "python-multipart>=0.0.32,<1",
   "uvicorn[standard]>=0.30,<1",
   "pydantic-settings>=2.4,<3",
   "sqlalchemy>=2.0,<3",

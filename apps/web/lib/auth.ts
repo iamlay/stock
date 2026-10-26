@@ -1,3 +1,4 @@
+import { parseOrderStatus } from "@/lib/order-status";
 import type { Entitlements } from "@/lib/trial";
 import { trialState } from "@/lib/trial";
 import type { ApiEtf, BacktestResult, Quota } from "@/lib/api";
@@ -848,4 +849,11 @@ export async function startTrial(userId: number): Promise<Me> {
 
 export function fetchBacktestQuota(): Promise<Quota> {
   return request<Quota>("/api/v1/backtests/quota");
+}
+
+export async function fetchPaymentOrder(orderNo: string, signal: AbortSignal) {
+  const value = await request<unknown>(`/api/v1/billing/order/${encodeURIComponent(orderNo)}`, {
+    signal, cache: "no-store",
+  });
+  return parseOrderStatus(value, orderNo);
 }

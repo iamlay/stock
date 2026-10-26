@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Annotated
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -47,6 +47,7 @@ class OrderStatusOut(BaseModel):
     product: str
     amount: float
     paid_at: str | None
+    delivered_at: str | None
     plan_expires_at: str | None
 
 
@@ -169,17 +170,18 @@ async def notify(
     )
     if order is None:
         return PlainTextResponse("fail", status_code=404)
-    if order.status == "delivered":
-        return PlainTextResponse("success")
-    if order.status != "pending":
-        return PlainTextResponse("fail", status_code=409)
-
+    if order.platform != "ezfpy":
+        return PlainTextResponse("fail", status_code=400)
     try:
         paid_amount = Decimal(params.get("money", "0"))
     except Exception:
         return PlainTextResponse("fail", status_code=400)
-    if paid_amount != Decimal(str(order.amount)):
+    if not paid_amount.is_finite() or paid_amount <= 0 or paid_amount != Decimal(str(order.amount)):
         return PlainTextResponse("fail", status_code=400)
+    if order.status == "delivered":
+        return PlainTextResponse("success")
+    if order.status != "pending":
+        return PlainTextResponse("fail", status_code=409)
 
     user = session.get(User, order.user_id) if order.user_id else None
     if user is None and order.buyer_email:
@@ -207,6 +209,7 @@ async def notify(
 @router.get("/order/{order_no}", response_model=OrderStatusOut, summary="查询订单状态")
 def order_status(
     order_no: str,
+    response: Response,
     session: Annotated[Session, Depends(get_session)],
     user: Annotated[User, Depends(get_current_user)],
 ) -> OrderStatusOut:
@@ -214,16 +217,19 @@ def order_status(
         select(PaymentOrder).where(
             PaymentOrder.order_no == order_no,
             PaymentOrder.user_id == user.id,
+            PaymentOrder.platform == "ezfpy",
         )
     )
     if order is None:
         raise HTTPException(status_code=404, detail="order not found")
+    response.headers["Cache-Control"] = "no-store"
     return OrderStatusOut(
         order_no=order.order_no,
         status=order.status,
         product=order.product,
         amount=float(order.amount),
         paid_at=order.paid_at.isoformat() if order.paid_at else None,
+        delivered_at=order.delivered_at.isoformat() if order.delivered_at else None,
         plan_expires_at=(
             user.plan_expires_at.isoformat() if user.plan_expires_at else None
         ),

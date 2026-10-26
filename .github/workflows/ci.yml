@@ -25,11 +25,26 @@ jobs:
       - run: pnpm --filter @stocklab/web test:return-path
       - run: pnpm --filter @stocklab/web test:plans
       - run: pnpm --filter @stocklab/web test:trial
+      - run: pnpm --filter @stocklab/web test:orders
       - run: pnpm --filter @stocklab/web build
 
   api:
     name: API (lint + test)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: stocktest
+          POSTGRES_PASSWORD: stocktest
+          POSTGRES_DB: stocklab_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stocktest -d stocklab_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      STOCKLAB_TEST_POSTGRES_URL: postgresql+psycopg://stocktest:stocktest@127.0.0.1:5432/stocklab_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

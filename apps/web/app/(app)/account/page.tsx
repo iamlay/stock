@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
+import { PaymentConfirmation } from "@/components/payment-confirmation";
 import { ReturnToTask } from "@/components/return-to-task";
 import { TrialPanel } from "@/components/trial-panel";
 import { MembershipSummary } from "@/components/membership-summary";
@@ -45,27 +46,6 @@ export default function AccountPage() {
   const [bindPassword, setBindPassword] = useState("");
   const [binding, setBinding] = useState(false);
   const [bindMessage, setBindMessage] = useState<string | null>(null);
-  const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("payment") !== "return") return;
-    setPaymentNotice("支付已返回，正在确认会员状态…");
-    const timer = window.setTimeout(() => {
-      fetchMe()
-        .then((profile) => {
-          setMe(profile);
-          setPaymentNotice(
-            profile.is_member
-              ? `支付成功，会员有效期至 ${fmtDate(profile.plan_expires_at)}。`
-              : "暂未确认到账；支付回调可能有延迟，请稍后刷新。",
-          );
-        })
-        .catch(() => setPaymentNotice("暂未确认到账，请稍后刷新个人中心。"));
-    }, 1500);
-    return () => window.clearTimeout(timer);
-  }, []);
-
   useEffect(() => {
     if (!getToken()) {
       router.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`);
@@ -218,11 +198,9 @@ export default function AccountPage() {
 
       <ReturnToTask />
 
-      {paymentNotice ? (
-        <div className="rounded-sm border border-jade/40 bg-jade-soft/40 px-4 py-3 text-sm text-jade-deep">
-          {paymentNotice}
-        </div>
-      ) : null}
+      <Suspense fallback={<p className="text-sm text-muted">正在读取支付返回信息…</p>}>
+        <PaymentConfirmation onProfile={setMe} />
+      </Suspense>
 
       <section className="grid gap-4 sm:grid-cols-3">
         <div className="card p-5">
