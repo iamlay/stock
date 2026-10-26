@@ -200,6 +200,8 @@ class User(Base):
     plan_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     trial_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     entitlement_source: Mapped[str | None] = mapped_column(String(32))
+    # Deliberately not a stock FK: deleting a stock must not reset preview consumption.
+    advanced_preview_code: Mapped[str | None] = mapped_column(String(16))
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     alert_price_pct: Mapped[float] = mapped_column(
         Numeric(5, 2), nullable=False, default=5, server_default="5"

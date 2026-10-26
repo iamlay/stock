@@ -199,3 +199,36 @@ def test_failed_delivery_rolls_back_and_retry_delivers_once(pg_engine, monkeypat
     assert deliver().status_code == 200
     with Session(pg_engine) as session:
         assert session.get(User, user_id).plan_expires_at == expiry
+
+
+def test_concurrent_preview_bindings_cannot_unlock_two_stocks(pg_engine, monkeypatch):
+    from fastapi import HTTPException
+
+    from app.api.v1.previews import Selection, select_personal
+    from app.db.models import StockWatchlist
+    from tests.test_stocks_api import _stock
+
+    monkeypatch.setattr(settings, "stock_preview_enabled", True)
+    monkeypatch.setattr(settings, "stock_preview_percent", 100)
+    user_id = seed(pg_engine)
+    with Session(pg_engine) as session:
+        for code in ("601398", "600519"):
+            _stock(session, code, "测试", "测试", 1000, 5)
+            session.add(StockWatchlist(user_id=user_id, code=code))
+        session.commit()
+
+    def bind(code):
+        def action(session, user):
+            try:
+                return select_personal(Selection(code=code), session, user).selected_code
+            except HTTPException as exc:
+                assert exc.status_code == 409
+                raise ValueError("different binding") from exc
+        return action
+
+    results = parallel(pg_engine, user_id, [bind("601398"), bind("600519")])
+    assert results.count("rejected") == 1
+    selected = next(result for result in results if result != "rejected")
+    assert parallel(pg_engine, user_id, [bind(selected)] * 3) == [selected] * 3
+    with Session(pg_engine) as session:
+        assert session.get(User, user_id).advanced_preview_code == selected

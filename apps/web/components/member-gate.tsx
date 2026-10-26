@@ -1,5 +1,6 @@
 "use client";
 
+import { AdvancedPreview, type PreviewFeature } from "@/components/advanced-preview";
 import { ContextLink } from "@/components/context-link";
 
 import Link from "next/link";
@@ -43,12 +44,15 @@ export function MemberGate({
 
   if (state === "member") return <>{children}</>;
 
+  const previewFeature = ({ "股息网格": "grid", "股息布林": "bollinger", "股息财务": "financial" } as Record<string, PreviewFeature>)[feature];
+
   return (
-    <div className="card p-8 text-center">
+    <div className="card p-4 text-center sm:p-8">
+      {previewFeature ? <AdvancedPreview feature={previewFeature} authenticated={state === "free"} /> : null}
       <p className="text-xs font-medium uppercase tracking-[0.18em] text-jade">
-        Members only
+        完整研究工具
       </p>
-      <h2 className="mt-2 font-serif text-2xl text-ink">{feature}为会员专享</h2>
+      <h2 className="mt-2 font-serif text-2xl text-ink">解锁完整{feature}</h2>
       <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-muted">
         {state === "guest"
           ? "登录并开通会员后可查看。免费账号仍可使用 ETF、个股列表、基础详情和价格/除息提醒。"

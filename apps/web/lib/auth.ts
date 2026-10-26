@@ -857,3 +857,39 @@ export async function fetchPaymentOrder(orderNo: string, signal: AbortSignal) {
   });
   return parseOrderStatus(value, orderNo);
 }
+
+export type AdvancedPreviewData = {
+  kind: "sample" | "personal";
+  code: string;
+  name: string;
+  cards: {
+    feature: "grid" | "bollinger" | "financial";
+    title: string;
+    purpose: string;
+    as_of: string | null;
+    metrics: Record<string, string>;
+    scope: string;
+  }[];
+};
+
+export type PersonalPreviewState = {
+  enabled: boolean;
+  selected_code: string | null;
+  choices: { code: string; name: string }[];
+  preview: AdvancedPreviewData | null;
+  message: string | null;
+};
+
+export function fetchAdvancedSample(): Promise<AdvancedPreviewData | null> {
+  return request("/api/v1/previews/samples", { cache: "no-store" });
+}
+
+export function fetchPersonalPreview(): Promise<PersonalPreviewState> {
+  return request("/api/v1/previews/personal", { cache: "no-store" });
+}
+
+export function selectPersonalPreview(code: string): Promise<PersonalPreviewState> {
+  return request("/api/v1/previews/personal", {
+    method: "POST", body: JSON.stringify({ code }), cache: "no-store",
+  });
+}
