@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
 import { PaymentConfirmation } from "@/components/payment-confirmation";
+import { UpgradePrompt } from "@/components/upgrade-prompt";
+import { ContextLink } from "@/components/context-link";
 import { ReturnToTask } from "@/components/return-to-task";
 import { TrialPanel } from "@/components/trial-panel";
 import { MembershipSummary } from "@/components/membership-summary";
@@ -196,7 +198,7 @@ export default function AccountPage() {
         </div>
       </div>
 
-      <ReturnToTask />
+      <Suspense fallback={null}><ReturnToTask /></Suspense>
 
       <Suspense fallback={<p className="text-sm text-muted">正在读取支付返回信息…</p>}>
         <PaymentConfirmation onProfile={setMe} />
@@ -257,12 +259,12 @@ export default function AccountPage() {
 
       <TrialPanel profile={me} onProfile={setMe} />
 
-      <section className="card p-5">
+      <section id="membership" className="card scroll-mt-24 p-5">
         <h2 className="text-base font-medium text-ink">开通与续费</h2>
         <MembershipSummary />
-        <Link href="/pricing" className="mt-3 inline-block text-sm text-jade-deep hover:underline">
-          {me.is_member ? "查看续费套餐 →" : "查看会员套餐 →"}
-        </Link>
+        <ContextLink href="/pricing" returnPath="/account#membership" className="mt-3 inline-block text-sm text-jade-deep hover:underline">
+          {me.is_member || me.plan === "member" ? "查看续费套餐 →" : "查看会员套餐 →"}
+        </ContextLink>
       </section>
 
       {!me.phone && me.email ? (
@@ -326,7 +328,7 @@ export default function AccountPage() {
         {error ? <p className="mt-3 text-xs text-loss">{error}</p> : null}
       </section>
 
-      <section className="card p-5">
+      <section id="history" className="card scroll-mt-24 p-5">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-medium text-ink">回测历史</h2>
@@ -334,13 +336,10 @@ export default function AccountPage() {
               {me.entitlements?.capabilities.history ? "最近 50 次保存的结果" : "开通会员后可查看已保存的回测"}
             </p>
           </div>
-          {!me.entitlements?.capabilities.history ? (
-            <Link href="/pricing" className="text-xs text-jade-deep hover:underline">
-              了解会员 →
-            </Link>
-          ) : null}
+
         </div>
 
+        {!me.entitlements?.capabilities.history ? <UpgradePrompt scene="history" profile={me} returnPath="/account#history" /> : null}
         {me.entitlements?.capabilities.history ? (
           history.length > 0 ? (
             <div className="mt-4 overflow-x-auto">

@@ -1,5 +1,7 @@
 "use client";
 
+import { UpgradePrompt } from "@/components/upgrade-prompt";
+import { alertDraftPath, alertUpdate, readAlertDraft } from "@/lib/task-context";
 import { currentReturnPath, withReturnPath } from "@/lib/return-path";
 
 import Link from "next/link";
@@ -7,6 +9,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import {
+  ApiError,
+  fetchMe,
+  type Me,
   fetchAlertSettings,
   fetchNotifications,
   getToken,
@@ -19,6 +24,10 @@ import {
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const [me, setMe] = useState<Me | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [draft, setDraft] = useState(false);
+  const [advancedDenied, setAdvancedDenied] = useState(false);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unread, setUnread] = useState(0);
   const [settings, setSettings] = useState<AlertSettings | null>(null);
@@ -33,16 +42,43 @@ export default function NotificationsPage() {
       router.replace(withReturnPath("/login", currentReturnPath()));
       return;
     }
-    Promise.all([fetchNotifications(), fetchAlertSettings()])
-      .then(([notifications, alertSettings]) => {
+    let active = true;
+    setLoading(true);
+    setError(null);
+    Promise.all([fetchNotifications(), fetchAlertSettings(), fetchMe()])
+      .then(([notifications, alertSettings, profile]) => {
+        if (!active) return;
+        setMe(profile);
+        const restored = readAlertDraft(new URLSearchParams(window.location.search));
+        setDraft(Object.keys(restored).length > 0);
         setItems(notifications.items);
         setUnread(notifications.unread);
-        setSettings(alertSettings);
-        setThreshold(String(alertSettings.price_pct));
+        setSettings({ ...alertSettings, ...restored });
+        setThreshold(String(restored.price_pct ?? alertSettings.price_pct));
       })
-      .catch(() => router.replace(withReturnPath("/login", currentReturnPath())))
-      .finally(() => setLoading(false));
-  }, [router]);
+      .catch((cause) => {
+        if (!active) return;
+        if (cause instanceof ApiError && cause.status === 401) router.replace(withReturnPath("/login", currentReturnPath()));
+        else setError("提醒暂时无法加载，请重试。");
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [router, attempt]);
+
+  const premium = Boolean(me?.entitlements.capabilities.advanced_alerts) && !advancedDenied;
+
+  useEffect(() => {
+    if (!draft || !settings) return;
+    const value = Number(threshold);
+    if (!Number.isFinite(value) || value < 1 || value > 20) return;
+    window.history.replaceState(null, "", alertDraftPath({ ...settings, price_pct: value }));
+  }, [settings, threshold, draft]);
+
+  function editSettings(next: AlertSettings) {
+    setDraft(true);
+    setSettings(next);
+    setMessage(null);
+  }
 
   async function onRead(id: number) {
     await markNotificationRead(id);
@@ -69,17 +105,25 @@ export default function NotificationsPage() {
     setError(null);
     setMessage(null);
     try {
-      const updated = await updateAlertSettings({
+      const updated = await updateAlertSettings(alertUpdate({
         price_pct: value,
         dividend: settings.dividend,
         email: settings.email,
         grid: settings.grid,
         grid_yield: settings.grid_yield,
         resonance: settings.resonance,
-      });
-      setSettings(updated);
-      setMessage("提醒设置已保存");
+      }, premium));
+      setSettings(premium ? updated : { ...updated, grid: settings.grid, grid_yield: settings.grid_yield, resonance: settings.resonance });
+      if (premium) {
+        setDraft(false);
+        window.history.replaceState(null, "", "/notifications#settings");
+      }
+      setMessage(premium ? "提醒设置已保存" : "普通提醒已保存；高级提醒草稿尚未生效，升级后需再次确认保存。");
     } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        setAdvancedDenied(true);
+        void fetchMe().then(setMe).catch(() => undefined);
+      }
       setError(err instanceof Error ? err.message : "保存失败");
     } finally {
       setSaving(false);
@@ -110,9 +154,12 @@ export default function NotificationsPage() {
         ) : null}
       </div>
 
+      {!settings && error ? <div role="alert" className="text-sm text-loss">{error} <button onClick={() => setAttempt((value) => value + 1)} className="underline">重新加载</button></div> : null}
       {settings ? (
-        <section className="card p-5">
+        <section id="settings" className="card scroll-mt-24 p-5">
           <h2 className="text-base font-medium text-ink">提醒设置</h2>
+          {draft ? <p role="status" className="mt-2 text-xs text-jade-deep">已保留提醒草稿，请确认后点击保存；页面返回不会自动启用提醒。</p> : null}
+          {!premium ? <UpgradePrompt scene="alerts" profile={me} returnPath={alertDraftPath({ ...settings, price_pct: Number(threshold) >= 1 && Number(threshold) <= 20 ? Number(threshold) : settings.price_pct })} /> : null}
           <div className="mt-4 flex flex-wrap items-end gap-5 text-sm">
             <label className="flex flex-col gap-1 text-xs text-muted">
               涨跌阈值
@@ -123,7 +170,7 @@ export default function NotificationsPage() {
                   max="20"
                   step="0.5"
                   value={threshold}
-                  onChange={(event) => setThreshold(event.target.value)}
+                  onChange={(event) => { setDraft(true); setThreshold(event.target.value); setMessage(null); }}
                   className="w-24 rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink"
                 />
                 %
@@ -134,7 +181,7 @@ export default function NotificationsPage() {
                 type="checkbox"
                 checked={settings.dividend}
                 onChange={(event) =>
-                  setSettings({ ...settings, dividend: event.target.checked })
+                  editSettings({ ...settings, dividend: event.target.checked })
                 }
               />
               除息提醒
@@ -144,10 +191,10 @@ export default function NotificationsPage() {
                 type="checkbox"
                 checked={settings.grid}
                 onChange={(event) =>
-                  setSettings({ ...settings, grid: event.target.checked })
+                  editSettings({ ...settings, grid: event.target.checked })
                 }
               />
-              网格提醒
+              网格提醒{!premium ? "（会员，暂存草稿）" : ""}
             </label>
             <label className="flex flex-col gap-1 text-xs text-muted">
               网格目标
@@ -155,7 +202,7 @@ export default function NotificationsPage() {
                 value={settings.grid_yield}
                 disabled={!settings.grid}
                 onChange={(event) =>
-                  setSettings({ ...settings, grid_yield: Number(event.target.value) })
+                  editSettings({ ...settings, grid_yield: Number(event.target.value) })
                 }
                 className="rounded-sm border border-line bg-surface px-2.5 py-2 text-sm text-ink disabled:opacity-50"
               >
@@ -171,17 +218,17 @@ export default function NotificationsPage() {
                 type="checkbox"
                 checked={settings.resonance}
                 onChange={(event) =>
-                  setSettings({ ...settings, resonance: event.target.checked })
+                  editSettings({ ...settings, resonance: event.target.checked })
                 }
               />
-              低估值 + 低位共振
+              低估值 + 低位共振{!premium ? "（会员，暂存草稿）" : ""}
             </label>
             <label className="flex items-center gap-2 pb-2 text-sm text-ink-soft">
               <input
                 type="checkbox"
                 checked={settings.email}
                 onChange={(event) =>
-                  setSettings({ ...settings, email: event.target.checked })
+                  editSettings({ ...settings, email: event.target.checked })
                 }
               />
               邮件提醒
@@ -192,7 +239,7 @@ export default function NotificationsPage() {
               disabled={saving}
               className="rounded-sm bg-ink px-4 py-2 text-sm font-medium text-paper disabled:opacity-50"
             >
-              {saving ? "保存中…" : "保存"}
+              {saving ? "保存中…" : premium ? "保存" : "保存普通提醒"}
             </button>
           </div>
           {message ? <p className="mt-3 text-xs text-jade-deep">{message}</p> : null}

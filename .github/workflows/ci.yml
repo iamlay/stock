@@ -26,6 +26,7 @@ jobs:
       - run: pnpm --filter @stocklab/web test:plans
       - run: pnpm --filter @stocklab/web test:trial
       - run: pnpm --filter @stocklab/web test:orders
+      - run: pnpm --filter @stocklab/web test:task-context
       - run: pnpm --filter @stocklab/web build
 
   api:

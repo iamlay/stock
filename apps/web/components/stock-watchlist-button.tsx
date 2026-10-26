@@ -1,5 +1,7 @@
 "use client";
 
+import { UpgradePrompt } from "@/components/upgrade-prompt";
+import { isWatchlistLimit } from "@/lib/task-context";
 import { ContextLink } from "@/components/context-link";
 
 import { useEffect, useState } from "react";
@@ -16,6 +18,7 @@ export function StockWatchlistButton({ code }: { code: string }) {
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [limitReached, setLimitReached] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -44,6 +47,7 @@ export function StockWatchlistButton({ code }: { code: string }) {
   async function onToggle() {
     setBusy(true);
     setError(null);
+    setLimitReached(false);
     try {
       if (saved) {
         await removeStockWatchlist(code);
@@ -53,6 +57,7 @@ export function StockWatchlistButton({ code }: { code: string }) {
         setSaved(true);
       }
     } catch (err) {
+      setLimitReached(isWatchlistLimit(err));
       setError(err instanceof Error ? err.message : "操作失败");
     } finally {
       setBusy(false);
@@ -73,6 +78,7 @@ export function StockWatchlistButton({ code }: { code: string }) {
       >
         {busy ? "处理中…" : saved ? "已加入自选" : "加入自选"}
       </button>
+      {limitReached ? <UpgradePrompt scene="watchlist" /> : null}
       {error ? <span className="text-[11px] text-loss">{error}</span> : null}
     </div>
   );

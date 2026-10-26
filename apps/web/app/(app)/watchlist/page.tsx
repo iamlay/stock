@@ -1,5 +1,7 @@
 "use client";
 
+import { UpgradePrompt } from "@/components/upgrade-prompt";
+import { readWatchlistFilters, watchlistTaskPath, type WatchlistFilters } from "@/lib/task-context";
 import { currentReturnPath, withReturnPath } from "@/lib/return-path";
 
 import Link from "next/link";
@@ -16,6 +18,7 @@ import {
   updateEtfWatchlistGroup,
   updateStockWatchlistGroup,
   type StockWatchlistItem,
+  type Me,
 } from "@/lib/auth";
 import type { ApiEtf } from "@/lib/api";
 import { fmtNumber, fmtPct, trendClass } from "@/lib/format";
@@ -212,6 +215,7 @@ function exportWatchlistCsv(items: StockWatchlistItem[]): void {
 
 export default function WatchlistPage() {
   const router = useRouter();
+  const [me, setMe] = useState<Me | null>(null);
   const [items, setItems] = useState<ApiEtf[]>([]);
   const [stocks, setStocks] = useState<StockWatchlistItem[]>([]);
   const [etfSort, setEtfSort] = useState("default");
@@ -241,33 +245,26 @@ export default function WatchlistPage() {
       return;
     }
     fetchMe()
-      .then(load)
+      .then((profile) => { setMe(profile); return load(); })
       .catch(() => router.replace(withReturnPath("/login", currentReturnPath())))
       .finally(() => setLoading(false));
   }, [router]);
 
   useEffect(() => {
+    let saved: Partial<WatchlistFilters> = {};
     try {
       const raw = window.localStorage.getItem(WATCHLIST_PREFS_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw) as {
-          etfSort?: string;
-          stockSort?: string;
-          onlyResonance?: boolean;
-          onlyLowValue?: boolean;
-          etfGroup?: string;
-          stockGroup?: string;
-        };
-        if (saved.etfSort) setEtfSort(saved.etfSort);
-        if (saved.stockSort) setStockSort(saved.stockSort);
-        setOnlyResonance(Boolean(saved.onlyResonance));
-        setOnlyLowValue(Boolean(saved.onlyLowValue));
-        if (saved.etfGroup) setEtfGroup(saved.etfGroup);
-        if (saved.stockGroup) setStockGroup(saved.stockGroup);
-      }
+      if (raw) saved = JSON.parse(raw) ?? {};
     } catch {
-      // ignore invalid local preferences
+      // URL context still restores the task when local preferences are unavailable.
     }
+    saved = { ...saved, ...readWatchlistFilters(new URLSearchParams(window.location.search)) };
+    if (saved.etfSort) setEtfSort(saved.etfSort);
+    if (saved.stockSort) setStockSort(saved.stockSort);
+    setOnlyResonance(Boolean(saved.onlyResonance));
+    setOnlyLowValue(Boolean(saved.onlyLowValue));
+    if (saved.etfGroup) setEtfGroup(saved.etfGroup);
+    if (saved.stockGroup) setStockGroup(saved.stockGroup);
     setPrefsReady(true);
   }, []);
 
@@ -457,6 +454,11 @@ export default function WatchlistPage() {
         </div>
       </div>
 
+      <p className="text-sm text-muted">自选合计 {items.length + stocks.length} 个（股票 + ETF）。{me?.entitlements.capabilities.unlimited_watchlist ? "当前权益不限数量。" : "免费账号最多 10 个，到期不删除已有自选。"}</p>
+      {me && !me.entitlements.capabilities.unlimited_watchlist && items.length + stocks.length >= 10 ? <UpgradePrompt
+        scene="watchlist" profile={me}
+        returnPath={watchlistTaskPath({ etfSort, stockSort, etfGroup, stockGroup, onlyResonance, onlyLowValue })}
+      /> : null}
       {error ? <p className="text-xs text-loss">{error}</p> : null}
 
       <section className="card overflow-hidden">

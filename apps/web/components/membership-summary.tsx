@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { parseMembershipPlans, planPrice, type MembershipPlan } from "@/lib/plans";
 
 /** Use the same server catalogue as pricing; never keep a local price/benefit fallback. */
-export function MembershipSummary() {
+export function MembershipSummary({ compact = false }: { compact?: boolean }) {
   const [plans, setPlans] = useState<MembershipPlan[] | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -23,6 +23,6 @@ export function MembershipSummary() {
   return <div className="mt-3 space-y-2 text-sm leading-6 text-ink-soft">
     <p>{member.name} · <span className="tnum font-medium">{planPrice(member)}</span></p>
     <p className="text-xs text-muted">{member.billing_note}；支持支付宝 / 微信，也可使用会员兑换码。</p>
-    <p className="text-xs text-muted">{member.features.join("；")}。</p>
+    {!compact ? <p className="text-xs text-muted">{member.features.join("；")}。</p> : null}
   </div>;
 }

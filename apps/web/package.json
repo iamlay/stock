@@ -10,7 +10,8 @@
     "test:return-path": "tsc lib/return-path.ts tests/return-path.test.ts --outDir .next/return-path-tests --module commonjs --target es2022 --esModuleInterop --skipLibCheck && node --test .next/return-path-tests/tests/return-path.test.js",
     "test:plans": "tsc lib/plans.ts lib/server-plans.ts tests/plans.test.ts --outDir .next/plans-tests --module commonjs --target es2022 --esModuleInterop --skipLibCheck && node --test .next/plans-tests/tests/plans.test.js",
     "test:trial": "tsc lib/trial.ts tests/trial.test.ts --outDir .next/trial-tests --module commonjs --target es2022 --esModuleInterop --skipLibCheck && node --test .next/trial-tests/tests/trial.test.js",
-    "test:orders": "tsc lib/order-status.ts tests/order-status.test.ts --outDir .next/order-tests --module commonjs --target es2022 --esModuleInterop --skipLibCheck && node --test .next/order-tests/tests/order-status.test.js"
+    "test:orders": "tsc lib/order-status.ts tests/order-status.test.ts --outDir .next/order-tests --module commonjs --target es2022 --esModuleInterop --skipLibCheck && node --test .next/order-tests/tests/order-status.test.js",
+    "test:task-context": "tsc lib/task-context.ts tests/task-context.test.ts --outDir .next/task-context-tests --module commonjs --target es2022 --esModuleInterop --skipLibCheck && node --test .next/task-context-tests/tests/task-context.test.js"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

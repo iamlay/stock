@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ReturnToTask } from "@/components/return-to-task";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -75,6 +76,7 @@ export function PaymentConfirmation({ onProfile }: { onProfile: (profile: Me) =>
     {orderNo ? <p className="mt-2 break-all text-xs text-muted">订单号：{orderNo}</p> : null}
     {order ? <p className="mt-2 text-xs text-muted">订单金额：¥{order.amount.toFixed(2)}</p> : null}
     <p role="status" aria-live="polite" className={`mt-3 text-sm ${delivered ? "text-jade-deep" : "text-ink-soft"}`}>{message}</p>
+    {delivered ? <ReturnToTask confirmed /> : null}
     {profileError && viewQuery === query ? <p role="alert" className="mt-2 text-sm text-muted">订单已交付，但会员资料暂未刷新，请重试刷新。</p> : null}
     <div className="mt-3 flex flex-wrap gap-4 text-sm">
       {needsLogin ? <Link href={loginHref} className="text-jade-deep underline">重新登录并查询</Link> : null}
