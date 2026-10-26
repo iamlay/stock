@@ -85,3 +85,43 @@ def test_checkout_and_notify_activate_membership(session, monkeypatch) -> None:
         assert repeat.text == "success"
     finally:
         app.dependency_overrides.clear()
+
+
+def test_checkout_preserves_safe_context_in_signed_return_url(session, monkeypatch) -> None:
+    from urllib.parse import parse_qs, urlsplit
+
+    monkeypatch.setattr(settings, "ezfpy_pid", "1000")
+    monkeypatch.setattr(settings, "ezfpy_key", "secret")
+    monkeypatch.setattr(settings, "frontend_url", "https://stock.example")
+    user = User(email="return@example.com", email_verified_at=datetime.now(UTC))
+    session.add(user)
+    session.commit()
+    headers = {"Authorization": f"Bearer {create_access_token(user)}"}
+    client = _client(session)
+    try:
+        for configured in ["", "https://stock.example/account?campaign=member&order=old#billing"]:
+            monkeypatch.setattr(settings, "ezfpy_return_url", configured)
+            for source, expected in [
+                ("/stocks/600036?tab=grid#yield", "/stocks/600036?tab=grid#yield"),
+                ("//evil.example", "/account"),
+                ("/strategies/dual-ma?code=510300&run=1", "/strategies/dual-ma?code=510300"),
+            ]:
+                response = client.post("/api/v1/billing/checkout", headers=headers, json={
+                    "plan_id": "standard-monthly", "payment_type": "wxpay", "next_path": source,
+                })
+                assert response.status_code == 200
+                body = response.json()
+                url = urlsplit(body["fields"]["return_url"])
+                query = parse_qs(url.query)
+                assert url.netloc == "stock.example"
+                assert query["next"] == [expected]
+                assert query["order"] == [body["order_no"]]
+                assert query["payment"] == ["return"]
+                if configured:
+                    assert query["campaign"] == ["member"] and url.fragment == "billing"
+                assert body["fields"]["sign"] == sign_params(body["fields"], "secret")
+                order = session.query(PaymentOrder).filter_by(order_no=body["order_no"]).one()
+                assert order.status == "pending"
+        assert user.plan == "free"  # Creating an order does not confer any entitlement.
+    finally:
+        app.dependency_overrides.clear()

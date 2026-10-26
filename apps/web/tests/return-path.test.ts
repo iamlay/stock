@@ -44,3 +44,25 @@ test("keeps the destination through registration, verification and login URLs", 
   }
   assert.equal(withReturnPath("/login", "//evil.example"), "/login?next=%2Faccount");
 });
+
+test("purchase selection survives nested verification without requesting payment", async () => {
+  const { checkoutResumePath } = await import("../lib/return-path");
+  const source = "/stocks/600036?tab=grid#yield";
+  const resume = checkoutResumePath("standard-monthly", "wxpay", source);
+  const login = new URL(withReturnPath("/login", resume), "https://stocklab.invalid");
+  const verify = new URL(withReturnPath("/verify-email?token=x", login.searchParams.get("next")), "https://stocklab.invalid");
+  const restored = new URL(safeReturnPath(verify.searchParams.get("next")), "https://stocklab.invalid");
+  assert.equal(restored.pathname, "/pricing");
+  assert.equal(restored.searchParams.get("next"), source);
+  assert.equal(restored.searchParams.get("plan"), "standard-monthly");
+  assert.equal(restored.searchParams.get("payment"), "wxpay");
+  assert.equal(restored.hash, "#checkout");
+  const invalid = new URL(checkoutResumePath("standard-monthly", "alipay", "//evil.example"), "https://stocklab.invalid");
+  assert.equal(invalid.searchParams.get("next"), "/account");
+});
+
+test("strategy returns restore inputs but cannot replay a calculation", () => {
+  assert.equal(safeReturnPath("/strategies/dual-ma?code=510300&run=1&fast=10&run=1#result"),
+    "/strategies/dual-ma?code=510300&fast=10#result");
+  assert.equal(safeReturnPath("/strategies/dual-ma?%72un=1"), "/strategies/dual-ma");
+});

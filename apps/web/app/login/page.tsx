@@ -4,7 +4,7 @@ import Link from "next/link";
 import { SiteFooter, SiteHeader } from "@/components/chrome";
 import { MembershipSummary } from "@/components/membership-summary";
 import { LoginForm } from "@/components/login-form";
-import { safeReturnPath } from "@/lib/return-path";
+import { safeReturnPath, withReturnPath } from "@/lib/return-path";
 
 export const metadata: Metadata = { title: "登录" };
 
@@ -52,7 +52,7 @@ export default async function LoginPage({
 
           <div className="mt-6 rounded-sm border border-line bg-surface p-4 text-xs leading-6 text-muted">
             邀请码仅用于注册准入；会员兑换码用于开通权益。
-            <Link href="/pricing" className="ml-1 text-jade-deep hover:underline">
+            <Link href={withReturnPath("/pricing", next)} className="ml-1 text-jade-deep hover:underline">
               查看会员与支付方式
             </Link>
             <MembershipSummary />

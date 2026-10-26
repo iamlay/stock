@@ -1,5 +1,7 @@
 "use client";
 
+import { ContextLink } from "@/components/context-link";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -22,6 +24,11 @@ export function AppNav() {
     <nav className="flex min-w-0 items-center gap-1 overflow-x-auto">
       {nav.map((item) => {
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        if (item.href === "/pricing") return <ContextLink key={item.href} href="/pricing"
+          className="whitespace-nowrap rounded-sm px-2.5 py-2 text-sm text-ink-soft hover:bg-black/[0.04] hover:text-ink sm:px-3">
+          <span className="sm:hidden">{item.short}</span>
+          <span className="hidden sm:inline">{item.label}</span>
+        </ContextLink>;
         return (
           <Link
             key={item.href}
@@ -75,9 +82,9 @@ export function SiteHeader() {
           <Link href="/strategies" className="hover:text-ink">
             策略实验室
           </Link>
-          <Link href="/pricing" className="hover:text-ink">
+          <ContextLink href="/pricing" className="hover:text-ink">
             会员
-          </Link>
+          </ContextLink>
         </nav>
         <div className="flex items-center gap-3">
           <AuthNavActions variant="site" />
@@ -119,12 +126,12 @@ export function SiteFooter() {
             </div>
             <div className="space-y-2">
               <p className="font-medium text-ink">关于</p>
-              <Link href="/pricing" className="block text-muted hover:text-ink">
+              <ContextLink href="/pricing" className="block text-muted hover:text-ink">
                 会员与支付
-              </Link>
-              <Link href="/login" className="block text-muted hover:text-ink">
+              </ContextLink>
+              <ContextLink href="/login" className="block text-muted hover:text-ink">
                 登录
-              </Link>
+              </ContextLink>
               <a href="mailto:hi@stocklab.dev" className="block text-muted hover:text-ink">
                 联系我们
               </a>

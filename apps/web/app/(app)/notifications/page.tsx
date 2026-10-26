@@ -1,5 +1,7 @@
 "use client";
 
+import { currentReturnPath, withReturnPath } from "@/lib/return-path";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -28,7 +30,7 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     if (!getToken()) {
-      router.replace("/login");
+      router.replace(withReturnPath("/login", currentReturnPath()));
       return;
     }
     Promise.all([fetchNotifications(), fetchAlertSettings()])
@@ -38,7 +40,7 @@ export default function NotificationsPage() {
         setSettings(alertSettings);
         setThreshold(String(alertSettings.price_pct));
       })
-      .catch(() => router.replace("/login"))
+      .catch(() => router.replace(withReturnPath("/login", currentReturnPath())))
       .finally(() => setLoading(false));
   }, [router]);
 

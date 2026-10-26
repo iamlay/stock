@@ -1,5 +1,7 @@
 "use client";
 
+import { ContextLink } from "@/components/context-link";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -83,8 +85,8 @@ export function AuthNavActions({
   }
 
   return (
-    <Link href="/login" className={base}>
+    <ContextLink href="/login" className={base}>
       登录
-    </Link>
+    </ContextLink>
   );
 }

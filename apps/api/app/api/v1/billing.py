@@ -5,6 +5,7 @@ import secrets
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse
@@ -17,6 +18,7 @@ from app.db import get_session
 from app.db.models import PaymentOrder, User
 from app.security import get_current_user
 from app.services.membership import activate_membership
+from app.services.return_paths import safe_return_path
 from app.settings import settings
 
 router = APIRouter(prefix="/billing", tags=["billing"])
@@ -27,6 +29,7 @@ PAYMENT_TYPES = {"alipay", "wxpay", "qqpay"}
 
 class CheckoutIn(BaseModel):
     plan_id: str
+    next_path: str | None = Field(default=None, max_length=2048)
     payment_type: str = Field(default="alipay")
 
 
@@ -69,11 +72,14 @@ def verify_sign(params: dict[str, str], key: str) -> bool:
     return sign_params(params, key) == received
 
 
-def _return_url(order_no: str) -> str:
-    if settings.ezfpy_return_url:
-        return settings.ezfpy_return_url
-    base = settings.frontend_url.rstrip("/")
-    return f"{base}/account?payment=return&order={order_no}"
+def _return_url(order_no: str, next_path: str | None = None) -> str:
+    base = settings.ezfpy_return_url or f"{settings.frontend_url.rstrip('/')}/account"
+    url = urlsplit(base)
+    query = [(key, value) for key, value in parse_qsl(url.query, keep_blank_values=True)
+             if key not in {"payment", "order", "next"}]
+    query.extend([("payment", "return"), ("order", order_no),
+                  ("next", safe_return_path(next_path))])
+    return urlunsplit((url.scheme, url.netloc, url.path, urlencode(query), url.fragment))
 
 
 def _notify_url(request: Request) -> str:
@@ -118,7 +124,7 @@ def checkout(
         "type": body.payment_type,
         "out_trade_no": order.order_no,
         "notify_url": _notify_url(request),
-        "return_url": _return_url(order.order_no),
+        "return_url": _return_url(order.order_no, body.next_path),
         "name": f"StockLab {plan.name}",
         "money": f"{amount:.2f}",
         "sign_type": "MD5",

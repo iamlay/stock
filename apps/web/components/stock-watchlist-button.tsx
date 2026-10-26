@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { ContextLink } from "@/components/context-link";
+
 import { useEffect, useState } from "react";
 
 import {
@@ -31,12 +32,12 @@ export function StockWatchlistButton({ code }: { code: string }) {
 
   if (!loggedIn) {
     return (
-      <Link
+      <ContextLink
         href="/login"
         className="rounded-sm border border-line bg-surface px-3 py-1.5 text-xs text-ink-soft hover:border-ink"
       >
         登录后加自选
-      </Link>
+      </ContextLink>
     );
   }
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { ReturnToTask } from "@/components/return-to-task";
 import { TrialPanel } from "@/components/trial-panel";
 import { MembershipSummary } from "@/components/membership-summary";
 import { EquityCurve } from "@/components/equity-curve";
@@ -214,6 +215,8 @@ export default function AccountPage() {
           </button>
         </div>
       </div>
+
+      <ReturnToTask />
 
       {paymentNotice ? (
         <div className="rounded-sm border border-jade/40 bg-jade-soft/40 px-4 py-3 text-sm text-jade-deep">

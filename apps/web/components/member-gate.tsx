@@ -1,5 +1,7 @@
 "use client";
 
+import { ContextLink } from "@/components/context-link";
+
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -55,12 +57,12 @@ export function MemberGate({
       <MembershipSummary />
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         {state === "guest" ? (
-          <Link
+          <ContextLink
             href="/login"
             className="rounded-sm bg-ink px-4 py-2 text-sm font-medium text-paper"
           >
             登录
-          </Link>
+          </ContextLink>
         ) : (
           <Link
             href="/account"
@@ -73,12 +75,12 @@ export function MemberGate({
           href="/account#trial"
           className="rounded-sm border border-jade px-4 py-2 text-sm text-jade-deep"
         >查看 7 天体验</Link> : null}
-        <Link
+        <ContextLink
           href="/pricing"
           className="rounded-sm bg-ink px-4 py-2 text-sm font-medium text-paper"
         >
           查看会员权益
-        </Link>
+        </ContextLink>
       </div>
       {me?.plan_expires_at ? (
         <p className="mt-4 text-xs text-muted">

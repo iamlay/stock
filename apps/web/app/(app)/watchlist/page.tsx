@@ -1,5 +1,7 @@
 "use client";
 
+import { currentReturnPath, withReturnPath } from "@/lib/return-path";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -235,12 +237,12 @@ export default function WatchlistPage() {
 
   useEffect(() => {
     if (!getToken()) {
-      router.replace("/login");
+      router.replace(withReturnPath("/login", currentReturnPath()));
       return;
     }
     fetchMe()
       .then(load)
-      .catch(() => router.replace("/login"))
+      .catch(() => router.replace(withReturnPath("/login", currentReturnPath())))
       .finally(() => setLoading(false));
   }, [router]);
 

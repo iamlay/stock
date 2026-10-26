@@ -28,6 +28,10 @@ export function safeReturnPath(value: unknown): string {
     ) {
       return "/account";
     }
+    // Restore strategy parameters without replaying a quota-consuming calculation.
+    if (pathname.startsWith("/strategies/") && url.searchParams.has("run")) {
+      url.searchParams.delete("run");
+    }
     return `${url.pathname}${url.search}${url.hash}`;
   } catch {
     return "/account";
@@ -38,4 +42,16 @@ export function withReturnPath(path: string, next: unknown): string {
   const url = new URL(path, RETURN_ORIGIN);
   url.searchParams.set("next", safeReturnPath(next));
   return `${url.pathname}${url.search}${url.hash}`;
+}
+
+export function currentReturnPath(): string {
+  return typeof window === "undefined" ? "/account" : safeReturnPath(
+    window.location.pathname + window.location.search + window.location.hash,
+  );
+}
+
+/** A resumable selection, never an instruction to create an order automatically. */
+export function checkoutResumePath(plan: string, payment: "alipay" | "wxpay", next: unknown): string {
+  const query = new URLSearchParams({ plan, payment, next: safeReturnPath(next) });
+  return safeReturnPath(`/pricing?${query.toString()}#checkout`);
 }

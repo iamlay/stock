@@ -444,10 +444,11 @@ export type CheckoutResponse = {
 export async function createCheckout(
   planId: string,
   paymentType: "alipay" | "wxpay",
+  nextPath?: string,
 ): Promise<CheckoutResponse> {
   return request<CheckoutResponse>("/api/v1/billing/checkout", {
     method: "POST",
-    body: JSON.stringify({ plan_id: planId, payment_type: paymentType }),
+    body: JSON.stringify({ plan_id: planId, payment_type: paymentType, next_path: nextPath }),
   });
 }
 

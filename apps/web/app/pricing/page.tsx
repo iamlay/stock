@@ -3,11 +3,18 @@ import Link from "next/link";
 
 import { SiteFooter, SiteHeader } from "@/components/chrome";
 import { MembershipPlans } from "@/components/membership-plans";
+import { safeReturnPath } from "@/lib/return-path";
 import { loadMembershipPlans } from "@/lib/server-plans";
 
 export const metadata: Metadata = { title: "会员与在线支付" };
 
-export default async function PricingPage() {
+export default async function PricingPage({ searchParams }: {
+  searchParams: Promise<{ next?: string | string[]; plan?: string | string[]; payment?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  const nextPath = safeReturnPath(params.next);
+  const selectedPlan = typeof params.plan === "string" ? params.plan : undefined;
+  const preferredPayment = params.payment === "alipay" || params.payment === "wxpay" ? params.payment : undefined;
   const plans = await loadMembershipPlans();
   return <div className="min-h-screen">
     <SiteHeader />
@@ -22,7 +29,10 @@ export default async function PricingPage() {
         </div>
       </section>
       <section className="mx-auto max-w-6xl px-6 py-12">
-        <MembershipPlans plans={plans} checkout />
+        <div id="checkout" className="scroll-mt-6">
+          <MembershipPlans plans={plans} checkout nextPath={nextPath} selectedPlan={selectedPlan} preferredPayment={preferredPayment} />
+        </div>
+        {nextPath !== "/account" ? <Link href={nextPath} className="mt-4 inline-block text-sm text-jade-deep underline">返回原页面继续研究 →</Link> : null}
         <div className="mt-6 rounded-sm border border-line bg-surface p-5 text-sm leading-6">
           <p className="text-ink-soft">想先了解高级功能？登录后可在个人中心查看体验资格。需验证邮箱，每个账号仅一次，主动领取才开始计时。</p>
           <Link href="/account#trial" className="mt-2 inline-block text-jade-deep underline">查看体验资格 →</Link>

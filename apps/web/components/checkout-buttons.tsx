@@ -1,25 +1,35 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
-import { createCheckout, getToken } from "@/lib/auth";
+import { ApiError, createCheckout, getToken } from "@/lib/auth";
+import { checkoutResumePath, safeReturnPath, withReturnPath } from "@/lib/return-path";
 import type { MembershipPlan } from "@/lib/plans";
 
-export function CheckoutButtons({ plan }: { plan: MembershipPlan }) {
+export function CheckoutButtons({ plan, nextPath, preferredPayment }: {
+  plan: MembershipPlan;
+  nextPath?: string;
+  preferredPayment?: "alipay" | "wxpay";
+}) {
   const router = useRouter();
+  const inFlight = useRef(false);
+  const returnTo = safeReturnPath(nextPath);
   const [busy, setBusy] = useState<"alipay" | "wxpay" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function pay(paymentType: "alipay" | "wxpay") {
+    if (inFlight.current) return;
+    const loginHref = withReturnPath("/login", checkoutResumePath(plan.id, paymentType, returnTo));
     setError(null);
     if (!getToken()) {
-      router.push("/login?next=/pricing");
+      router.push(loginHref);
       return;
     }
+    inFlight.current = true;
     setBusy(paymentType);
     try {
-      const checkout = await createCheckout(plan.id, paymentType);
+      const checkout = await createCheckout(plan.id, paymentType, returnTo);
       if (checkout.amount !== plan.price_cny) {
         throw new Error("套餐价格已更新，请刷新页面确认后再支付。");
       }
@@ -37,6 +47,10 @@ export function CheckoutButtons({ plan }: { plan: MembershipPlan }) {
       document.body.appendChild(form);
       form.submit();
     } catch (err) {
+      inFlight.current = false;
+      if (err instanceof ApiError && err.status === 401) {
+        router.push(loginHref);
+      }
       setError(err instanceof Error ? err.message : "创建支付订单失败");
       setBusy(null);
     }
@@ -44,6 +58,9 @@ export function CheckoutButtons({ plan }: { plan: MembershipPlan }) {
 
   return (
     <div className="mt-8 space-y-2">
+      {preferredPayment ? <p className="text-xs text-jade-deep" role="status">
+        已保留 {plan.name} / {preferredPayment === "alipay" ? "支付宝" : "微信"} 的选择，请确认价格后再次点击支付。
+      </p> : null}
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"

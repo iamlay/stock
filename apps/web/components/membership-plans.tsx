@@ -3,9 +3,12 @@ import Link from "next/link";
 import { CheckoutButtons } from "@/components/checkout-buttons";
 import { planPrice, type MembershipPlan } from "@/lib/plans";
 
-export function MembershipPlans({ plans, checkout = false }: {
+export function MembershipPlans({ plans, checkout = false, nextPath, selectedPlan, preferredPayment }: {
   plans: MembershipPlan[] | null;
   checkout?: boolean;
+  nextPath?: string;
+  selectedPlan?: string;
+  preferredPayment?: "alipay" | "wxpay";
 }) {
   if (!plans) {
     return <div className="card p-6 text-sm text-muted" role="status">
@@ -25,7 +28,8 @@ export function MembershipPlans({ plans, checkout = false }: {
           <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-jade" />{feature}
         </li>)}
       </ul>
-      {plan.purchasable && checkout ? <CheckoutButtons plan={plan} /> : <Link
+      {plan.purchasable && checkout ? <CheckoutButtons plan={plan} nextPath={nextPath}
+        preferredPayment={selectedPlan === plan.id ? preferredPayment : undefined} /> : <Link
         href={plan.purchasable ? "/pricing" : "/login"}
         className="mt-6 block rounded-sm border border-line bg-surface px-4 py-2.5 text-center text-sm text-ink hover:border-ink"
       >{plan.purchasable ? "查看开通方式" : "注册 / 登录免费账号"}</Link>}

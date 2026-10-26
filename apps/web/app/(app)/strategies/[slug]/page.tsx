@@ -1,3 +1,4 @@
+import { ContextLink } from "@/components/context-link";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
@@ -111,7 +112,7 @@ export default async function StrategyDetailPage({ params, searchParams }: PageP
 
   const headerBag = await headers();
   const forwardedFor = headerBag.get("x-forwarded-for") ?? "";
-  const outcome = ENGINE_SLUGS.has(slug)
+  const outcome = ENGINE_SLUGS.has(slug) && query.run === "1"
     ? await runBacktest(
         {
           code,
@@ -199,6 +200,7 @@ export default async function StrategyDetailPage({ params, searchParams }: PageP
           className="card flex flex-wrap items-end gap-3 p-4 text-sm"
           action={`/strategies/${slug}`}
         >
+          <input type="hidden" name="run" value="1" />
           <label className="flex flex-col gap-1">
             <span className="text-xs text-muted">标的</span>
             <select
@@ -251,7 +253,7 @@ export default async function StrategyDetailPage({ params, searchParams }: PageP
                 : `今日剩余 ${quota.remaining}/${quota.limit} 次`
               : live
                 ? `数据 ${live.start} → ${live.end}`
-                : "API 不可用时回退示例"}
+                : "点击运行才计算并使用额度；当前展示示例"}
           </span>
         </form>
       ) : null}
@@ -259,9 +261,9 @@ export default async function StrategyDetailPage({ params, searchParams }: PageP
       {backtestError ? (
         <div className="rounded-sm border border-amber/30 bg-amber-soft/60 p-4 text-sm leading-6 text-amber">
           {backtestError}
-          <Link href="/pricing" className="ml-2 underline">
+          <ContextLink href="/pricing" className="ml-2 underline">
             了解会员
-          </Link>
+          </ContextLink>
         </div>
       ) : null}
 
