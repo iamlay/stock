@@ -1,0 +1,56 @@
+README.md
+  s_d90564a5b68cd9::t_96249bbc2e7cee 208
+.github/workflows/ci.yml
+  s_d90564a5b68cd9::t_62abeb90ac74ff 28,34-47
+apps/web/lib/auth.ts
+  s_d90564a5b68cd9::t_46778f979c747e 1,853-858
+  s_21701fd56cd8c0::t_9be29a1b101f32 859
+apps/api/tests/test_order_confirmation.py
+  s_d90564a5b68cd9::t_62abeb90ac74ff 1-100
+apps/web/lib/order-status.ts
+  s_d90564a5b68cd9::t_46778f979c747e 1-78
+docs/DEPLOYMENT.md
+  s_d90564a5b68cd9::t_96249bbc2e7cee 482,485-493
+apps/api/app/api/v1/billing.py
+  s_d90564a5b68cd9::t_46778f979c747e 10,50,173-174,179,181-184,212,220,225,232
+apps/api/tests/test_membership_concurrency.py
+  s_d90564a5b68cd9::t_46778f979c747e 58
+  s_d90564a5b68cd9::t_62abeb90ac74ff 165-201
+docs/DEVELOPMENT_PLAN.md
+  s_d90564a5b68cd9::t_96249bbc2e7cee 1064,1228-1237,1244
+apps/api/pyproject.toml
+  s_d90564a5b68cd9::t_96249bbc2e7cee 8
+apps/web/components/payment-confirmation.tsx
+  s_21701fd56cd8c0::t_396c3b48536b01 16-78
+  s_d90564a5b68cd9::t_ead13c5d75fe52 1-15,79-88
+apps/web/app/(app)/account/page.tsx
+  s_d90564a5b68cd9::t_b6b7b93a875e73 5,7,201-203
+apps/web/package.json
+  s_21701fd56cd8c0::t_a2cb5352878e84 12-13
+apps/web/tests/order-status.test.ts
+  s_21701fd56cd8c0::t_8ddd85cbd16f72 1-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b9506062e2bee27f0f3f7cdea01a586b2f9c61dd",
+  "prompts": {},
+  "sessions": {
+    "s_21701fd56cd8c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "unknown"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    },
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
