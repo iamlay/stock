@@ -1,0 +1,58 @@
+apps/web/tests/trial.test.ts
+  s_d90564a5b68cd9::t_eb2b97450f68eb 1-40
+README.md
+  s_d90564a5b68cd9::t_0d2cb9c8f7947b 206
+apps/web/app/legal/terms/page.tsx
+  s_d90564a5b68cd9::t_0d2cb9c8f7947b 68-71
+  s_21701fd56cd8c0::t_7c5f70d27afc75 67
+docs/DEVELOPMENT_PLAN.md
+  s_d90564a5b68cd9::t_0d2cb9c8f7947b 1208-1217,1222
+apps/web/components/trial-panel.tsx
+  s_d90564a5b68cd9::t_3421e8e85f8746 1-64,66-166
+  s_d90564a5b68cd9::t_1e92513b77ae05 65
+apps/web/lib/auth.ts
+  s_21701fd56cd8c0::t_379bd4914f4e80 1-3,38,235-241,262,837-850
+.github/workflows/ci.yml
+  s_d90564a5b68cd9::t_eb2b97450f68eb 27
+apps/api/app/api/v1/backtests.py
+  s_21701fd56cd8c0::t_379bd4914f4e80 285-292
+apps/api/tests/test_membership_entitlements.py
+  s_d90564a5b68cd9::t_eb2b97450f68eb 157-191
+apps/web/app/(app)/account/page.tsx
+  s_d90564a5b68cd9::t_0d2cb9c8f7947b 74
+  s_21701fd56cd8c0::t_0b3e27d238059e 7,70,75,79-90,266,272,277-278,353,356,363
+apps/web/package.json
+  s_d90564a5b68cd9::t_eb2b97450f68eb 11-12
+apps/web/lib/trial.ts
+  s_21701fd56cd8c0::t_379bd4914f4e80 1-44
+docs/DEPLOYMENT.md
+  s_d90564a5b68cd9::t_0d2cb9c8f7947b 457,467-475
+apps/web/app/pricing/page.tsx
+  s_21701fd56cd8c0::t_1a783e73fa2cbc 26-29
+apps/web/components/member-gate.tsx
+  s_21701fd56cd8c0::t_6abf313a04af98 29,72-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "20dcb9e0aee1b431d295217ee310f497b47f5265",
+  "prompts": {},
+  "sessions": {
+    "s_21701fd56cd8c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "unknown"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    },
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
