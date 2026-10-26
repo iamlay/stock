@@ -1,0 +1,58 @@
+apps/web/tests/return-path.test.ts
+  s_d90564a5b68cd9::t_5f69be9b84f59c 1-7,9-46
+  s_d90564a5b68cd9::t_f844e9e399c75b 8
+apps/web/app/verify-email/sent/page.tsx
+  s_d90564a5b68cd9::t_9d36fa662fcfe0 11,18
+apps/api/app/api/v1/auth.py
+  s_d90564a5b68cd9::t_9d36fa662fcfe0 62,100,166,171,313,443
+.github/workflows/ci.yml
+  s_d90564a5b68cd9::t_5f69be9b84f59c 25
+apps/api/tests/test_email_verification.py
+  s_d90564a5b68cd9::t_5f69be9b84f59c 1-3,129-166
+  s_d90564a5b68cd9::t_9a9b40c1ed601e 167-168
+README.md
+  s_d90564a5b68cd9::t_11e24e74ba1bbb 17,401-402
+apps/web/app/verify-email/page.tsx
+  s_d90564a5b68cd9::t_9d36fa662fcfe0 11,18
+docs/adr/0008-monetization-without-entity.md
+  s_d90564a5b68cd9::t_11e24e74ba1bbb 3,6-8
+apps/web/lib/auth.ts
+  s_d90564a5b68cd9::t_9d36fa662fcfe0 290,307,330,338
+docs/DEVELOPMENT_PLAN.md
+  s_d90564a5b68cd9::t_11e24e74ba1bbb 11,14,431,616-617,852,1199,1202
+  s_d90564a5b68cd9::t_c64a8b04a7483b 5-6,8,16,39,58,76,80,85-86,89,304,420,422,424-430,432-434,438-443,550-553,568-569,574,579,587-590,603,855,857-862,877,887-889,944,950,958,960,962,964,966-969,971,973,975-979,981,983-986,988,990-992,1064,1081,1102,1133-1136,1138,1140,1142,1144,1146-1185,1188-1198,1200-1201,1203-1244,1260-1262,1445
+  s_d90564a5b68cd9::t_d727dea891b696 1186-1187
+  s_d90564a5b68cd9::t_f7422266fd5071 15
+apps/web/components/verify-email-panel.tsx
+  s_d90564a5b68cd9::t_9d36fa662fcfe0 7,9-10,46,62
+apps/web/package.json
+  s_d90564a5b68cd9::t_5f69be9b84f59c 9-10
+apps/web/components/verify-email-sent-panel.tsx
+  s_d90564a5b68cd9::t_9d36fa662fcfe0 7,9-10,25,50,66
+apps/web/lib/return-path.ts
+  s_d90564a5b68cd9::t_9d36fa662fcfe0 1-2,11-24,29-41
+  s_d90564a5b68cd9::t_f844e9e399c75b 3-10,25-28
+apps/web/components/login-form.tsx
+  s_d90564a5b68cd9::t_9d36fa662fcfe0 8,12,14,66,83,97
+  s_d90564a5b68cd9::t_f844e9e399c75b 70-73,76-78
+apps/api/app/services/email.py
+  s_d90564a5b68cd9::t_9d36fa662fcfe0 122,124-126
+apps/web/app/login/page.tsx
+  s_d90564a5b68cd9::t_9d36fa662fcfe0 6,10-15,50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "09d009ce4e056204f21761a7c2661a84bdd92665",
+  "prompts": {},
+  "sessions": {
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
