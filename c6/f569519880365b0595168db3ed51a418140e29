@@ -1,0 +1,54 @@
+apps/web/components/upgrade-prompt.tsx
+  s_d90564a5b68cd9::t_eb00e0b6645c69 1-35
+apps/web/components/watchlist-button.tsx
+  s_d90564a5b68cd9::t_eb00e0b6645c69 3-4,16,45,55,76
+.github/workflows/ci.yml
+  s_d90564a5b68cd9::t_7bf445b117243b 29
+apps/web/components/stock-watchlist-button.tsx
+  s_d90564a5b68cd9::t_eb00e0b6645c69 3-4,21,50,60,81
+apps/web/components/return-to-task.tsx
+  s_d90564a5b68cd9::t_eb00e0b6645c69 4-5,7-12,14-15
+apps/web/app/(app)/account/page.tsx
+  s_d90564a5b68cd9::t_7bf445b117243b 262,265
+  s_d90564a5b68cd9::t_eb00e0b6645c69 8-9,201,266-267,331,339,342
+apps/web/app/(app)/watchlist/page.tsx
+  s_d90564a5b68cd9::t_1a359811efef6b 3-4,21,218,248,254,257,259,261-267,457-461
+apps/web/app/(app)/notifications/page.tsx
+  s_d90564a5b68cd9::t_1a359811efef6b 3-4,12-14,27-30,45-53,56-62,64-81,108,115-121,123-126,157,159,161-162,173,184,194,197,205,221,224,231,242
+docs/DEPLOYMENT.md
+  s_d90564a5b68cd9::t_65cad0d6cec557 513-526
+apps/web/components/context-link.tsx
+  s_d90564a5b68cd9::t_eb00e0b6645c69 6,9,13,17-18,22-23,26
+apps/web/components/membership-summary.tsx
+  s_d90564a5b68cd9::t_eb00e0b6645c69 7,26
+apps/web/lib/task-context.ts
+  s_d90564a5b68cd9::t_eb00e0b6645c69 1-54
+  s_d90564a5b68cd9::t_7bf445b117243b 72
+  s_d90564a5b68cd9::t_1a359811efef6b 55-71,73-83
+apps/web/components/payment-confirmation.tsx
+  s_d90564a5b68cd9::t_eb00e0b6645c69 4,79
+apps/web/tests/task-context.test.ts
+  s_d90564a5b68cd9::t_7bf445b117243b 1-55
+README.md
+  s_d90564a5b68cd9::t_65cad0d6cec557 210
+docs/DEVELOPMENT_PLAN.md
+  s_d90564a5b68cd9::t_65cad0d6cec557 1247-1256,1265
+apps/web/package.json
+  s_d90564a5b68cd9::t_7bf445b117243b 13-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c6f569519880365b0595168db3ed51a418140e29",
+  "prompts": {},
+  "sessions": {
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
