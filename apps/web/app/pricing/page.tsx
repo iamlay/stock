@@ -23,6 +23,10 @@ export default async function PricingPage() {
       </section>
       <section className="mx-auto max-w-6xl px-6 py-12">
         <MembershipPlans plans={plans} checkout />
+        <div className="mt-6 rounded-sm border border-line bg-surface p-5 text-sm leading-6">
+          <p className="text-ink-soft">想先了解高级功能？登录后可在个人中心查看体验资格。需验证邮箱，每个账号仅一次，主动领取才开始计时。</p>
+          <Link href="/account#trial" className="mt-2 inline-block text-jade-deep underline">查看体验资格 →</Link>
+        </div>
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
           {[
             ["01", "选择支付方式", "登录后选择支付宝或微信，前往易支付收银台完成付款。"],

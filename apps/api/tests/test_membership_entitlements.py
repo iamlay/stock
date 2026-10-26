@@ -154,3 +154,38 @@ def test_trial_history_and_alert_settings_expire_together(session):
             assert user.alert_grid and user.alert_resonance
     finally:
         app.dependency_overrides.clear()
+
+
+def test_quota_endpoint_tracks_same_usage_through_trial_and_paid(session):
+    from app.db.models import BacktestRun
+
+    user = make_user(session)
+    session.add(BacktestRun(user_id=user.id, code="510300", strategy="buy_hold",
+                            initial_cash=10000))
+    session.commit()
+    app.dependency_overrides[get_session] = lambda: session
+    headers = {"Authorization": f"Bearer {create_access_token(user)}"}
+    try:
+        with TestClient(app) as client:
+            path = "/api/v1/backtests/quota"
+            assert client.get(path).status_code == 401
+            free = client.get(path, headers=headers).json()
+            assert free["used"] == 1
+            assert free["limit"] == settings.free_daily_limit
+            assert client.post("/api/v1/membership/trial", headers=headers).status_code == 200
+            trial = client.get(path, headers=headers).json()
+            assert trial["plan"] == "trial"
+            assert trial["used"] == free["used"]
+            assert trial["remaining"] == max(0, settings.free_daily_limit - 1)
+            user.plan_expires_at = datetime.now(UTC) - timedelta(seconds=1)
+            session.commit()
+            assert client.get(path, headers=headers).json()["plan"] == "free"
+            assert client.post("/api/v1/membership/trial", headers=headers).status_code == 403
+            activate_membership(session, user, days=30)
+            session.commit()
+            paid = client.get(path, headers=headers).json()
+            assert paid["plan"] == "member" and paid["used"] == 1
+            assert paid["remaining"] is None and paid["limit"] is None
+            assert client.post("/api/v1/membership/trial", headers=headers).status_code == 403
+    finally:
+        app.dependency_overrides.clear()

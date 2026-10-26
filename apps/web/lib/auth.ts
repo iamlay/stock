@@ -1,4 +1,6 @@
-import type { ApiEtf, BacktestResult } from "@/lib/api";
+import type { Entitlements } from "@/lib/trial";
+import { trialState } from "@/lib/trial";
+import type { ApiEtf, BacktestResult, Quota } from "@/lib/api";
 import type { Stock, StockBand } from "@/lib/stocks";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
@@ -33,21 +35,7 @@ export type Me = {
   plan: string;
   plan_expires_at: string | null;
   is_member: boolean;
-  entitlements: {
-    state: "guest" | "free" | "trial" | "member";
-    source: string;
-    expires_at: string | null;
-    trial_used: boolean;
-    trial_eligible: boolean;
-    capabilities: {
-      advanced_data: boolean;
-      history: boolean;
-      advanced_alerts: boolean;
-      unlimited_backtests: boolean;
-      unlimited_watchlist: boolean;
-    };
-    daily_backtest_limit: number | null;
-  };
+  entitlements: Entitlements;
 };
 
 export type HistoryItem = {
@@ -244,6 +232,13 @@ export function clearToken(): Promise<void> {
     .catch(() => undefined);
 }
 
+export class ApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
   const response = await fetch(`${API_BASE}${path}`, {
@@ -264,7 +259,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       // ignore
     }
     if (response.status === 401) clearToken();
-    throw new Error(message);
+    throw new ApiError(message, response.status);
   }
   return (await response.json()) as T;
 }
@@ -838,4 +833,18 @@ export async function adminExportInvites(filters: {
   });
   if (!response.ok) throw new Error("导出失败");
   return response.blob();
+}
+
+
+export async function startTrial(userId: number): Promise<Me> {
+  const profile = await request<Me>("/api/v1/membership/trial", { method: "POST" });
+  if (!profile || profile.id !== userId || trialState(profile) !== "active" ||
+      !profile.entitlements.capabilities?.advanced_data) {
+    throw new Error("尚未确认体验已开通，请刷新权益状态后重试。");
+  }
+  return profile;
+}
+
+export function fetchBacktestQuota(): Promise<Quota> {
+  return request<Quota>("/api/v1/backtests/quota");
 }

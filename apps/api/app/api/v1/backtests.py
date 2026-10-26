@@ -282,6 +282,14 @@ def run(
     )
 
 
+@router.get("/quota", response_model=QuotaOut, summary="当前账号的回测配额")
+def current_quota(
+    session: Annotated[Session, Depends(get_session)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> QuotaOut:
+    return QuotaOut(**quota_for(session, user, ""))
+
+
 @router.get("/history", response_model=list[HistoryItem], summary="会员回测历史")
 def history(
     session: Annotated[Session, Depends(get_session)],

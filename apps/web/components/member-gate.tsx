@@ -26,7 +26,7 @@ export function MemberGate({
     fetchMe()
       .then((user) => {
         setMe(user);
-        setState(user.entitlements.capabilities.advanced_data ? "member" : "free");
+        setState(user.entitlements?.capabilities.advanced_data ? "member" : "free");
       })
       .catch(() => setState("guest"));
   }, []);
@@ -69,6 +69,10 @@ export function MemberGate({
             我的账号
           </Link>
         )}
+        {me?.entitlements?.trial_eligible ? <Link
+          href="/account#trial"
+          className="rounded-sm border border-jade px-4 py-2 text-sm text-jade-deep"
+        >查看 7 天体验</Link> : null}
         <Link
           href="/pricing"
           className="rounded-sm bg-ink px-4 py-2 text-sm font-medium text-paper"
