@@ -23,7 +23,7 @@ from app.db.models import (
 )
 from app.security import get_current_admin
 from app.services.invites import expire_invites, generate_invites
-from app.services.membership import activate_membership, new_code
+from app.services.membership import TRIAL_DAYS, activate_membership, new_code
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -654,17 +654,19 @@ def update_user(
 ) -> AdminUserOut:
     if payload.status is None and payload.plan is None:
         raise HTTPException(status_code=400, detail="没有需要更新的字段")
-    user = session.get(User, user_id)
+    user = session.scalar(
+        select(User).where(User.id == user_id).with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
     if payload.status == "banned" and user.id == admin.id:
         raise HTTPException(status_code=400, detail="不能封禁自己")
 
-    if payload.status is not None:
-        user.status = payload.status
     if payload.plan == "free":
         user.plan = "free"
         user.plan_expires_at = None
+        user.entitlement_source = "admin"
     elif payload.plan == "member":
         activate_membership(
             session,
@@ -672,6 +674,8 @@ def update_user(
             plan="member",
             days=payload.days or 365,
         )
+    if payload.status is not None:
+        user.status = payload.status
     session.commit()
 
     _audit(
@@ -1256,7 +1260,7 @@ def create_order(
     code = RedeemCode(
         code=new_code(),
         plan=payload.plan,
-        duration_days=payload.days,
+        duration_days=TRIAL_DAYS if payload.plan == "trial" else payload.days,
         batch_id=order.order_no,
         channel=payload.platform,
         max_uses=1,

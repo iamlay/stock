@@ -31,7 +31,14 @@ from app.services.email import (
     send_verification_email,
 )
 from app.services.invites import consume_invite_code
-from app.services.membership import is_member, redeem_code
+from app.services.membership import (
+    TrialUnavailable,
+    entitlements_for,
+    is_member,
+    lock_user,
+    redeem_code,
+    start_trial,
+)
 from app.services.rate_limit import check_rate_limit, client_ip, rate_limit_key
 from app.settings import settings
 
@@ -81,6 +88,7 @@ class UserOut(BaseModel):
     plan: str
     plan_expires_at: str | None
     is_member: bool
+    entitlements: dict
 
 
 class TokenResponse(BaseModel):
@@ -139,7 +147,7 @@ class RedeemRequest(BaseModel):
 class RedeemResponse(BaseModel):
     code: str
     plan: str
-    plan_expires_at: str
+    plan_expires_at: str | None
     duration_days: int
 
 
@@ -151,8 +159,9 @@ def _user_out(user: User) -> UserOut:
         email_verified=user.email_verified_at is not None,
         role=user.role,
         plan=user.plan,
-        plan_expires_at=user.plan_expires_at.isoformat() if user.plan_expires_at else None,
+        plan_expires_at=entitlements_for(user)["expires_at"],
         is_member=is_member(user),
+        entitlements=entitlements_for(user),
     )
 
 
@@ -505,13 +514,46 @@ def redeem(
     session: Annotated[Session, Depends(get_session)],
     user: Annotated[User, Depends(get_current_user)],
 ) -> RedeemResponse:
+    lock_user(session, user)
+    check_rate_limit(
+        session, key=rate_limit_key("redeem-user", str(user.id)),
+        limit=20, window_seconds=60,
+    )
     try:
         result = redeem_code(session, user, payload.code)
+    except TrialUnavailable as exc:
+        session.rollback()
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
+        session.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return RedeemResponse(**result)
 
 
 @router.get("/me", response_model=UserOut, summary="当前用户")
 def me(user: Annotated[User, Depends(get_current_user)]) -> UserOut:
+    return _user_out(user)
+
+
+@router.post("/membership/trial", response_model=UserOut, summary="主动开始七天体验")
+def claim_trial(
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> UserOut:
+    lock_user(session, user)
+    check_rate_limit(
+        session, key=rate_limit_key("trial-user", str(user.id)),
+        limit=10, window_seconds=3600,
+    )
+    check_rate_limit(
+        session, key=rate_limit_key("trial-ip", client_ip(request)),
+        limit=30, window_seconds=3600,
+    )
+    try:
+        start_trial(session, user)
+        session.commit()
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     return _user_out(user)

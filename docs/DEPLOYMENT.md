@@ -445,3 +445,22 @@ API_BASE_URL=https://你的-api.up.railway.app
 - Vercel Preview 域名默认被 CORS 拦截，需配置 `CORS_ORIGIN_REGEX` 或手动加域名。
 - `NEXT_PUBLIC_API_BASE_URL` 是构建时变量，换 API 域名要重新部署前端。
 - 本方案不包含短信服务商、支付回调、对象存储。
+
+
+### V2-38 权益迁移发布说明
+
+先执行 Alembic 升级到 `e6a2c9f08314`，再发布 API，最后发布 Web。新 Web 依赖 `/me.entitlements`。
+迁移会增加 `users.trial_started_at`、`entitlement_source`，保留已有试用到期时间；未使用的旧 trial 码改为 7 天。可追溯的历史试用兑换者即使已升级付费，也会保留已领取标记。
+
+旧兑换表没有逐次使用明细；如曾发放多次使用 trial 码，需根据业务留存记录补齐早期领取用户的 `trial_started_at`，否则数据库无法识别这些历史领取者。不要通过清空领取标记重新发放试用。
+
+回滚应用时保留新增列和领取记录；不要将数据库降级作为常规回滚步骤，以免丢失一次性领取记录。前台试用入口仍在 V2-39 实现。
+
+并发回归使用隔离 schema，不连接生产库：
+
+```bash
+STOCKLAB_TEST_POSTGRES_URL=postgresql+psycopg://USER@HOST/TEST_DB \
+  .venv/bin/python -m pytest apps/api/tests/test_membership_concurrency.py -q
+```
+
+测试账号须可创建/删除 schema；未设置变量时，这组 PostgreSQL 专用测试会跳过，不能据此宣称并发验收通过。

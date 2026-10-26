@@ -33,6 +33,21 @@ export type Me = {
   plan: string;
   plan_expires_at: string | null;
   is_member: boolean;
+  entitlements: {
+    state: "guest" | "free" | "trial" | "member";
+    source: string;
+    expires_at: string | null;
+    trial_used: boolean;
+    trial_eligible: boolean;
+    capabilities: {
+      advanced_data: boolean;
+      history: boolean;
+      advanced_alerts: boolean;
+      unlimited_backtests: boolean;
+      unlimited_watchlist: boolean;
+    };
+    daily_backtest_limit: number | null;
+  };
 };
 
 export type HistoryItem = {
@@ -539,8 +554,8 @@ export async function adminSyncStock(code: string): Promise<AdminStock> {
   });
 }
 
-export async function redeem(code: string): Promise<{ plan: string; plan_expires_at: string }> {
-  return request<{ plan: string; plan_expires_at: string }>("/api/v1/redeem", {
+export async function redeem(code: string): Promise<{ plan: string; plan_expires_at: string | null }> {
+  return request<{ plan: string; plan_expires_at: string | null }>("/api/v1/redeem", {
     method: "POST",
     body: JSON.stringify({ code }),
   });

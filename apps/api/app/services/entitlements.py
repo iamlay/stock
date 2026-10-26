@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import StockWatchlist, User, WatchlistItem
-from app.services.membership import is_member
+from app.services.membership import has_premium_access
 
 FREE_WATCHLIST_LIMIT = 10
 
@@ -25,7 +25,7 @@ def watchlist_count(session: Session, user: User) -> int:
 
 
 def ensure_watchlist_slot(session: Session, user: User) -> None:
-    if is_member(user):
+    if has_premium_access(user):
         return
     if watchlist_count(session, user) >= FREE_WATCHLIST_LIMIT:
         raise HTTPException(
@@ -38,5 +38,5 @@ def ensure_watchlist_slot(session: Session, user: User) -> None:
 
 
 def require_member(user: User) -> None:
-    if not is_member(user):
+    if not has_premium_access(user):
         raise HTTPException(status_code=403, detail="该功能为会员专享")

@@ -26,7 +26,7 @@ export function MemberGate({
     fetchMe()
       .then((user) => {
         setMe(user);
-        setState(user.is_member ? "member" : "free");
+        setState(user.entitlements.capabilities.advanced_data ? "member" : "free");
       })
       .catch(() => setState("guest"));
   }, []);

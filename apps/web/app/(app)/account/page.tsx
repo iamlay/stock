@@ -72,7 +72,7 @@ export default function AccountPage() {
     fetchMe()
       .then((profile) => {
         setMe(profile);
-        if (profile.is_member) {
+        if (profile.entitlements.capabilities.history) {
           return fetchHistory().then(setHistory);
         }
         return undefined;
@@ -90,9 +90,9 @@ export default function AccountPage() {
       const result = await redeem(code.trim());
       const profile = await fetchMe();
       setMe(profile);
-      setMessage(`兑换成功，会员有效期至 ${fmtDate(result.plan_expires_at)}`);
+      setMessage(`兑换成功，${result.plan === "trial" ? "体验" : "会员"}有效期至 ${fmtDate(result.plan_expires_at)}`);
       setCode("");
-      if (profile.is_member) {
+      if (profile.entitlements.capabilities.history) {
         setHistory(await fetchHistory());
       }
     } catch (err) {
@@ -256,13 +256,13 @@ export default function AccountPage() {
         <div className="card p-5">
           <p className="text-xs text-muted">会员状态</p>
           <p className={`mt-2 text-lg font-medium ${me.is_member ? "text-jade-deep" : "text-ink"}`}>
-            {me.is_member ? "会员" : "免费用户"}
+            {me.is_member ? "会员" : me.entitlements.state === "trial" ? "体验中" : "免费用户"}
           </p>
         </div>
         <div className="card p-5">
           <p className="text-xs text-muted">有效期</p>
           <p className="tnum mt-2 text-lg font-medium text-ink">
-            {me.is_member ? fmtDate(me.plan_expires_at) : "—"}
+            {me.entitlements.capabilities.advanced_data ? fmtDate(me.plan_expires_at) : "—"}
           </p>
         </div>
       </section>
@@ -341,17 +341,17 @@ export default function AccountPage() {
           <div>
             <h2 className="text-base font-medium text-ink">回测历史</h2>
             <p className="mt-1 text-xs text-muted">
-              {me.is_member ? "最近 50 次保存的结果" : "开通会员后可查看已保存的回测"}
+              {me.entitlements.capabilities.history ? "最近 50 次保存的结果" : "开通会员后可查看已保存的回测"}
             </p>
           </div>
-          {!me.is_member ? (
+          {!me.entitlements.capabilities.history ? (
             <Link href="/pricing" className="text-xs text-jade-deep hover:underline">
               了解会员 →
             </Link>
           ) : null}
         </div>
 
-        {me.is_member ? (
+        {me.entitlements.capabilities.history ? (
           history.length > 0 ? (
             <div className="mt-4 overflow-x-auto">
               <table className="w-full min-w-[520px] text-sm">

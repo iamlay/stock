@@ -198,6 +198,8 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(16), nullable=False, default="member")
     plan: Mapped[str] = mapped_column(String(16), nullable=False, default="free")
     plan_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    trial_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    entitlement_source: Mapped[str | None] = mapped_column(String(32))
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     alert_price_pct: Mapped[float] = mapped_column(
         Numeric(5, 2), nullable=False, default=5, server_default="5"

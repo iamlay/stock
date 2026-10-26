@@ -12,6 +12,8 @@ from sqlalchemy.orm import Session
 from app.db.models import BacktestRun, RedeemCode, User
 from app.settings import settings
 
+TRIAL_DAYS = 7
+
 CODE_ALPHABET = string.ascii_uppercase + string.digits
 
 
@@ -33,7 +35,72 @@ def is_member(user: User | None) -> bool:
 def plan_for(user: User | None) -> str:
     if user is None:
         return "guest"
-    return "member" if is_member(user) else "free"
+    if is_member(user):
+        return "member"
+    expires = _aware(user.plan_expires_at)
+    if user.plan == "trial" and expires and expires > datetime.now(UTC):
+        return "trial"
+    return "free"
+
+
+def has_premium_access(user: User | None) -> bool:
+    return plan_for(user) in {"member", "trial"}
+
+
+def entitlements_for(user: User) -> dict:
+    plan = plan_for(user)
+    premium = plan in {"member", "trial"}
+    expires = _aware(user.plan_expires_at)
+    return {
+        "state": plan,
+        "source": user.entitlement_source or ("legacy" if user.plan != "free" else "free"),
+        "expires_at": expires.isoformat() if expires else None,
+        "trial_used": user.trial_started_at is not None or user.plan == "trial",
+        "trial_eligible": bool(
+            user.email and user.email_verified_at and plan == "free"
+            and user.trial_started_at is None and user.plan != "trial"
+        ),
+        "capabilities": {
+            "advanced_data": premium,
+            "history": premium,
+            "advanced_alerts": premium,
+            "unlimited_backtests": plan == "member",
+            "unlimited_watchlist": premium,
+        },
+        "daily_backtest_limit": None if plan == "member" else settings.free_daily_limit,
+    }
+
+
+def lock_user(session: Session, user: User) -> User:
+    # Refresh an identity already loaded by authentication after waiting for the lock.
+    return session.scalars(
+        select(User).where(User.id == user.id).with_for_update()
+        .execution_options(populate_existing=True)
+    ).one()
+
+
+class TrialUnavailable(ValueError):
+    """Authenticated account is not eligible for a trial."""
+
+
+def start_trial(session: Session, user: User, *, source: str = "trial") -> bool:
+    user = lock_user(session, user)
+    if not user.email or user.email_verified_at is None:
+        raise TrialUnavailable("请先验证邮箱再领取体验")
+    if is_member(user):
+        raise TrialUnavailable("有效会员无需领取体验")
+    if plan_for(user) == "trial":
+        if source == "trial":
+            return False  # Repeated starts return the original expiry, never extend it.
+        raise TrialUnavailable("每个账号仅可领取一次体验")
+    if user.trial_started_at is not None or user.plan == "trial":
+        raise TrialUnavailable("每个账号仅可领取一次体验")
+    now = datetime.now(UTC)
+    user.trial_started_at = now
+    user.plan = "trial"
+    user.plan_expires_at = now + timedelta(days=TRIAL_DAYS)
+    user.entitlement_source = source
+    return True
 
 
 def client_key_for(ip: str) -> str:
@@ -62,7 +129,7 @@ def quota_for(session: Session, user: User | None, client_key: str) -> dict:
         None
         if plan == "member"
         else settings.free_daily_limit
-        if plan == "free"
+        if plan in {"free", "trial"}
         else settings.guest_daily_limit
     )
     used = daily_usage(session, user, client_key)
@@ -82,12 +149,22 @@ def activate_membership(
     plan: str = "member",
     days: int = 365,
     now: datetime | None = None,
-) -> datetime:
+    source: str = "admin",
+) -> datetime | None:
+    if plan == "trial":
+        start_trial(session, user, source="trial_code")
+        return user.plan_expires_at
+    if plan != "member" or days <= 0:
+        raise ValueError("无效的会员方案")
+    user = lock_user(session, user)
     current = now or datetime.now(UTC)
     base = current
     existing = _aware(user.plan_expires_at)
+    if user.plan == "member" and existing is None:
+        return None  # Preserve permanent memberships.
     if user.plan == "member" and existing and existing > current:
         base = existing
+    user.entitlement_source = source
     user.plan = plan
     user.plan_expires_at = base + timedelta(days=days)
     return user.plan_expires_at
@@ -97,6 +174,7 @@ def redeem_code(session: Session, user: User, raw_code: str) -> dict:
     code = raw_code.strip().upper()
     row = session.scalar(
         select(RedeemCode).where(RedeemCode.code == code).with_for_update()
+        .execution_options(populate_existing=True)
     )
     if row is None:
         raise ValueError("兑换码不存在")
@@ -114,25 +192,21 @@ def redeem_code(session: Session, user: User, raw_code: str) -> dict:
         session.commit()
         raise ValueError("兑换码已过期")
 
+    expires_at = activate_membership(
+        session, user, plan=row.plan, days=row.duration_days, now=now, source="redeem",
+    )
     row.used_count += 1
     row.redeemed_by = user.id
     row.redeemed_at = now
     if row.used_count >= row.max_uses:
         row.status = "redeemed"
 
-    expires_at = activate_membership(
-        session,
-        user,
-        plan=row.plan,
-        days=row.duration_days,
-        now=now,
-    )
     session.commit()
     return {
         "code": code,
         "plan": user.plan,
-        "plan_expires_at": expires_at.isoformat(),
-        "duration_days": row.duration_days,
+        "plan_expires_at": expires_at.isoformat() if expires_at else None,
+        "duration_days": TRIAL_DAYS if row.plan == "trial" else row.duration_days,
     }
 
 
@@ -165,7 +239,7 @@ def generate_codes(
         row = RedeemCode(
             code=code,
             plan=plan,
-            duration_days=days,
+            duration_days=TRIAL_DAYS if plan == "trial" else days,
             batch_id=batch_id,
             channel=channel,
             max_uses=1,

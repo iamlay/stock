@@ -14,7 +14,7 @@ from app.db.models import BacktestRun, Instrument, User
 from app.quant.strategies import list_strategies
 from app.security import get_current_user, get_optional_user
 from app.services.backtest import run_for_code
-from app.services.membership import client_key_for, is_member, quota_for
+from app.services.membership import client_key_for, has_premium_access, quota_for
 
 router = APIRouter(prefix="/backtests", tags=["backtests"])
 
@@ -287,7 +287,7 @@ def history(
     session: Annotated[Session, Depends(get_session)],
     user: Annotated[User, Depends(get_current_user)],
 ) -> list[HistoryItem]:
-    if not is_member(user):
+    if not has_premium_access(user):
         raise HTTPException(status_code=403, detail="会员可查看回测历史")
 
     rows = session.scalars(
@@ -314,7 +314,7 @@ def history_detail(
     session: Annotated[Session, Depends(get_session)],
     user: Annotated[User, Depends(get_current_user)],
 ) -> BacktestResponse:
-    if not is_member(user):
+    if not has_premium_access(user):
         raise HTTPException(status_code=403, detail="会员可查看回测历史")
 
     row = session.get(BacktestRun, run_id)

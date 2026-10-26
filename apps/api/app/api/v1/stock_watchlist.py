@@ -23,7 +23,7 @@ from app.db.models import (
 from app.security import get_current_user
 from app.services.bollinger import compute_bollinger
 from app.services.entitlements import ensure_watchlist_slot
-from app.services.membership import is_member
+from app.services.membership import has_premium_access
 
 router = APIRouter(prefix="/stock-watchlist", tags=["stock-watchlist"])
 
@@ -123,7 +123,7 @@ def list_enriched_stock_watchlist(
     for item in financial_rows:
         latest_financial.setdefault(item.code, item)
 
-    member = is_member(user)
+    member = has_premium_access(user)
     items: list[WatchlistStockOut] = []
     for instrument, profile, metric in rows:
         item = WatchlistStockOut(

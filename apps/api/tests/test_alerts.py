@@ -1,5 +1,6 @@
 from datetime import UTC, date, datetime, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.db.models import (
@@ -64,12 +65,13 @@ def test_run_alerts_creates_daily_notification(session) -> None:
     assert again["notifications"] == 0
 
 
-def test_run_alerts_creates_grid_crossing(session) -> None:
+@pytest.mark.parametrize("plan,expired", [("member", False), ("trial", False), ("trial", True)])
+def test_run_alerts_creates_grid_crossing(session, plan, expired) -> None:
     user = _seed(session)
-    user.plan = "member"
-    user.plan_expires_at = datetime.now(UTC) + timedelta(days=30)
+    user.plan = plan
+    user.plan_expires_at = datetime.now(UTC) + timedelta(days=-1 if expired else 30)
     metric = session.get(StockMetric, "600519")
-    metric.change_pct = 0
+    metric.change_pct = 6 if expired else 0
     metric.dividend_yield_ttm = 6
     base = date(2026, 10, 20)
     for index, close in enumerate([60, 39]):
@@ -91,9 +93,10 @@ def test_run_alerts_creates_grid_crossing(session) -> None:
     result = run_stock_alerts(session, as_of=date(2026, 10, 21))
     assert result["notifications"] == 1
     row = session.query(UserNotification).filter_by(user_id=user.id).one()
-    assert row.type == "grid"
-    assert "5%" in row.title
-    assert row.link == "/stocks/600519?tab=grid"
+    assert row.type == ("price" if expired else "grid")
+    if not expired:
+        assert "5%" in row.title
+        assert row.link == "/stocks/600519?tab=grid"
 
     again = run_stock_alerts(session, as_of=date(2026, 10, 21))
     assert again["notifications"] == 0

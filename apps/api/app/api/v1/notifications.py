@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.db import get_session
 from app.db.models import User, UserNotification
 from app.security import get_current_user
-from app.services.membership import is_member
+from app.services.membership import has_premium_access
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -113,9 +113,9 @@ def get_settings(
         price_pct=float(user.alert_price_pct),
         dividend=user.alert_dividend,
         email=user.alert_email,
-        grid=user.alert_grid and is_member(user),
+        grid=user.alert_grid and has_premium_access(user),
         grid_yield=float(user.alert_grid_yield),
-        resonance=user.alert_resonance and is_member(user),
+        resonance=user.alert_resonance and has_premium_access(user),
     )
 
 
@@ -132,15 +132,15 @@ def update_settings(
     if body.email is not None:
         user.alert_email = body.email
     if body.grid is not None:
-        if body.grid and not is_member(user):
+        if body.grid and not has_premium_access(user):
             raise HTTPException(status_code=403, detail="网格提醒为会员专享")
         user.alert_grid = body.grid
     if body.grid_yield is not None:
-        if not is_member(user):
+        if not has_premium_access(user):
             raise HTTPException(status_code=403, detail="网格目标为会员专享")
         user.alert_grid_yield = body.grid_yield
     if body.resonance is not None:
-        if body.resonance and not is_member(user):
+        if body.resonance and not has_premium_access(user):
             raise HTTPException(status_code=403, detail="低位共振提醒为会员专享")
         user.alert_resonance = body.resonance
     session.commit()
@@ -149,9 +149,9 @@ def update_settings(
         price_pct=float(user.alert_price_pct),
         dividend=user.alert_dividend,
         email=user.alert_email,
-        grid=user.alert_grid and is_member(user),
+        grid=user.alert_grid and has_premium_access(user),
         grid_yield=float(user.alert_grid_yield),
-        resonance=user.alert_resonance and is_member(user),
+        resonance=user.alert_resonance and has_premium_access(user),
     )
 
 

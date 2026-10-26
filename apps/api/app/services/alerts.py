@@ -18,7 +18,7 @@ from app.db.models import (
 )
 from app.services.bollinger import compute_bollinger
 from app.services.email import EmailNotConfigured, EmailSendError, send_email
-from app.services.membership import is_member
+from app.services.membership import has_premium_access
 
 
 def _send_digest(user: User, lines: list[str]) -> bool:
@@ -160,7 +160,7 @@ def run_stock_alerts(session: Session, *, as_of: date | None = None) -> dict:
                     lines.append(title)
                     new_count += 1
 
-            if user.alert_grid and is_member(user):
+            if user.alert_grid and has_premium_access(user):
                 grid_yield = float(user.alert_grid_yield or 5)
                 for code in stock_codes:
                     metric = stock_metrics.get(code)
@@ -207,7 +207,7 @@ def run_stock_alerts(session: Session, *, as_of: date | None = None) -> dict:
                     lines.append(title)
                     new_count += 1
 
-            if user.alert_resonance and is_member(user):
+            if user.alert_resonance and has_premium_access(user):
                 iso = today.isocalendar()
                 week_key = f"{iso.year}-W{iso.week:02d}"
                 for code in stock_codes:

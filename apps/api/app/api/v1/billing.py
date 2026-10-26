@@ -159,6 +159,7 @@ async def notify(
 
     order = session.scalar(
         select(PaymentOrder).where(PaymentOrder.order_no == params.get("out_trade_no"))
+        .with_for_update().execution_options(populate_existing=True)
     )
     if order is None:
         return PlainTextResponse("fail", status_code=404)
@@ -187,7 +188,7 @@ async def notify(
         return PlainTextResponse("fail", status_code=400)
 
     now = datetime.now(UTC)
-    activate_membership(session, user, days=plan.duration_days, now=now)
+    activate_membership(session, user, days=plan.duration_days, now=now, source="payment")
     order.status = "delivered"
     order.paid_at = now
     order.delivered_at = now

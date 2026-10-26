@@ -23,7 +23,7 @@ from app.db.models import (
 from app.security import get_current_admin, get_current_user, get_optional_user
 from app.services.bollinger import Band, compute_bollinger
 from app.services.entitlements import require_member
-from app.services.membership import is_member
+from app.services.membership import has_premium_access
 
 router = APIRouter(prefix="/stocks", tags=["stocks"])
 admin_router = APIRouter(prefix="/admin/stocks", tags=["admin-stocks"])
@@ -671,7 +671,7 @@ def get_stock(
             .order_by(StockFinancial.report_date.desc())
             .limit(24)
         ).all()
-        if user is not None and is_member(user)
+        if user is not None and has_premium_access(user)
         else []
     )
     bars = session.scalars(
