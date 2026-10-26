@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { MembershipSummary } from "@/components/membership-summary";
 import { fetchMe, getToken, type Me } from "@/lib/auth";
 
 type GateState = "loading" | "member" | "guest" | "free";
@@ -49,8 +50,9 @@ export function MemberGate({
       <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-muted">
         {state === "guest"
           ? "登录并开通会员后可查看。免费账号仍可使用 ETF、个股列表、基础详情和价格/除息提醒。"
-          : `当前账号为免费用户。开通会员后可无限添加自选，并使用${feature}、布林、财务和网格提醒。`}
+          : `当前账号没有有效会员权益。开通会员后可使用${feature}，具体权益如下。`}
       </p>
+      <MembershipSummary />
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         {state === "guest" ? (
           <Link

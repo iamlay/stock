@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { createCheckout, getToken } from "@/lib/auth";
+import type { MembershipPlan } from "@/lib/plans";
 
-export function CheckoutButtons({ planId }: { planId: string }) {
+export function CheckoutButtons({ plan }: { plan: MembershipPlan }) {
   const router = useRouter();
   const [busy, setBusy] = useState<"alipay" | "wxpay" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +19,10 @@ export function CheckoutButtons({ planId }: { planId: string }) {
     }
     setBusy(paymentType);
     try {
-      const checkout = await createCheckout(planId, paymentType);
+      const checkout = await createCheckout(plan.id, paymentType);
+      if (checkout.amount !== plan.price_cny) {
+        throw new Error("套餐价格已更新，请刷新页面确认后再支付。");
+      }
       const form = document.createElement("form");
       form.method = checkout.method || "POST";
       form.action = checkout.pay_url;
@@ -59,7 +63,7 @@ export function CheckoutButtons({ planId }: { planId: string }) {
         </button>
       </div>
       <p className="text-[11px] leading-5 text-muted">
-        支付成功后会员自动到账；如未到账，请回到个人中心刷新。
+        {plan.billing_note}。支付确认后自动开通；如未到账，请回到个人中心刷新。
       </p>
       {error ? <p className="text-xs text-loss">{error}</p> : null}
     </div>

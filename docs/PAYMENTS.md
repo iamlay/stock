@@ -1,5 +1,7 @@
 # 在线支付接入（易支付 / ezfpy）
 
+> 2026-10-26 更新（V2-37）：标准会员当前 **¥9.99/30 天，不自动扣费**。在售商品与权益唯一来源为 `apps/api/app/api/v1/plans.py`；前端从 `/api/v1/plans` 读取，订单复用同一商品定义。邀请码只控制注册，会员兑换码用于权益交付；试用与回测导出尚未交付，不列入在售权益。
+
 ## 1. 通道
 
 使用页面跳转支付：
@@ -96,8 +98,9 @@ Content-Type: application/json
     "out_trade_no": "SL...",
     "notify_url": "https://.../api/v1/billing/notify",
     "return_url": "https://stock.iamlay.com/account?payment=return",
-    "name": "StockLab 标准月付",
-    "money": "9.99",    "sign_type": "MD5",
+    "name": "StockLab 标准会员",
+    "money": "9.99",
+    "sign_type": "MD5",
     "sign": "..."
   }
 }
@@ -166,7 +169,9 @@ users.plan = member
 users.plan_expires_at += duration_days
 ```
 
-续费会从当前有效期继续累加。
+有效会员续费从当前有效期继续累加；到期后需主动购买或兑换，不会自动扣费。
+
+前端在跳转收银台前比较订单金额与当前展示价格；不一致则提示刷新确认，不自动按新价付款。套餐接口不可用时不展示旧价格或购买入口。
 
 ## 7. 退款
 

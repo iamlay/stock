@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit",
-    "test:return-path": "tsc lib/return-path.ts tests/return-path.test.ts --outDir .next/return-path-tests --module commonjs --target es2022 --esModuleInterop --skipLibCheck && node --test .next/return-path-tests/tests/return-path.test.js"
+    "test:return-path": "tsc lib/return-path.ts tests/return-path.test.ts --outDir .next/return-path-tests --module commonjs --target es2022 --esModuleInterop --skipLibCheck && node --test .next/return-path-tests/tests/return-path.test.js",
+    "test:plans": "tsc lib/plans.ts lib/server-plans.ts tests/plans.test.ts --outDir .next/plans-tests --module commonjs --target es2022 --esModuleInterop --skipLibCheck && node --test .next/plans-tests/tests/plans.test.js"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

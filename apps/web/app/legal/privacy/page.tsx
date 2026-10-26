@@ -8,7 +8,7 @@ export default function PrivacyPage() {
       <header>
         <p className="text-xs uppercase tracking-[0.18em] text-jade-deep">Privacy Policy</p>
         <h1 className="mt-2 font-serif text-3xl text-ink">隐私政策</h1>
-        <p className="mt-2 text-xs text-muted">最后更新：2026-10-20</p>
+        <p className="mt-2 text-xs text-muted">最后更新：2026-10-26</p>
       </header>
 
       <section className="space-y-3">
@@ -29,10 +29,10 @@ export default function PrivacyPage() {
             <strong className="text-ink">登录与安全信息</strong>：登录时间、IP 地址、请求日志；
           </li>
           <li>
-            <strong className="text-ink">使用信息</strong>：回测标的、策略、参数、回测结果、自选 ETF；
+            <strong className="text-ink">使用信息</strong>：回测标的、策略、参数、回测结果、自选 ETF 和股票、提醒设置；
           </li>
           <li>
-            <strong className="text-ink">交易与会员信息</strong>：兑换码、订单号、会员状态、到期时间；
+            <strong className="text-ink">交易与会员信息</strong>：兑换码、订单号、商品、金额、支付方式、支付流水及状态、会员状态、到期时间；
           </li>
           <li>
             <strong className="text-ink">邮件信息</strong>：验证邮件和密码重置邮件的发送记录。
@@ -48,7 +48,7 @@ export default function PrivacyPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>注册、登录、邮箱验证和密码重置；</li>
           <li>保存回测历史、自选和会员状态；</li>
-          <li>校验兑换码、邀请码和订单归属；</li>
+          <li>校验兑换码、邀请码和订单归属，确认支付并发放会员权益，协助对账和退款核查；</li>
           <li>防止刷接口、批量注册和其他滥用行为；</li>
           <li>排查故障、改进产品和保障服务安全。</li>
         </ul>
@@ -58,7 +58,8 @@ export default function PrivacyPage() {
         <h2 className="font-serif text-xl text-ink">4. Cookie 与本地存储</h2>
         <p>
           我们使用浏览器 <code className="rounded bg-black/5 px-1">localStorage</code> 保存登录
-          token，用于保持登录状态。该 token 不包含密码，关闭或清理浏览器数据后需要重新登录。
+          token，并使用 HttpOnly Cookie 向服务端页面传递登录凭证。该 token 不包含密码；
+          凭证过期、退出账号或清理浏览器数据后可能需要重新登录。
         </p>
         <p>
           当前不使用广告 Cookie，也不接入第三方广告追踪。我们使用 Vercel Analytics
@@ -73,6 +74,7 @@ export default function PrivacyPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>云主机与数据库：部署 API、Web 和 PostgreSQL；</li>
           <li>邮件服务：发送验证邮件和密码重置邮件；</li>
+          <li>支付通道：向易支付传递订单号、商品、金额、支付方式等交易信息，并接收支付流水及状态，用于确认付款和开通权益；站内不保存银行卡信息或支付密码。</li>
           <li>域名、CDN 和安全防护服务。</li>
         </ul>
         <p>

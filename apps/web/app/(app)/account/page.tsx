@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { MembershipSummary } from "@/components/membership-summary";
 import { EquityCurve } from "@/components/equity-curve";
 import type { BacktestResult } from "@/lib/api";
 import {
@@ -266,6 +267,14 @@ export default function AccountPage() {
         </div>
       </section>
 
+      <section className="card p-5">
+        <h2 className="text-base font-medium text-ink">开通与续费</h2>
+        <MembershipSummary />
+        <Link href="/pricing" className="mt-3 inline-block text-sm text-jade-deep hover:underline">
+          {me.is_member ? "查看续费套餐 →" : "查看会员套餐 →"}
+        </Link>
+      </section>
+
       {!me.phone && me.email ? (
         <section className="card p-5">
           <h2 className="text-base font-medium text-ink">绑定手机号</h2>
@@ -306,7 +315,7 @@ export default function AccountPage() {
       <section className="card p-5">
         <h2 className="text-base font-medium text-ink">兑换码</h2>
         <p className="mt-1 text-xs text-muted">
-          输入第三方平台发放的兑换码，会员时长可叠加。
+          输入会员兑换码开通权益，有效会员时长可叠加。注册邀请码不能在此兑换。
         </p>
         <form onSubmit={onRedeem} className="mt-4 flex flex-wrap gap-2">
           <input

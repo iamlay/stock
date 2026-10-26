@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { MembershipSummary } from "@/components/membership-summary";
+
 export const metadata: Metadata = { title: "用户协议" };
 
 export default function TermsPage() {
@@ -8,7 +10,7 @@ export default function TermsPage() {
       <header>
         <p className="text-xs uppercase tracking-[0.18em] text-jade-deep">Terms of Service</p>
         <h1 className="mt-2 font-serif text-3xl text-ink">用户协议</h1>
-        <p className="mt-2 text-xs text-muted">最后更新：2026-10-20</p>
+        <p className="mt-2 text-xs text-muted">最后更新：2026-10-26</p>
       </header>
 
       <section className="space-y-3">
@@ -19,7 +21,7 @@ export default function TermsPage() {
           <strong className="text-ink">不提供证券投资咨询、代客理财、荐股或交易执行服务</strong>。
         </p>
         <p>
-          本服务当前只覆盖 ETF，不覆盖个股、期货、期权、外汇等品种。所有回测均为历史规则推演，
+          本服务覆盖 ETF 与 A 股个股研究数据，不提供期货、期权、外汇交易。所有回测均为历史规则推演，
           不代表未来收益，也不构成任何投资建议。
         </p>
       </section>
@@ -54,12 +56,17 @@ export default function TermsPage() {
       <section className="space-y-3">
         <h2 className="font-serif text-xl text-ink">4. 会员、兑换码与费用</h2>
         <p>
-          本服务不提供站内支付，也不接入微信支付或支付宝。会员通过第三方平台购买后发放的兑换码开通，
-          具体购买渠道、价格、发票和退款规则以第三方平台为准。
+          会员支持支付宝 / 微信支付，由易支付通道承接收款；也可使用会员兑换码开通。
+          一次购买对应套餐时长，不自动扣费。当前套餐价格与权益如下，实际购买前请核对定价页。
+        </p>
+        <MembershipSummary />
+        <p>
+          支付确认后自动开通会员；有效会员再次购买或兑换时叠加时长，到期后需主动续费。
+          邀请码仅用于注册准入，不会自动开通会员。会员兑换码需在个人中心兑换，并受其有效期、次数及账号绑定限制。
         </p>
         <p>
-          兑换码一经使用即绑定会员时长；会员时长可叠加。因第三方平台、兑换码保管不当或账号错误造成的损失，
-          我们不承担赔偿责任，但会在合理范围内协助核查。
+          如付款后未到账，请提供订单号联系我们核查。退款与发票的适用条件请在购买前联系确认；
+          当前退款需人工核查订单、处理款项及对应权益，不提供自动退款或未经确认的退款时效承诺。
         </p>
         <p>
           本服务可能调整免费额度、会员权益或价格，调整前会通过页面公告等合理方式提示。

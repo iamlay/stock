@@ -8,7 +8,7 @@ export default function DisclaimerPage() {
       <header>
         <p className="text-xs uppercase tracking-[0.18em] text-jade-deep">Disclaimer</p>
         <h1 className="mt-2 font-serif text-3xl text-ink">免责声明</h1>
-        <p className="mt-2 text-xs text-muted">最后更新：2026-10-20</p>
+        <p className="mt-2 text-xs text-muted">最后更新：2026-10-26</p>
       </header>
 
       <section className="space-y-3">
@@ -62,8 +62,8 @@ export default function DisclaimerPage() {
       <section className="space-y-3">
         <h2 className="font-serif text-xl text-ink">6. 第三方链接与平台</h2>
         <p>
-          本服务可能包含第三方平台链接。第三方平台的内容、支付、退款和服务质量由其自行负责，
-          与我们无关。通过第三方平台购买会员前，请阅读该平台的规则。
+          本服务可能包含第三方平台链接，会员付款由易支付通道承接。支付前请核对订单与收款信息并阅读相关规则。
+          会员权益开通、到账异常和退款核查可联系我们协助处理，具体说明见用户协议。
         </p>
       </section>
 

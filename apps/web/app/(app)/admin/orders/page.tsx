@@ -39,9 +39,9 @@ export default function AdminOrdersPage() {
   const [externalId, setExternalId] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [amount, setAmount] = useState(9.99);
-  const [days, setDays] = useState(30);
-  const [product, setProduct] = useState("member-365");
+  const [amount, setAmount] = useState<number | "">("");
+  const [days, setDays] = useState<number | "">("");
+  const [product, setProduct] = useState("");
   const [note, setNote] = useState("");
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -90,6 +90,10 @@ export default function AdminOrdersPage() {
     setError(null);
     setMessage(null);
     setCreatedCode(null);
+    if (amount === "" || days === "" || !product.trim()) {
+      setError("请按实际订单填写金额、会员天数和产品。");
+      return;
+    }
     try {
       const order = await adminCreateOrder({
         platform,
@@ -183,6 +187,7 @@ export default function AdminOrdersPage() {
 
       <section className="card p-5">
         <h2 className="text-base font-medium text-ink">登记订单并自动发码</h2>
+        <p className="mt-2 text-xs text-muted">按实际成交订单填写金额、会员天数和产品，不使用默认套餐价格。</p>
         <form onSubmit={onCreate} className="mt-4 flex flex-wrap items-end gap-3">
           <label className="flex w-32 flex-col gap-1">
             <span className="text-xs text-muted">平台</span>
@@ -230,8 +235,9 @@ export default function AdminOrdersPage() {
               type="number"
               min={0}
               step="0.01"
+              required
               value={amount}
-              onChange={(event) => setAmount(Number(event.target.value))}
+              onChange={(event) => setAmount(event.target.value === "" ? "" : Number(event.target.value))}
               className="rounded-sm border border-line bg-surface px-2 py-2 text-sm"
             />
           </label>
@@ -241,14 +247,16 @@ export default function AdminOrdersPage() {
               type="number"
               min={1}
               max={3650}
+              required
               value={days}
-              onChange={(event) => setDays(Number(event.target.value))}
+              onChange={(event) => setDays(event.target.value === "" ? "" : Number(event.target.value))}
               className="rounded-sm border border-line bg-surface px-2 py-2 text-sm"
             />
           </label>
           <label className="flex w-32 flex-col gap-1">
             <span className="text-xs text-muted">产品</span>
             <input
+              required
               value={product}
               onChange={(event) => setProduct(event.target.value)}
               className="rounded-sm border border-line bg-surface px-2 py-2 text-sm"

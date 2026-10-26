@@ -120,7 +120,7 @@ export function SiteFooter() {
             <div className="space-y-2">
               <p className="font-medium text-ink">关于</p>
               <Link href="/pricing" className="block text-muted hover:text-ink">
-                会员与兑换
+                会员与支付
               </Link>
               <Link href="/login" className="block text-muted hover:text-ink">
                 登录

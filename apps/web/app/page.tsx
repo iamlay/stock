@@ -3,6 +3,8 @@ import Link from "next/link";
 import { EquityCurve } from "@/components/equity-curve";
 import { EtfTable } from "@/components/etf-table";
 import { SiteFooter, SiteHeader } from "@/components/chrome";
+import { MembershipPlans } from "@/components/membership-plans";
+import { loadMembershipPlans } from "@/lib/server-plans";
 import { TickerStrip } from "@/components/ticker-strip";
 import { fetchEtf, fetchEtfs, fetchStrategySummaries, toEtf } from "@/lib/api";
 import { etfs, strategies } from "@/lib/mock";
@@ -31,10 +33,11 @@ const features = [
 ];
 
 export default async function HomePage() {
-  const [apiEtfs, heroApi, strategySummary] = await Promise.all([
+  const [apiEtfs, heroApi, strategySummary, membershipPlans] = await Promise.all([
     fetchEtfs(),
     fetchEtf("510300"),
     fetchStrategySummaries("510300"),
+    loadMembershipPlans(),
   ]);
   const live = Boolean(apiEtfs?.length);
   const list = apiEtfs && apiEtfs.length > 0 ? apiEtfs.map(toEtf) : etfs;
@@ -299,29 +302,15 @@ export default async function HomePage() {
           <div className="mx-auto grid max-w-6xl gap-10 px-6 py-16 md:grid-cols-2">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-jade">Pricing</p>
-              <h2 className="mt-2 font-serif text-3xl text-ink">先试用，再决定</h2>
+              <h2 className="mt-2 font-serif text-3xl text-ink">基础功能免费，按需开通会员</h2>
               <p className="mt-4 max-w-md text-sm leading-6 text-ink-soft">
-                内测阶段采用邀请制。会员通过第三方平台购买后获得兑换码，在站内开通，不接入微信登录与微信支付。
+                支持支付宝 / 微信在线支付，也可使用会员兑换码。一次购买对应时长，不自动扣费；邀请码仅用于注册准入。
               </p>
               <Link href="/pricing" className="mt-6 inline-block text-sm text-jade-deep hover:underline">
-                查看会员权益与兑换方式 →
+                查看会员权益与开通方式 →
               </Link>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="card p-5">
-                <p className="text-sm font-medium text-ink">7 天试用</p>
-                <p className="tnum mt-2 text-2xl font-semibold text-ink">¥0</p>
-                <p className="mt-3 text-xs leading-5 text-muted">全功能体验，含 5 次/日回测</p>
-              </div>
-              <div className="card border-jade/40 bg-jade-soft/50 p-5">
-                <p className="text-sm font-medium text-jade-deep">标准月付</p>
-                <p className="tnum mt-2 text-2xl font-semibold text-ink">
-                  ¥9.99
-                  <span className="ml-1 text-xs font-normal text-muted">/月</span>
-                </p>
-                <p className="mt-3 text-xs leading-5 text-muted">早鸟价 · 行情 + ETF + 20 次/日回测</p>
-              </div>
-            </div>
+            <MembershipPlans plans={membershipPlans} />
           </div>
         </section>
 

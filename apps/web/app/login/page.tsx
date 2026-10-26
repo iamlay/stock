@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { SiteFooter, SiteHeader } from "@/components/chrome";
+import { MembershipSummary } from "@/components/membership-summary";
 import { LoginForm } from "@/components/login-form";
 import { safeReturnPath } from "@/lib/return-path";
 
@@ -22,13 +23,13 @@ export default async function LoginPage({
           <h1 className="mt-6 font-serif text-3xl leading-snug">
             邮箱注册，
             <br />
-            兑换码开通会员。
+            按需开通会员。
           </h1>
           <p className="mt-4 text-sm leading-6 text-paper/70">
             当前使用邮箱和密码注册，完成邮箱验证后才能登录。手机号验证码登录保留，待短信服务接入后开放。
           </p>
           <ul className="mt-10 space-y-4 text-sm text-paper/80">
-            {["邮箱 + 密码，无需验证码", "游客每日 20 次回测", "兑换码开通会员与历史"].map(
+            {["邮箱 + 密码，注册后验证邮箱", "基础数据免费，回测按日限额", "支付宝 / 微信支付，也可使用会员兑换码"].map(
               (item) => (
                 <li key={item} className="flex items-center gap-3 border-b border-white/10 pb-4">
                   <span className="h-1.5 w-1.5 rounded-full bg-jade" />
@@ -50,11 +51,11 @@ export default async function LoginPage({
           <LoginForm next={next} />
 
           <div className="mt-6 rounded-sm border border-line bg-surface p-4 text-xs leading-6 text-muted">
-            还没有兑换码？
+            邀请码仅用于注册准入；会员兑换码用于开通权益。
             <Link href="/pricing" className="ml-1 text-jade-deep hover:underline">
-              查看获取方式
+              查看会员与支付方式
             </Link>
-            。本项目不提供微信登录与微信支付。
+            <MembershipSummary />
           </div>
 
           <p className="mt-6 text-xs leading-6 text-muted">

@@ -223,7 +223,7 @@ export function LoginForm({ next }: { next?: string }) {
             ) : null}
             <p className="text-xs leading-6 text-muted">
               {registering
-                ? "注册后会发送验证邮件，验证通过后才能登录；会员仍通过兑换码开通。"
+                ? "注册后会发送验证邮件，验证通过后才能登录。会员可在线支付或使用会员兑换码开通。"
                 : "使用邮箱和密码登录。忘记密码可通过邮箱重置。"}
             </p>
           </>
