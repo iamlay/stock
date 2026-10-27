@@ -10,7 +10,7 @@ import { AuthNavActions } from "@/components/auth-nav";
 const nav = [
   { href: "/dashboard", label: "今日市场", short: "市场" },
   { href: "/etf", label: "ETF 数据", short: "ETF" },
-  { href: "/stocks", label: "高股息", short: "股息" },
+  { href: "/stocks", label: "股票", short: "股票" },
   { href: "/watchlist", label: "我的自选", short: "自选" },
   { href: "/notifications", label: "提醒", short: "提醒" },
   { href: "/strategies", label: "策略实验室", short: "策略" },
@@ -75,7 +75,7 @@ export function SiteHeader() {
             ETF 数据
           </Link>
           <Link href="/stocks" className="hover:text-ink">
-            高股息
+            股票
           </Link>
           <Link href="/strategies" className="hover:text-ink">
             策略实验室
