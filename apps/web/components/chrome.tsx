@@ -51,10 +51,8 @@ export function AppNav() {
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <Link href="/" className="flex items-center gap-2.5 focus-ring">
-      <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-ink text-sm font-semibold text-paper">
-        稳
-      </span>
+    <Link href="/" aria-label="StockLab 首页" className="flex items-center gap-2.5 focus-ring">
+      <img src="/icon.svg" alt="" width={32} height={32} className="h-8 w-8 shrink-0" />
       {!compact ? (
         <span className="text-[15px] font-semibold tracking-tight text-ink">
           Stock<span className="text-jade">Lab</span>
