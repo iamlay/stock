@@ -827,7 +827,7 @@ export default function WatchlistPage() {
           ))}
         </div>
         <div className="hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[1280px] text-sm">
+          <table className="w-full min-w-[1280px] whitespace-nowrap text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">
                 <th className="w-10 px-4 py-3">
@@ -946,7 +946,7 @@ export default function WatchlistPage() {
                           .join(" / ")}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex flex-wrap justify-end gap-2 text-[11px]">
+                    <div className="flex justify-end gap-2 text-[11px]">
                       <Link
                         href={`/stocks/${item.code}?tab=grid`}
                         className="text-jade-deep hover:underline"
