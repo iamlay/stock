@@ -1,0 +1,27 @@
+apps/web/app/legal/privacy/page.tsx
+  s_d90564a5b68cd9::t_89e9c5a8bee224 132-133
+apps/web/app/legal/disclaimer/page.tsx
+  s_d90564a5b68cd9::t_89e9c5a8bee224 74-75
+apps/web/components/chrome.tsx
+  s_d90564a5b68cd9::t_89e9c5a8bee224 135
+apps/web/app/legal/terms/page.tsx
+  s_d90564a5b68cd9::t_89e9c5a8bee224 121-122
+apps/web/app/legal/layout.tsx
+  s_d90564a5b68cd9::t_89e9c5a8bee224 31-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "424a02be99b5e9743a1401666b869953fa8a2f25",
+  "prompts": {},
+  "sessions": {
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
