@@ -1,0 +1,70 @@
+etl/sources/eastmoney_stock.py
+  s_d90564a5b68cd9::t_5a6227c72bc85f 57-61
+  s_21701fd56cd8c0::t_d92c73b012d99b 7,43-56,62-64,203,223,235,256
+etl/sources/dividend_events.py
+  s_d90564a5b68cd9::t_a7abc863465aba 1-11,18-19,24-53,55-66,70,78-82,86
+  s_d90564a5b68cd9::t_73c98f89d7bc9f 12-17,20-23,67-69,71-77,83-85
+  s_21701fd56cd8c0::t_2f103ac4c2a1ee 54
+docs/DIVIDEND_PORTFOLIO_PLAN.md
+  s_d90564a5b68cd9::t_e96f65b1044e63 100
+apps/api/tests/test_dividend_events_postgres.py
+  s_21701fd56cd8c0::t_a3b05805a4c599 1-236
+apps/api/tests/test_dividend_events.py
+  s_d90564a5b68cd9::t_94b64d625040e3 458-505
+  s_d90564a5b68cd9::t_2f19fe84eaa9d9 1-7,11-457
+  s_21701fd56cd8c0::t_96d9671e155624 8-10
+apps/api/alembic/versions/c8d4e6f29013_dividend_events.py
+  s_d90564a5b68cd9::t_a7abc863465aba 1-5,7-23,36-37,41-45,52-58,62-66,73-75,82,88-91,103-113,117-125
+  s_d90564a5b68cd9::t_73c98f89d7bc9f 6,24-35,38-40,46-51,59-61,67-72,76-81,83-87,92-102,114-116
+apps/api/app/db/models.py
+  s_d90564a5b68cd9::t_a7abc863465aba 545-630
+docs/DEVELOPMENT_PLAN.md
+  s_d90564a5b68cd9::t_abbeef0fb81479 8
+  s_d90564a5b68cd9::t_e96f65b1044e63 5,16,1334,1359-1360,1585
+docs/OPERATIONS.md
+  s_d90564a5b68cd9::t_e96f65b1044e63 5
+etl/stocks.py
+  s_d90564a5b68cd9::t_5a6227c72bc85f 226-229,254,293,469,474-508,518-523
+  s_21701fd56cd8c0::t_3b9c903dcfed79 15
+apps/api/app/services/dividend_events.py
+  s_d90564a5b68cd9::t_689dd2103d0bbe 1-11,18-21,23-35,44-63,71-72,86-90,108,112-113,128-130,134-136,143-148,154-159,164,171-172,180-181,196,204-210,220-234,241-245,252-275,279-283,299-301,307-320,324-326,335-347,358-365,379-380
+  s_d90564a5b68cd9::t_73c98f89d7bc9f 36-43,64-70,73-85,91-107,109-111,114-127,131-133,137-142,149-153,160-163,165-170,173-179,182-195,197-203,211-219,235-240,246-251,276-278,284-298,302-306,321-323,327-334,348-357
+  s_21701fd56cd8c0::t_96d9671e155624 12-17,22,366-378
+apps/api/app/api/v1/dividend_events.py
+  s_21701fd56cd8c0::t_96d9671e155624 140-150,152,289-292
+  s_d90564a5b68cd9::t_73c98f89d7bc9f 20,35-139,151,153-288,293-305
+  s_21701fd56cd8c0::t_25f85512bb0860 1-19,21-34
+etl/dividend_events_backfill.py
+  s_d90564a5b68cd9::t_73c98f89d7bc9f 17-19
+  s_21701fd56cd8c0::t_d76d8977f66411 1-16,20-27
+docs/adr/0009-dividend-event-versions.md
+  s_d90564a5b68cd9::t_e96f65b1044e63 1-25
+docs/V2_49_DELIVERY.md
+  s_d90564a5b68cd9::t_e96f65b1044e63 1-142
+apps/api/app/api/v1/router.py
+  s_21701fd56cd8c0::t_9cf8ebcbdbf017 9,27-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "da2783daf94f7a851c921796f0272975b69cc3bd",
+  "prompts": {},
+  "sessions": {
+    "s_21701fd56cd8c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "unknown"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    },
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
