@@ -1,0 +1,21 @@
+apps/web/components/chrome.tsx
+  s_d90564a5b68cd9::t_5f27d2669e3b15 54-55
+apps/web/app/icon.svg
+  s_d90564a5b68cd9::t_5f27d2669e3b15 1-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e44ed179a11b1312cf053480bf4644966725a746",
+  "prompts": {},
+  "sessions": {
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
