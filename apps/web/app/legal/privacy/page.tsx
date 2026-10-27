@@ -129,8 +129,8 @@ export default function PrivacyPage() {
         </p>
         <p>
           联系邮箱：
-          <a href="mailto:hi@stocklab.dev" className="text-jade-deep hover:underline">
-            hi@stocklab.dev
+          <a href="mailto:1187074543@qq.com" className="text-jade-deep hover:underline">
+            1187074543@qq.com
           </a>
         </p>
       </section>

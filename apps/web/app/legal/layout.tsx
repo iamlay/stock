@@ -28,8 +28,8 @@ export default function LegalLayout({ children }: { children: ReactNode }) {
         <article className="mt-8">{children}</article>
         <p className="mt-10 border-t border-line pt-4 text-xs leading-6 text-muted">
           生效日期：2026-10-20 · 如对本页面有疑问，请联系{" "}
-          <a href="mailto:hi@stocklab.dev" className="text-jade-deep hover:underline">
-            hi@stocklab.dev
+          <a href="mailto:1187074543@qq.com" className="text-jade-deep hover:underline">
+            1187074543@qq.com
           </a>
           。
         </p>

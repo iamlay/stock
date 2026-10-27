@@ -71,8 +71,8 @@ export default function DisclaimerPage() {
         <h2 className="font-serif text-xl text-ink">7. 联系方式</h2>
         <p>
           如对数据、回测口径或本声明有疑问，请联系：
-          <a href="mailto:hi@stocklab.dev" className="ml-1 text-jade-deep hover:underline">
-            hi@stocklab.dev
+          <a href="mailto:1187074543@qq.com" className="ml-1 text-jade-deep hover:underline">
+            1187074543@qq.com
           </a>
         </p>
       </section>

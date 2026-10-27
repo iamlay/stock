@@ -132,7 +132,7 @@ export function SiteFooter() {
               <ContextLink href="/login" className="block text-muted hover:text-ink">
                 登录
               </ContextLink>
-              <a href="mailto:hi@stocklab.dev" className="block text-muted hover:text-ink">
+              <a href="mailto:1187074543@qq.com" className="block text-muted hover:text-ink">
                 联系我们
               </a>
             </div>
