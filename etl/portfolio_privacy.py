@@ -65,7 +65,10 @@ def replay_deletions(session: Session, manifest: dict, *, apply: bool = False) -
         if marker and marker.user_id != user_id:
             raise ValueError("manifest marker ownership mismatch")
     if apply:
+        from app.services.portfolio_ledger import clear_ledger
+
         for account in found:
+            clear_ledger(session, account.user_id, account.id)
             session.execute(
                 delete(PortfolioAuditEvent).where(
                     PortfolioAuditEvent.account_id == account.id,

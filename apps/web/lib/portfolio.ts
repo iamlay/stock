@@ -43,7 +43,7 @@ export function validPortfolioPolicy(value: unknown): value is PortfolioPolicy {
   const item = value as Partial<PortfolioPolicy>;
   return typeof item.sha256 === "string" && /^[a-f0-9]{64}$/.test(item.sha256) &&
     typeof item.policy?.version === "string" && item.policy.version.length > 0 &&
-    item.policy.scope === "private_account_metadata" &&
+    item.policy.scope === "private_holdings_and_trades" &&
     typeof item.policy.title === "string" && item.policy.privacy_path === "/legal/privacy#portfolio-data" &&
     Array.isArray(item.policy.sections) && item.policy.sections.length > 0 &&
     item.policy.sections.every((section) => typeof section === "string");

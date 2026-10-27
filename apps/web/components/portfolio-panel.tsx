@@ -1,5 +1,6 @@
 "use client";
 
+import { PortfolioLedger } from "@/components/portfolio-ledger";
 import { flushSync } from "react-dom";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -127,7 +128,7 @@ export function PortfolioPanel() {
       name: name.trim(), currency: "CNY", consent: {
         accepted: true, version: policy.policy.version, sha256: policy.sha256,
       },
-    }) }), "私人账本已建立。当前仅支持账户信息管理。");
+    }) }), "私人账本已建立，可以录入期初持仓和买卖流水。");
   }
 
   function update(patch: { name?: string; is_archived?: boolean }) {
@@ -149,7 +150,7 @@ export function PortfolioPanel() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a"); link.href = url; link.download = "stocklab-portfolio.json";
       link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setMessage("已导出账户信息和确认记录；当前尚无持仓及交易流水。");
+      setMessage("已导出账户、持仓流水、冲正历史及确认记录。");
     } catch (err) { if (current === generation.current) fail(err); }
     finally { if (op === operation.current) setBusy(false); }
   }
@@ -163,7 +164,7 @@ export function PortfolioPanel() {
     <header className="flex flex-wrap items-end justify-between gap-3">
       <div><p className="text-xs tracking-widest text-jade-deep">PRIVATE PORTFOLIO</p>
         <h1 className="mt-2 font-serif text-3xl">私人账本</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">先建立属于自己的账本。当前仅支持账户管理，持仓、交易和收息计算将逐步开放。</p>
+        <p className="mt-2 text-sm leading-6 text-muted">记录期初持仓与买卖，按历史流水重算数量、成本和已实现盈亏。收息核对将逐步开放。</p>
       </div><a href="/account" className="text-sm text-jade-deep hover:underline">返回个人中心</a>
     </header>
     {loading ? <p role="status" className="py-8 text-sm text-muted">正在读取私人账本…</p> : null}
@@ -204,7 +205,7 @@ export function PortfolioPanel() {
         <button type="button" className={button} disabled={busy} onClick={() => void download()}>免费导出 JSON</button>
         <button type="button" className={`${button} text-loss`} disabled={busy} onClick={() => { setDeleting(!deleting); setConfirmDelete(""); }}>删除账本</button>
       </div>
-      <p className="text-xs leading-6 text-muted">基础管理不依赖会员。归档保留全部信息；删除会移除在线账户及操作记录，最小确认和删除凭据仍会保留。备份中的历史数据需按恢复清理流程处理。</p>
+      <p className="text-xs leading-6 text-muted">基础管理不依赖会员。归档保留全部信息；删除会移除在线账户、持仓交易及操作记录，最小确认和删除凭据仍会保留。备份中的历史数据需按恢复清理流程处理。</p>
       {deleting ? <form className="space-y-3 border-t border-line pt-4" onSubmit={(event) => {
         event.preventDefault();
         if (confirmDelete !== "删除账本" || busy) return;
@@ -218,5 +219,6 @@ export function PortfolioPanel() {
         <button type="button" className="ml-3 text-sm text-muted" onClick={() => { setDeleting(false); setConfirmDelete(""); }} disabled={busy}>取消</button>
       </form> : null}
     </section> : null}
+    {!loading && account ? <PortfolioLedger key={`${account.id}:${account.version}`} account={account} policy={policy} refresh={() => void load()} authFailure={fail} /> : null}
   </div>;
 }

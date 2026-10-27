@@ -1,4 +1,4 @@
-"""Private metadata only; trade, position and dividend accounting follow separately."""
+"""Private account ownership and versioned consent; ledger replay lives separately."""
 
 from __future__ import annotations
 
@@ -21,15 +21,15 @@ from app.db.models import (
 from app.settings import settings
 
 POLICY = {
-    "version": "portfolio-account-2026-10-27.v1",
-    "scope": "private_account_metadata",
+    "version": "portfolio-ledger-2026-10-27.v2",
+    "scope": "private_holdings_and_trades",
     "title": "私人账本数据说明",
     "sections": [
-        "你可以自愿建立一个人民币私人账本。当前仅保存自定义名称、币种、归档状态和操作时间；持仓与交易录入尚未开放，开放前将再次说明数据范围并确认。",
+        "你可以自愿建立一个人民币私人账本。保存自定义名称、币种、归档状态、期初持仓、股票代码、日期、数量、成交价、费用、成本、备注及依据，用于重算持仓和交易盈亏；收息到账尚未开放，不连接券商。",
         "名称只用于自己的账本管理，不需要填写证券账户号码、身份证、银行卡、券商密码或上传证件。其他用户和普通管理员接口均不能查看你的账本。",
         "确认后，服务器会保存本说明版本、文本摘要和确认时间。基础账户维护、JSON导出和删除免费，会员到期不影响使用。",
-        "私人账本页面不加载第三方访问统计，不把名称存入页面地址、本地草稿、业务分析或通用后台审计。运行平台可能保留请求路径与安全日志，请勿在地址栏提交私人信息。",
-        "删除会移除在线账本及其操作记录；保留不含名称的说明确认和最小删除凭据。历史备份按各存储方周期保留，GitHub加密备份当前保留14天；Railway备份期限取决于部署配置，不能承诺统一14天删除。恢复旧备份后须按最新删除清单重新清理，再开放账本服务。",
+        "私人账本页面不加载第三方访问统计，不把名称、持仓、交易及备注存入页面地址、本地草稿、业务分析或通用后台审计。运行平台可能保留请求路径与安全日志，请勿在地址栏提交私人信息。",
+        "删除会移除在线账本、持仓流水、冲正历史及其操作记录；保留不含名称的说明确认和最小删除凭据。历史备份按各存储方周期保留，GitHub加密备份当前保留14天；Railway备份期限取决于部署配置，不能承诺统一14天删除。恢复旧备份后须按最新删除清单重新清理，再开放账本服务。",
         "需要进一步访问、更正或删除个人信息，可联系1187074543@qq.com；不会要求提供券商密码。",
     ],
     "privacy_path": "/legal/privacy#portfolio-data",
@@ -199,7 +199,10 @@ def delete_account(session: Session, user_id: int, account_id: str, expected_ver
     session.add(
         PortfolioDeletion(account_id=account_id, user_id=user_id, deleted_at=datetime.now(UTC))
     )
-    # Explicitly clear current children; future private tables MUST also cascade from account+owner.
+    from app.services.portfolio_ledger import clear_ledger
+
+    clear_ledger(session, user_id, account_id)
+    # Future private tables MUST also cascade from account+owner.
     session.execute(
         delete(PortfolioAuditEvent).where(
             PortfolioAuditEvent.account_id == account_id,
@@ -230,9 +233,11 @@ def export_portfolio(session: Session, user_id: int) -> dict:
         )
         .order_by(PortfolioAuditEvent.created_at, PortfolioAuditEvent.id)
     ).all()
+    from app.services.portfolio_ledger import ledger_snapshot
+
     return {
-        "schema_version": "portfolio-account-export-v1",
-        "scope": "account_metadata_only_v2_50",
+        "schema_version": "portfolio-ledger-export-v2",
+        "scope": "holdings_and_trades_v2_51",
         "generated_at": datetime.now(UTC),
         "accounts": [account_out(row) for row in accounts],
         "privacy_acknowledgements": [
@@ -253,5 +258,8 @@ def export_portfolio(session: Session, user_id: int) -> dict:
             }
             for row in history
         ],
-        "capabilities": {"positions": False, "trades": False, "automatic_dividends": False},
+        "ledgers": [
+            {"account_id": row.id, **ledger_snapshot(session, user_id, row.id)} for row in accounts
+        ],
+        "capabilities": {"positions": True, "trades": True, "automatic_dividends": False},
     }

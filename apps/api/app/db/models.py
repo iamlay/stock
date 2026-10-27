@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -696,3 +698,76 @@ class PortfolioDeletion(Base):
     account_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PortfolioEntry(Base):
+    """Append-only facts. Corrections supersede an entry; never update its financial fields."""
+
+    __tablename__ = "portfolio_entries"
+    __table_args__ = (
+        UniqueConstraint("id", "account_id", "user_id", name="uq_portfolio_entry_owner"),
+        UniqueConstraint("account_id", "request_id", name="uq_portfolio_entry_request"),
+        UniqueConstraint("reverses_id", name="uq_portfolio_entry_reversal"),
+        ForeignKeyConstraint(
+            ["account_id", "user_id"],
+            ["portfolio_accounts.id", "portfolio_accounts.user_id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["reverses_id", "account_id", "user_id"],
+            ["portfolio_entries.id", "portfolio_entries.account_id", "portfolio_entries.user_id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "quantity >= 0 AND price >= 0 AND fees >= 0 AND total_cost >= 0",
+            name="ck_portfolio_entry_nonnegative",
+        ),
+        CheckConstraint("day_order > 0", name="ck_portfolio_entry_order"),
+        CheckConstraint(
+            "kind IN ('opening','buy','sell','adjustment','reversal')",
+            name="ck_portfolio_entry_kind",
+        ),
+        Index("ix_portfolio_entries_owner", "user_id", "account_id", "event_date"),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    account_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    request_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    code: Mapped[str] = mapped_column(ForeignKey("instruments.code"), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    event_date: Mapped[date] = mapped_column(Date, nullable=False)
+    day_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(20, 6), nullable=False)
+    price: Mapped[Decimal] = mapped_column(Numeric(20, 6), nullable=False)
+    fees: Mapped[Decimal] = mapped_column(Numeric(20, 6), nullable=False)
+    total_cost: Mapped[Decimal] = mapped_column(Numeric(20, 6), nullable=False)
+    history_status: Mapped[str] = mapped_column(String(24), nullable=False)
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="manual")
+    note: Mapped[str] = mapped_column(String(500), nullable=False)
+    evidence: Mapped[str] = mapped_column(String(500), nullable=False)
+    reverses_id: Mapped[str | None] = mapped_column(String(36))
+    account_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PortfolioReviewRange(Base):
+    """Durable invalidation ranges for V2-52; never represent confirmed dividend income."""
+
+    __tablename__ = "portfolio_review_ranges"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["account_id", "user_id"],
+            ["portfolio_accounts.id", "portfolio_accounts.user_id"],
+            ondelete="CASCADE",
+        ),
+        Index("ix_portfolio_review_owner", "user_id", "account_id"),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    account_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    code: Mapped[str] = mapped_column(String(16), nullable=False)
+    from_date: Mapped[date] = mapped_column(Date, nullable=False)
+    account_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    reason: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+from datetime import date
 from typing import Annotated, Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
@@ -158,8 +160,8 @@ def accounts(session: SessionDep, user: UserDep) -> dict:
         "items": [account_out(row) for row in rows],
         "create_enabled": enabled_for(user.id),
         "account_limit": 1,
-        "scope": "account_metadata_only_v2_50",
-        "capabilities": {"positions": False, "trades": False, "automatic_dividends": False},
+        "scope": "holdings_and_trades_v2_51",
+        "capabilities": {"positions": True, "trades": True, "automatic_dividends": False},
     }
 
 
@@ -216,7 +218,7 @@ def remove(account_id: str, body: DeleteAccount, session: SessionDep, user: User
     return {"deleted": True, "retained": "minimal_privacy_acknowledgement_and_deletion_marker"}
 
 
-@router.get("/export", summary="免费导出本人当前账户元数据和说明确认")
+@router.get("/export", summary="免费导出本人账户、持仓流水、冲正及说明确认")
 def export(session: SessionDep, user: UserDep) -> JSONResponse:
     write_limit(session, user.id, export=True)
     data = export_portfolio(session, user.id)
@@ -226,4 +228,73 @@ def export(session: SessionDep, user: UserDep) -> JSONResponse:
             "Content-Disposition": 'attachment; filename="stocklab-portfolio.json"',
             "Content-Type": "application/json; charset=utf-8",
         },
+    )
+
+
+class AcceptLedger(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_version: Annotated[int, Field(strict=True, ge=1)]
+    consent: Consent
+
+
+class CreateEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_version: Annotated[int, Field(strict=True, ge=1)]
+    request_id: UUID
+    code: Annotated[str, Field(pattern=r"^[0-9]{6}$")]
+    kind: Literal["opening", "buy", "sell", "adjustment", "reversal"]
+    event_date: date
+    day_order: Annotated[int, Field(strict=True, ge=1, le=1000000)]
+    quantity: Annotated[str, Field(max_length=19)]
+    price: Annotated[str, Field(max_length=19)] = "0"
+    fees: Annotated[str, Field(max_length=19)] = "0"
+    total_cost: Annotated[str, Field(max_length=19)] = "0"
+    history_status: Literal["since_date", "incomplete"]
+    note: Annotated[str, Field(max_length=500)] = ""
+    evidence: Annotated[str, Field(max_length=500)] = ""
+    reverses_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def explicit_opening_cost(self):
+        if self.kind in {"opening", "adjustment"} and "total_cost" not in self.model_fields_set:
+            raise ValueError("explicit balance cost required")
+        return self
+
+    @field_validator("event_date", mode="before")
+    @classmethod
+    def calendar_date_only(cls, value):
+        import re
+
+        if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+            raise ValueError("calendar date required")
+        return value
+
+
+@router.post("/accounts/{account_id}/consent", summary="再次主动确认持仓交易数据范围")
+def ledger_consent(account_id: str, body: AcceptLedger, session: SessionDep, user: UserDep):
+    from app.services.portfolio_ledger import accept_ledger
+
+    write_limit(session, user.id)
+    return commit_mutation(
+        session,
+        lambda: accept_ledger(
+            session, user.id, account_id, body.expected_version, body.consent.model_dump()
+        ),
+    )
+
+
+@router.get("/accounts/{account_id}/ledger", summary="本人有效持仓、原始流水及冲正历史")
+def ledger(account_id: str, session: SessionDep, user: UserDep):
+    from app.services.portfolio_ledger import ledger_snapshot
+
+    return ledger_snapshot(session, user.id, account_id)
+
+
+@router.post("/accounts/{account_id}/entries", status_code=201, summary="录入或关联冲正后完整重算")
+def entry(account_id: str, body: CreateEntry, session: SessionDep, user: UserDep):
+    from app.services.portfolio_ledger import add_entry
+
+    write_limit(session, user.id)
+    return commit_mutation(
+        session, lambda: add_entry(session, user.id, account_id, body.model_dump(mode="json"))
     )

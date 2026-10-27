@@ -205,8 +205,8 @@ def test_free_export_exact_values_and_no_cross_owner_data(session, clients):
     response = client.get("/api/v1/portfolio/export", headers=headers[0])
     assert response.status_code == 200 and "attachment" in response.headers["content-disposition"]
     assert response.json()["accounts"][0]["name"] == name
-    assert response.json()["scope"] == "account_metadata_only_v2_50"
-    assert response.json()["capabilities"]["positions"] is False
+    assert response.json()["scope"] == "holdings_and_trades_v2_51"
+    assert response.json()["capabilities"]["positions"] is True
     assert "must-not-export" not in response.text
     assert name not in response.headers["content-disposition"]
     assert "no-store" in response.headers["cache-control"]
