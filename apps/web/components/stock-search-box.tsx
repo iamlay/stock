@@ -50,7 +50,7 @@ export function StockSearchBox() {
   return (
     <div ref={wrapper} className="relative w-full max-w-sm">
       <div className="flex items-center gap-2 rounded-sm border border-line bg-surface px-3 py-2">
-        <span className="text-xs text-muted">搜索</span>
+        <span className="shrink-0 whitespace-nowrap text-xs text-muted">搜索</span>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -60,7 +60,7 @@ export function StockSearchBox() {
             if (event.key === "Escape") setOpen(false);
           }}
           placeholder="代码或名称，回车筛选"
-          className="w-full bg-transparent text-sm text-ink outline-none"
+          className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none"
         />
         {loading ? <span className="text-[10px] text-muted">…</span> : null}
       </div>
