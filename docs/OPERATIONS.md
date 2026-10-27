@@ -183,7 +183,7 @@ alembic -c apps/api/alembic.ini downgrade -1
 | `DB Backup` | 每天 03:00 | `pg_dump` + 加密 | 备份 |
 | `Stock Bars` | 每月 1 日 20:00 | `etl.cli stock-bars --limit 2000` | K 线 |
 | `Stock Yield Percentile` | 每月 1 日 22:00 | `stock-yield-percentile --limit 1000` | 10 年分位 |
-| `Stock Financials` | 每月 1 日 21:00 | `etl.cli stock-financials --limit 5000` | 年报/季报 |
+| `Stock Financials` | 每月 1 日 21:00 | 5 分片并行，增量跳过 | 年报/季报 |
 | `Stock Industry Detail` | 每季度首日 20:30 | `stock-industry-detail --limit 500` | 三级行业 |
 | `Stock Full Market` | 手动 | 5,000 只初始化 | 首次/扩量 |
 | `Stock Industry` | 手动 | 申万一级行业 | 修复行业 |
@@ -237,6 +237,13 @@ python -m etl.cli stock-industry-detail --limit 500
 python -m etl.cli stock-bars --limit 2000
 python -m etl.cli stock-yield-percentile --limit 1000
 python -m etl.cli stock-financials --limit 5000
+
+# 手动分片，每片约 1,000 只
+python -m etl.cli stock-financials --limit 5000 --shard-count 5 --shard-index 0
+python -m etl.cli stock-financials --limit 5000 --shard-count 5 --shard-index 1
+
+# 强制忽略增量跳过
+python -m etl.cli stock-financials --limit 5000 --force
 python -m etl.cli stock-quality --limit 5000 --write
 python -m etl.cli stock-status
 python -m app.cli stock-alerts
@@ -246,6 +253,23 @@ python -m app.cli security-check
 python -m app.cli rotate-tokens
 python -m etl.cli status
 python -m etl.cli quality --limit 20
+```
+
+财务增量规则：
+
+```text
+按当前日期推算最新应披露报告期
+已有该报告期的股票直接跳过
+未披露新报告的股票仍会重试
+```
+
+报告期推算：
+
+```text
+10-31 后：当年三季报
+08-31 后：当年中报
+04-30 后：当年一季报
+其他时间：上一年年报
 ```
 
 ---

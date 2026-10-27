@@ -269,10 +269,14 @@ def cmd_stock_financials(args: argparse.Namespace) -> int:
             limit=args.limit,
             codes=codes,
             delay=args.delay,
+            shard_index=args.shard_index,
+            shard_count=args.shard_count,
+            force=args.force,
         )
     print(
-        f"stock financials selected={result['selected']} written={result['written']} "
-        f"updated={result['updated']} errors={len(result['errors'])}"
+        f"stock financials selected={result['selected']} skipped={result['skipped']} "
+        f"written={result['written']} updated={result['updated']} "
+        f"errors={len(result['errors'])}"
     )
     for error in result["errors"][:5]:
         print(f"  {error['code']}: {error['error']}", file=sys.stderr)
@@ -597,6 +601,11 @@ def build_parser() -> argparse.ArgumentParser:
     stock_financials.add_argument("--limit", type=int, default=5000)
     stock_financials.add_argument("--codes", default="")
     stock_financials.add_argument("--delay", type=float, default=0.2)
+    stock_financials.add_argument("--shard-index", type=int, default=0)
+    stock_financials.add_argument("--shard-count", type=int, default=1)
+    stock_financials.add_argument(
+        "--force", action="store_true", help="ignore incremental skip"
+    )
     stock_financials.add_argument("--strict", action="store_true")
     stock_financials.set_defaults(func=cmd_stock_financials)
 

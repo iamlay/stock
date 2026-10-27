@@ -12,15 +12,19 @@ on:
       delay:
         description: "Delay seconds between stocks"
         default: "0.2"
+      force:
+        description: "Ignore incremental skip and refetch all selected"
+        type: boolean
+        default: false
 
 concurrency:
   group: stock-financials
   cancel-in-progress: false
 
 jobs:
-  refresh:
+  migrate:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -32,16 +36,37 @@ jobs:
       - name: Install API package
         run: pip install -e apps/api
 
-      - name: Run migrations
+      - name: Run migrations once
         env:
           STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
         run: alembic -c apps/api/alembic.ini upgrade head
 
-      - name: Refresh financials
+  refresh:
+    needs: migrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install API package
+        run: pip install -e apps/api
+
+      - name: Refresh financials (shard ${{ matrix.shard }})
         env:
           STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
         run: |
           python -m etl.cli stock-financials \
             --limit "${{ inputs.limit || '5000' }}" \
-            --delay "${{ inputs.delay || '0.2' }}"
-          python -m etl.cli stock-status
+            --delay "${{ inputs.delay || '0.2' }}" \
+            --shard-index "${{ matrix.shard }}" \
+            --shard-count 5 \
+            ${{ inputs.force && '--force' || '' }}

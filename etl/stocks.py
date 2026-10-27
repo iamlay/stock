@@ -246,14 +246,31 @@ def sync_stock_dividends_bulk(
     }
 
 
+def expected_financial_report_date(today: date | None = None) -> date:
+    """Latest report period that should normally be available by today."""
+    current = today or date.today()
+    if (current.month, current.day) >= (10, 31):
+        return date(current.year, 9, 30)
+    if (current.month, current.day) >= (8, 31):
+        return date(current.year, 6, 30)
+    if (current.month, current.day) >= (4, 30):
+        return date(current.year, 3, 31)
+    return date(current.year - 1, 12, 31)
+
+
 def sync_stock_financials_batch(
     session: Session,
     *,
     limit: int = 500,
     codes: list[str] | None = None,
     delay: float = 0.2,
+    shard_index: int = 0,
+    shard_count: int = 1,
+    force: bool = False,
 ) -> dict:
     """Fetch recent financial reports for high-dividend stocks."""
+    if shard_count < 1 or shard_index < 0 or shard_index >= shard_count:
+        raise ValueError("invalid financials shard")
     if codes:
         targets = codes
     else:
@@ -269,8 +286,43 @@ def sync_stock_financials_batch(
                 .limit(limit)
             ).all()
         )
+    if shard_count > 1:
+        targets = targets[shard_index::shard_count]
     if not targets:
-        return {"selected": 0, "written": 0, "updated": 0, "errors": []}
+        return {
+            "selected": 0,
+            "skipped": 0,
+            "written": 0,
+            "updated": 0,
+            "errors": [],
+        }
+
+    expected = expected_financial_report_date()
+    latest_by_code = dict(
+        session.execute(
+            select(StockFinancial.code, func.max(StockFinancial.report_date))
+            .where(StockFinancial.code.in_(targets))
+            .group_by(StockFinancial.code)
+        ).all()
+    )
+    if not force:
+        before = len(targets)
+        targets = [
+            code
+            for code in targets
+            if latest_by_code.get(code) is None or latest_by_code[code] < expected
+        ]
+        skipped = before - len(targets)
+    else:
+        skipped = 0
+    if not targets:
+        return {
+            "selected": 0,
+            "skipped": skipped,
+            "written": 0,
+            "updated": 0,
+            "errors": [],
+        }
 
     existing = {
         (row.code, row.report_date): row
@@ -341,6 +393,7 @@ def sync_stock_financials_batch(
     session.commit()
     return {
         "selected": len(targets),
+        "skipped": skipped,
         "written": written,
         "updated": updated,
         "errors": errors,
