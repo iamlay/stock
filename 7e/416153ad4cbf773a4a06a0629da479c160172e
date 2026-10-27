@@ -1,0 +1,53 @@
+apps/api/tests/test_dividend_probe.py
+  s_21701fd56cd8c0::t_14e2835ad13b75 1-201
+docs/DEVELOPMENT_PLAN.md
+  s_d90564a5b68cd9::t_cf67265b151c63 1136
+  s_d90564a5b68cd9::t_a561e8c7fbaa2e 5,16,1357,1582
+  s_d90564a5b68cd9::t_a2bb54de676c84 1319-1332,1334-1355,1358-1382,1581
+  s_d90564a5b68cd9::t_4801056fa6d18e 1333,1356
+  s_d90564a5b68cd9::t_f167d4a84f588f 6,8,14-15
+docs/evidence/v2-48/live-2026-10-27/report.json
+  s_21701fd56cd8c0::t_686ebe53840321 1-1165
+etl/dividend_probe.py
+  s_21701fd56cd8c0::t_686ebe53840321 1-84,86-87,90,98-116,120-129,137-138,145,153-161,163-170,177-232,235-237,244-253,260-263,269-274,290,296-299
+  s_21701fd56cd8c0::t_14e2835ad13b75 91-97,117-119,130-136,139-144,146-152,171-176,233-234,238-243,254-259,264-268,275-289,291-295
+  s_d90564a5b68cd9::t_17b4234c6da505 85,88-89,162
+docs/evidence/v2-48/live-2026-10-27/snapshot.json
+  s_21701fd56cd8c0::t_686ebe53840321 1-1391
+docs/DIVIDEND_PORTFOLIO_PLAN.md
+  s_d90564a5b68cd9::t_e49c191b0de1f0 1-30,33-256
+  s_d90564a5b68cd9::t_4801056fa6d18e 31-32
+docs/V2_48_VALIDATION_REPORT.md
+  s_d90564a5b68cd9::t_a561e8c7fbaa2e 153-160
+  s_d90564a5b68cd9::t_4801056fa6d18e 1-152,161-172
+docs/evidence/v2-48/INTERVIEW_TEMPLATE.md
+  s_21701fd56cd8c0::t_3eef074a6580bf 1-37
+docs/evidence/v2-48/acceptance-cases.json
+  s_21701fd56cd8c0::t_49ddcb7108eb51 1-27
+docs/evidence/v2-48/announcement-check.json
+  s_21701fd56cd8c0::t_b50ccc549af345 1-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7e416153ad4cbf773a4a06a0629da479c160172e",
+  "prompts": {},
+  "sessions": {
+    "s_21701fd56cd8c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "unknown"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    },
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
