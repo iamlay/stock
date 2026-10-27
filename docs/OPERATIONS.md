@@ -197,10 +197,23 @@ alembic -c apps/api/alembic.ini downgrade -1
 python -m etl.cli cron
 ```
 
-做两件事：
+做三件事：
 
 1. 刷新 ETF 最新报价；
-2. 标记过期邀请码。
+2. 刷新所有用户自选股最新报价；
+3. 标记过期邀请码。
+
+自选股表：
+
+```text
+stock_realtime_quotes
+```
+
+手动执行：
+
+```bash
+python -m etl.cli stock-watchlist-quotes --force
+```
 
 ---
 

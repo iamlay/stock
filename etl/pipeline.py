@@ -15,6 +15,8 @@ from app.db.models import (
     Instrument,
     MarketDaily,
     RealtimeQuote,
+    StockRealtimeQuote,
+    StockWatchlist,
     TradingCalendar,
 )
 from sqlalchemy import delete, select, update
@@ -308,6 +310,70 @@ def is_trading_session(session: Session, now: datetime | None = None) -> bool:
     return (clock_time(9, 30) <= current <= clock_time(11, 30)) or (
         clock_time(13, 0) <= current <= clock_time(15, 0)
     )
+
+
+def sync_stock_watchlist_quotes(session: Session, codes: list[str] | None = None) -> dict:
+    """Refresh latest quotes for codes in any user's stock watchlist."""
+    if codes is None:
+        codes = list(
+            session.scalars(
+                select(StockWatchlist.code)
+                .join(Instrument, Instrument.code == StockWatchlist.code)
+                .where(Instrument.is_active.is_(True))
+                .distinct()
+            ).all()
+        )
+    codes = sorted(set(codes))
+    if not codes:
+        return {"codes": 0, "quotes": 0, "latest": None}
+
+    job = DataJob(
+        job_name="stock_watchlist_quotes",
+        status="running",
+        params={"codes": codes},
+    )
+    session.add(job)
+    session.commit()
+    session.refresh(job)
+
+    try:
+        quotes = []
+        for index in range(0, len(codes), 50):
+            quotes.extend(fetch_quotes(codes[index : index + 50]))
+        if not quotes:
+            raise ValueError("no stock quotes returned")
+
+        for quote in quotes:
+            quoted_at = quote.quote_time.replace(
+                tzinfo=ZoneInfo("Asia/Shanghai")
+            ).astimezone(UTC)
+            row = session.get(StockRealtimeQuote, quote.code)
+            if row is None:
+                row = StockRealtimeQuote(code=quote.code)
+                session.add(row)
+            row.price = quote.price
+            row.prev_close = quote.prev_close
+            row.change_pct = quote.change_pct
+            row.amount = quote.amount
+            row.trade_date = quote.trade_date
+            row.quote_time = quoted_at
+            row.source = "tencent"
+
+        job.status = "success"
+        job.rows_written = len(quotes)
+        job.finished_at = datetime.now(UTC)
+        session.commit()
+        return {
+            "codes": len(codes),
+            "quotes": len(quotes),
+            "latest": max(quote.quote_time for quote in quotes).isoformat(),
+        }
+    except Exception as exc:
+        job.status = "failed"
+        job.error = str(exc)[:1000]
+        job.finished_at = datetime.now(UTC)
+        session.commit()
+        raise
 
 
 def sync_quotes(session: Session, codes: list[str] | None = None) -> dict:

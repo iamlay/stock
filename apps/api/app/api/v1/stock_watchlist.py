@@ -17,6 +17,7 @@ from app.db.models import (
     StockFinancial,
     StockMetric,
     StockProfile,
+    StockRealtimeQuote,
     StockWatchlist,
     User,
 )
@@ -52,6 +53,7 @@ class GridTargetLite(BaseModel):
 
 class WatchlistStockOut(StockOut):
     group_name: str = "默认"
+    quote_time: str | None = None
     bollinger_daily: BandOut | None = None
     bollinger_weekly: BandOut | None = None
     bollinger_monthly: BandOut | None = None
@@ -101,6 +103,12 @@ def list_enriched_stock_watchlist(
             )
         ).all()
     }
+    quote_by_code = {
+        row.code: row
+        for row in session.scalars(
+            select(StockRealtimeQuote).where(StockRealtimeQuote.code.in_(codes))
+        ).all()
+    }
     cutoff = date.today() - timedelta(days=900)
     bar_rows = session.execute(
         select(MarketDaily.code, MarketDaily.trade_date, MarketDaily.close)
@@ -130,6 +138,11 @@ def list_enriched_stock_watchlist(
             **_out(instrument, profile, metric).model_dump(),
             group_name=group_by_code.get(instrument.code, "默认"),
         )
+        quote = quote_by_code.get(instrument.code)
+        if quote is not None:
+            item.price = float(quote.price)
+            item.change_pct = float(quote.change_pct)
+            item.quote_time = quote.quote_time.isoformat()
         if member:
             bars = bars_by_code.get(instrument.code, [])
             if len(bars) >= 20:

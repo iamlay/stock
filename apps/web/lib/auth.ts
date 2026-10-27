@@ -9,6 +9,7 @@ const TOKEN_KEY = "stocklab.token";
 
 export type StockWatchlistItem = Stock & {
   group_name: string;
+  quote_time: string | null;
   bollinger_daily: StockBand | null;
   bollinger_weekly: StockBand | null;
   bollinger_monthly: StockBand | null;

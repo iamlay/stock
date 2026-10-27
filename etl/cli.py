@@ -28,6 +28,7 @@ from etl.pipeline import (
     sync_code,
     sync_quotes,
     sync_shares,
+    sync_stock_watchlist_quotes,
     sync_valuation,
 )
 from etl.sources.sina_stock import fetch_stock_universe as fetch_sina_stocks
@@ -151,12 +152,18 @@ def cmd_sync_quotes(args: argparse.Namespace) -> int:
 
 
 def cmd_cron(args: argparse.Namespace) -> int:
+    stock_quotes = None
+    stock_error = None
     with SessionLocal() as session:
         seed_universe(session)
         expired = expire_invites(session)
         quotes = None
         if args.force or is_trading_session(session):
             quotes = sync_quotes(session)
+            try:
+                stock_quotes = sync_stock_watchlist_quotes(session)
+            except Exception as exc:  # noqa: BLE001
+                stock_error = str(exc)[:300]
 
     if quotes is None:
         print(f"cron: quotes skipped, expired_invites={expired}")
@@ -165,6 +172,31 @@ def cmd_cron(args: argparse.Namespace) -> int:
             f"cron: quotes={quotes['quotes']} latest={quotes['latest']} "
             f"expired_invites={expired}"
         )
+    if stock_quotes is not None:
+        print(
+            f"cron: stock_watchlist codes={stock_quotes['codes']} "
+            f"quotes={stock_quotes['quotes']}"
+        )
+    elif stock_error:
+        print(f"cron: stock_watchlist failed={stock_error}")
+    return 0
+
+
+def cmd_stock_watchlist_quotes(args: argparse.Namespace) -> int:
+    codes = (
+        [item.strip() for item in args.codes.split(",") if item.strip()]
+        if args.codes
+        else None
+    )
+    with SessionLocal() as session:
+        if not args.force and not is_trading_session(session):
+            print("skip: outside A-share trading session")
+            return 0
+        result = sync_stock_watchlist_quotes(session, codes)
+    print(
+        f"stock watchlist quotes codes={result['codes']} "
+        f"rows={result['quotes']} latest={result['latest']}"
+    )
     return 0
 
 
@@ -479,6 +511,18 @@ def build_parser() -> argparse.ArgumentParser:
     quotes.add_argument("--codes", default="", help="comma separated codes; default: all")
     quotes.add_argument("--force", action="store_true", help="ignore trading session guard")
     quotes.set_defaults(func=cmd_sync_quotes)
+
+    stock_quotes = sub.add_parser(
+        "stock-watchlist-quotes",
+        help="refresh latest quotes for stocks in watchlists",
+    )
+    stock_quotes.add_argument(
+        "--codes", default="", help="comma separated codes; default: all watchlists"
+    )
+    stock_quotes.add_argument(
+        "--force", action="store_true", help="ignore trading session guard"
+    )
+    stock_quotes.set_defaults(func=cmd_stock_watchlist_quotes)
 
     cron = sub.add_parser("cron", help="5-minute maintenance: quotes + invite expiry")
     cron.add_argument("--force", action="store_true", help="ignore trading session guard")

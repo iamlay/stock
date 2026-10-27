@@ -291,6 +291,16 @@ export default function WatchlistPage() {
     prefsReady,
   ]);
 
+  useEffect(() => {
+    if (!getToken()) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        load().catch(() => undefined);
+      }
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   async function onRemove(code: string) {
     setError(null);
     try {
@@ -704,6 +714,12 @@ export default function WatchlistPage() {
                     </Link>
                     <p className="tnum mt-0.5 text-[11px] text-muted">
                       {item.code} · {item.industry ?? "未分类"}
+                      {item.quote_time
+                        ? ` · 更新 ${new Date(item.quote_time).toLocaleTimeString("zh-CN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}`
+                        : ""}
                     </p>
                   </div>
                 </div>

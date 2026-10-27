@@ -44,11 +44,11 @@ MVP 聚焦 **ETF（红利 / 现金流 / 跨境 / 宽基 / 行业）**，数据�
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | ✅ W78 易支付在线支付 |
+| 阶段 | ✅ W79 自选股 5 分钟报价 |
 | 范围 | ✅ MVP 仅 ETF |
 | 文档 | ✅ 开发计划 v2.1 + 历史 ADR-0008 + [部署手册](docs/DEPLOYMENT.md) |
 | Web | ✅ 邮箱登录/注册 / 兑换 / 历史 / 兑换码 / 订单 / 用户 / 邀请码后台 |
-| API | ✅ 行情、ETF、估值、回测、会员、后台、订单、自选、对比、个股、支付，121 个测试 |
+| API | ✅ 行情、ETF、估值、回测、会员、后台、订单、自选、对比、个股、支付，189 个测试 |
 | 数据 | ✅ 34,374 行日线 + 20 条份额快照 + 6 个指数估值 |
 | 部署 | ✅ Vercel 前端 · Railway API/PG · GitHub Actions ETL |
 | 上线 | ⬜ 计划 2027-01-22 |
@@ -103,9 +103,12 @@ python -m etl.cli quality --limit 20
 ## 5 分钟最新报价（W29）
 
 - 新增表 `realtime_quotes`，只存最新价、昨收、涨跌、成交额、报价时间；
-- ETL `sync-quotes` 用腾讯批量行情刷新 20 只 ETF，不覆盖 `market_daily`；
+- 新增表 `stock_realtime_quotes`，只刷新所有用户自选股；
+- ETL `sync-quotes` 用腾讯批量行情刷新 100 只 ETF，不覆盖 `market_daily`；
+- 自选股按 50 只一批刷新，只保留最新价；
 - 交易时段守卫：周末、非交易时间、非交易日自动跳过；
 - API `/etfs`、`/etfs/{code}`、`/market/overview` 优先使用最新报价，并返回 `quote_time`；
+- `/watchlist` 自选个股优先使用最新报价，页面每 60 秒刷新；
 - 前端显示「更新 HH:MM」，日线指标与回测仍按日频。
 
 Railway Cron 每 5 分钟执行一个统一入口：
