@@ -542,3 +542,89 @@ class StockWatchlist(TimestampMixin, Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class DividendEvent(Base):
+    __tablename__ = "dividend_events"
+    __table_args__ = (Index("ix_dividend_events_code", "code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    code: Mapped[str] = mapped_column(
+        String(16), ForeignKey("instruments.code", ondelete="CASCADE"), nullable=False
+    )
+    legacy_dividend_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("stock_dividends.id", ondelete="SET NULL"), unique=True
+    )
+    current_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    origin: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class DividendSourceObservation(Base):
+    __tablename__ = "dividend_source_observations"
+    __table_args__ = (
+        UniqueConstraint("source", "code", "fingerprint", name="uq_dividend_observation_content"),
+        Index("ix_dividend_observations_state_code", "state", "code"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    code: Mapped[str] = mapped_column(
+        String(16), ForeignKey("instruments.code", ondelete="CASCADE"), nullable=False
+    )
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    normalized: Mapped[dict] = mapped_column(JSONType, nullable=False)
+    raw_payload: Mapped[dict] = mapped_column(JSONType, nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    event_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("dividend_events.id", ondelete="CASCADE")
+    )
+    applied_revision: Mapped[int | None] = mapped_column(Integer)
+    decision_hash: Mapped[str | None] = mapped_column(String(64))
+    reviewed_by: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL")
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    review_note: Mapped[str | None] = mapped_column(Text)
+
+
+class DividendEventVersion(Base):
+    __tablename__ = "dividend_event_versions"
+
+    event_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("dividend_events.id", ondelete="CASCADE"), primary_key=True
+    )
+    revision: Mapped[int] = mapped_column(Integer, primary_key=True)
+    observation_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("dividend_source_observations.id", ondelete="SET NULL")
+    )
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_url: Mapped[str | None] = mapped_column(Text)
+    source_event_id: Mapped[str | None] = mapped_column(String(128))
+    announcement_url: Mapped[str | None] = mapped_column(Text)
+    report_date: Mapped[date | None] = mapped_column(Date)
+    notice_date: Mapped[date | None] = mapped_column(Date)
+    plan_notice_date: Mapped[date | None] = mapped_column(Date)
+    record_date: Mapped[date | None] = mapped_column(Date)
+    ex_date: Mapped[date | None] = mapped_column(Date)
+    payment_date: Mapped[date | None] = mapped_column(Date)
+    cash_per_share: Mapped[float | None] = mapped_column(Numeric(20, 8))
+    plan: Mapped[str] = mapped_column(Text, nullable=False)
+    progress: Mapped[str] = mapped_column(String(128), nullable=False)
+    stage: Mapped[str] = mapped_column(String(32), nullable=False)
+    evidence_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    review_reasons: Mapped[list] = mapped_column(JSONType, nullable=False)
+    rule_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    raw_payload: Mapped[dict] = mapped_column(JSONType, nullable=False)
+    reviewed_by: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL")
+    )
+    review_note: Mapped[str] = mapped_column(Text, nullable=False)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

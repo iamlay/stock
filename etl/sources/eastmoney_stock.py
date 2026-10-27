@@ -4,7 +4,7 @@ import json
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 CLIST_API = "https://push2.eastmoney.com/api/qt/clist/get"
 DIVIDEND_API = "https://datacenter-web.eastmoney.com/api/data/v1/get"
@@ -38,6 +38,28 @@ class DividendRecord:
     notice_date: date | None = None
     report_date: date | None = None
     progress: str = ""
+
+
+class DividendBatch(list[DividendRecord]):
+    """Legacy records remain list-compatible; unfiltered source pages retain all stages."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.source_pages: list[dict] = []
+
+    def capture(self, payload: dict, url: str) -> None:
+        result = payload.get("result")
+        if payload.get("success") is False or not isinstance(result, dict):
+            raise ValueError("dividend source returned an unsuccessful response")
+        rows = result.get("data")
+        if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+            raise ValueError("dividend source returned malformed rows")
+        self.source_pages.append({
+            "rows": rows,
+            "url": url,
+            "observed_at": datetime.now(UTC).isoformat(),
+        })
+        self.extend(parse_dividends(payload))
 
 
 @dataclass(frozen=True)
@@ -178,7 +200,7 @@ def parse_dividends(payload: dict) -> list[DividendRecord]:
 
 
 def fetch_dividends(code: str) -> list[DividendRecord]:
-    records: list[DividendRecord] = []
+    records = DividendBatch()
     page = 1
     pages = 1
     while page <= pages:
@@ -198,7 +220,7 @@ def fetch_dividends(code: str) -> list[DividendRecord]:
             "https://data.eastmoney.com/",
         )
         pages = int((payload.get("result") or {}).get("pages") or 1)
-        records.extend(parse_dividends(payload))
+        records.capture(payload, f"{DIVIDEND_API}?{query}")
         page += 1
     return records
 
@@ -210,7 +232,7 @@ def fetch_dividends_bulk(
 ) -> list[DividendRecord]:
     """Fetch all implemented dividends since a date in ~30 bulk pages."""
     cutoff = since or (date.today().replace(month=1, day=1) - timedelta(days=365))
-    records: list[DividendRecord] = []
+    records = DividendBatch()
     page = 1
     pages = 1
     while page <= pages:
@@ -231,7 +253,7 @@ def fetch_dividends_bulk(
         )
         result = payload.get("result") or {}
         pages = int(result.get("pages") or 1)
-        records.extend(parse_dividends(payload))
+        records.capture(payload, f"{DIVIDEND_API}?{query}")
         page += 1
     return records
 

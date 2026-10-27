@@ -12,6 +12,7 @@ from app.db.models import (
     StockMetric,
     StockProfile,
 )
+from app.services.dividend_events import record_source_pages
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
@@ -222,7 +223,10 @@ def refresh_stock_metrics(
             metric.sustainability = "stable"
         else:
             metric.sustainability = "normal"
-        past = [row.ex_date for row in records if row.ex_date <= today]
+        past = [
+            row.ex_date for row in records
+            if row.ex_date is not None and row.ex_date <= today
+        ]
         metric.last_ex_date = max(past, default=None)
 
     session.commit()
@@ -247,6 +251,7 @@ def sync_stock_dividends_bulk(
     since = date.today() - timedelta(days=days)
     records = fetch_dividends_bulk(since=since)
     target_set = set(targets)
+    captured = record_source_pages(session, getattr(records, "source_pages", []), targets)
     existing = _existing_dividends(session, targets)
 
     written = 0
@@ -285,6 +290,7 @@ def sync_stock_dividends_bulk(
     return {
         "codes": len(targets),
         "records": len(records),
+        "observations_written": captured,
         "written": written,
         "metrics": refreshed,
     }
@@ -459,39 +465,47 @@ def sync_stock_dividends(
     session.commit()
     session.refresh(job)
 
-    existing = _existing_dividends(session, codes)
     written = 0
+    captured = 0
     errors: list[str] = []
     for code in codes:
         try:
             records = fetch_dividends(code)
-            for record in records:
-                row = _find_dividend(existing, record)
-                if row is None:
-                    row = StockDividend(
-                        code=record.code,
-                        ex_date=record.ex_date,
-                        notice_date=record.notice_date,
-                        report_date=record.report_date,
-                        progress=record.progress,
-                        fiscal_year=record.fiscal_year,
-                        cash_per_share=record.cash_per_share,
-                        plan=record.plan,
-                        is_special=record.is_special,
-                        source="eastmoney",
-                    )
-                    session.add(row)
-                    _remember_dividend(existing, row)
-                    written += 1
-                else:
-                    row.ex_date = record.ex_date
-                    row.notice_date = record.notice_date
-                    row.report_date = record.report_date
-                    row.progress = record.progress
-                    row.cash_per_share = record.cash_per_share
-                    row.fiscal_year = record.fiscal_year
-                    row.is_special = record.is_special
-                    _remember_dividend(existing, row)
+            code_written = 0
+            with session.begin_nested():
+                code_captured = record_source_pages(
+                    session, getattr(records, "source_pages", []), [code]
+                )
+                existing = _existing_dividends(session, [code])
+                for record in records:
+                    row = _find_dividend(existing, record)
+                    if row is None:
+                        row = StockDividend(
+                            code=record.code,
+                            ex_date=record.ex_date,
+                            notice_date=record.notice_date,
+                            report_date=record.report_date,
+                            progress=record.progress,
+                            fiscal_year=record.fiscal_year,
+                            cash_per_share=record.cash_per_share,
+                            plan=record.plan,
+                            is_special=record.is_special,
+                            source="eastmoney",
+                        )
+                        session.add(row)
+                        _remember_dividend(existing, row)
+                        code_written += 1
+                    else:
+                        row.ex_date = record.ex_date
+                        row.notice_date = record.notice_date
+                        row.report_date = record.report_date
+                        row.progress = record.progress
+                        row.cash_per_share = record.cash_per_share
+                        row.fiscal_year = record.fiscal_year
+                        row.is_special = record.is_special
+                        _remember_dividend(existing, row)
+            written += code_written
+            captured += code_captured
         except Exception as exc:  # noqa: BLE001 - continue per stock
             errors.append(f"{code}: {exc}")
         time.sleep(delay)
@@ -501,7 +515,12 @@ def sync_stock_dividends(
     job.error = f"{len(errors)} codes failed" if errors else None
     job.finished_at = datetime.now(UTC)
     session.commit()
-    return {"written": written, "errors": errors, "codes": len(codes)}
+    return {
+        "written": written,
+        "errors": errors,
+        "codes": len(codes),
+        "observations_written": captured,
+    }
 
 
 def sync_stock_bars(

@@ -6,6 +6,7 @@ from app.api.v1 import (
     backtests,
     billing,
     data,
+    dividend_events,
     etfs,
     market,
     notifications,
@@ -23,6 +24,8 @@ api_router.include_router(backtests.router)
 api_router.include_router(data.router)
 api_router.include_router(etfs.router)
 api_router.include_router(market.router)
+api_router.include_router(dividend_events.router)
+api_router.include_router(dividend_events.admin_router)
 api_router.include_router(stocks.router)
 api_router.include_router(stocks.admin_router)
 api_router.include_router(stock_watchlist.router)
