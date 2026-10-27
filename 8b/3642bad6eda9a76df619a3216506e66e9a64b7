@@ -1,0 +1,20 @@
+apps/web/app/(app)/watchlist/page.tsx
+  s_d90564a5b68cd9::t_786175887ea4e5 949
+  s_d90564a5b68cd9::t_f458843a4d405b 830
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8b3642bad6eda9a76df619a3216506e66e9a64b7",
+  "prompts": {},
+  "sessions": {
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
