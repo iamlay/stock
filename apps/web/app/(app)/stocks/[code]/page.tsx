@@ -13,7 +13,6 @@ import { fmtPct, trendClass } from "@/lib/format";
 
 type PageProps = {
   params: Promise<{ code: string }>;
-  searchParams: Promise<{ tab?: string }>;
 };
 export const dynamic = "force-dynamic";
 
@@ -96,22 +95,13 @@ const SUSTAIN_LABELS: Record<string, string> = {
   normal: "常规",
 };
 
-export default async function StockDetailPage({ params, searchParams }: PageProps) {
+export default async function StockDetailPage({ params }: PageProps) {
   const { code } = await params;
-  const { tab: rawTab } = await searchParams;
-  const tab = ["overview", "dividend", "grid", "bollinger", "financial"].includes(
-    rawTab ?? "",
-  )
-    ? rawTab!
-    : "overview";
   const token = await getServerToken();
   const stock = await fetchStock(code, token);
   if (!stock) notFound();
 
-  const gridData =
-    tab === "grid"
-      ? await fetchStockGrid({ q: code, page_size: 1 }, token)
-      : null;
+  const gridData = token ? await fetchStockGrid({ q: code, page_size: 1 }, token) : null;
   const grid = gridData?.items.find((item) => item.code === code) ?? null;
   const bollinger = computeBollinger(stock.bars);
   const bollingerCards = [
@@ -237,9 +227,9 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
         <StockWatchlistButton code={stock.code} />
       </div>
 
-      <StockDetailTabs code={stock.code} active={tab} />
+      <StockDetailTabs key={stock.code} />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div id="overview" tabIndex={-1} className="scroll-mt-[var(--stock-section-offset,8rem)] grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card p-5">
           <p className="text-xs text-muted">最新价</p>
           <p className="tnum mt-2 text-2xl font-semibold text-ink">
@@ -274,7 +264,6 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
         </div>
       </div>
 
-      {tab === "overview" ? (
         <section className="card p-5">
           <div className="flex items-center justify-between">
             <div>
@@ -301,10 +290,8 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
             </p>
           )}
         </section>
-      ) : null}
 
-      {tab === "dividend" ? (
-        <div className="grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
+        <div id="dividend" tabIndex={-1} className="scroll-mt-[var(--stock-section-offset,8rem)] grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
         <section className="card p-5">
           <div className="flex items-center justify-between">
             <div>
@@ -407,9 +394,8 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
           </p>
         </aside>
         </div>
-      ) : null}
 
-      {tab === "grid" ? (
+      <div id="grid" tabIndex={-1} className="scroll-mt-[var(--stock-section-offset,8rem)]">
         <MemberGate feature="股息网格">
         <section className="card p-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -482,9 +468,9 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
           )}
         </section>
         </MemberGate>
-      ) : null}
+      </div>
 
-      {tab === "bollinger" ? (
+      <div id="bollinger" tabIndex={-1} className="scroll-mt-[var(--stock-section-offset,8rem)]">
         <MemberGate feature="股息布林">
         <section className="card p-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -542,9 +528,9 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
           </p>
         </section>
         </MemberGate>
-      ) : null}
+      </div>
 
-      {tab === "financial" ? (
+      <div id="financial" tabIndex={-1} className="scroll-mt-[var(--stock-section-offset,8rem)]">
         <MemberGate feature="股息财务">
         <section className="card p-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -668,7 +654,7 @@ export default async function StockDetailPage({ params, searchParams }: PageProp
           )}
         </section>
         </MemberGate>
-      ) : null}
+      </div>
     </div>
   );
 }
