@@ -68,6 +68,43 @@ def test_sync_dividends_and_yield(session, monkeypatch) -> None:
     assert metric.last_ex_date == date(2026, 6, 26)
 
 
+def test_sync_dividends_handles_same_year_same_plan(session, monkeypatch) -> None:
+    upsert_stock_universe(session, [make_row("601877", "正泰电器", 500)])
+    records = [
+        DividendRecord(
+            "601877",
+            "正泰电器",
+            date(2017, 6, 21),
+            2016,
+            0.3,
+            "10派3.00元(含税,扣税后2.70元)",
+            False,
+            notice_date=date(2017, 6, 15),
+            report_date=date(2016, 12, 31),
+        ),
+        DividendRecord(
+            "601877",
+            "正泰电器",
+            date(2016, 9, 14),
+            2016,
+            0.3,
+            "10派3.00元(含税,扣税后2.70元)",
+            False,
+            notice_date=date(2016, 9, 8),
+            report_date=date(2016, 6, 30),
+        ),
+    ]
+    monkeypatch.setattr("etl.stocks.fetch_dividends", lambda code: records)
+
+    first = sync_stock_dividends(session, ["601877"], delay=0)
+    assert first["written"] == 2
+    assert session.query(StockDividend).count() == 2
+
+    second = sync_stock_dividends(session, ["601877"], delay=0)
+    assert second["written"] == 0
+    assert session.query(StockDividend).count() == 2
+
+
 def test_pilot_pipeline(session, monkeypatch) -> None:
     rows = [make_row("600519", "贵州茅台", 18800), make_row("601398", "工商银行", 20000)]
     monkeypatch.setattr("etl.stocks.fetch_stock_universe", lambda: (2, rows))

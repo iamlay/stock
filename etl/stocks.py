@@ -111,15 +111,59 @@ def upsert_stock_universe(
     return codes
 
 
+def _dividend_keys(
+    code: str,
+    report_date: date | None,
+    ex_date: date | None,
+    notice_date: date | None,
+    plan: str,
+) -> list[tuple]:
+    keys = []
+    if report_date is not None:
+        keys.append(("report", code, report_date, plan))
+    if ex_date is not None:
+        keys.append(("ex", code, ex_date, plan))
+    if notice_date is not None:
+        keys.append(("notice", code, notice_date, plan))
+    return keys
+
+
 def _existing_dividends(
     session: Session, codes: list[str]
-) -> dict[tuple[str, int, str], StockDividend]:
+) -> dict[tuple, StockDividend]:
     if not codes:
         return {}
     rows = session.scalars(
         select(StockDividend).where(StockDividend.code.in_(codes))
     ).all()
-    return {(row.code, row.fiscal_year, row.plan): row for row in rows}
+    existing: dict[tuple, StockDividend] = {}
+    for row in rows:
+        for key in _dividend_keys(
+            row.code, row.report_date, row.ex_date, row.notice_date, row.plan
+        ):
+            existing.setdefault(key, row)
+    return existing
+
+
+def _find_dividend(
+    existing: dict[tuple, StockDividend], record
+) -> StockDividend | None:
+    for key in _dividend_keys(
+        record.code, record.report_date, record.ex_date, record.notice_date, record.plan
+    ):
+        row = existing.get(key)
+        if row is not None:
+            return row
+    return None
+
+
+def _remember_dividend(
+    existing: dict[tuple, StockDividend], row: StockDividend
+) -> None:
+    for key in _dividend_keys(
+        row.code, row.report_date, row.ex_date, row.notice_date, row.plan
+    ):
+        existing.setdefault(key, row)
 
 
 def refresh_stock_metrics(
@@ -209,8 +253,7 @@ def sync_stock_dividends_bulk(
     for record in records:
         if record.code not in target_set:
             continue
-        key = (record.code, record.fiscal_year, record.plan)
-        row = existing.get(key)
+        row = _find_dividend(existing, record)
         if row is None:
             row = StockDividend(
                 code=record.code,
@@ -225,7 +268,7 @@ def sync_stock_dividends_bulk(
                 source="eastmoney",
             )
             session.add(row)
-            existing[key] = row
+            _remember_dividend(existing, row)
             written += 1
         else:
             row.ex_date = record.ex_date
@@ -235,6 +278,7 @@ def sync_stock_dividends_bulk(
             row.cash_per_share = record.cash_per_share
             row.fiscal_year = record.fiscal_year
             row.is_special = record.is_special
+            _remember_dividend(existing, row)
 
     session.commit()
     refreshed = refresh_stock_metrics(session, targets)
@@ -422,8 +466,7 @@ def sync_stock_dividends(
         try:
             records = fetch_dividends(code)
             for record in records:
-                key = (record.code, record.fiscal_year, record.plan)
-                row = existing.get(key)
+                row = _find_dividend(existing, record)
                 if row is None:
                     row = StockDividend(
                         code=record.code,
@@ -438,7 +481,7 @@ def sync_stock_dividends(
                         source="eastmoney",
                     )
                     session.add(row)
-                    existing[key] = row
+                    _remember_dividend(existing, row)
                     written += 1
                 else:
                     row.ex_date = record.ex_date
@@ -448,6 +491,7 @@ def sync_stock_dividends(
                     row.cash_per_share = record.cash_per_share
                     row.fiscal_year = record.fiscal_year
                     row.is_special = record.is_special
+                    _remember_dividend(existing, row)
         except Exception as exc:  # noqa: BLE001 - continue per stock
             errors.append(f"{code}: {exc}")
         time.sleep(delay)
