@@ -1,0 +1,21 @@
+apps/web/app/(app)/stocks/[code]/page.tsx
+  s_d90564a5b68cd9::t_026690129b64cb 98,104,230,232,294,398,471,473,531,533,657
+apps/web/components/stock-detail-tabs.tsx
+  s_d90564a5b68cd9::t_026690129b64cb 1-3,12-85,88,90,92-95,99,101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "78ebda511894462a83441c792bc8ff5e7bcf54ce",
+  "prompts": {},
+  "sessions": {
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
