@@ -1,0 +1,27 @@
+{
+  "schema_version": "v2-48.1",
+  "kind": "synthetic_product_contract_vectors",
+  "note": "人工设计的后续 V2-51/52/53 验收输入及预期，不是真实用户账本，不表示已实现计算引擎。所有现金为人民币税前金额，除非另注。",
+  "cases": [
+    {"id":"C01","scenario":"普通分红单位换算","given":{"cash_per_ten":"5","record_quantity":"1000"},"expected":{"cash_per_share":"0.5","gross_receivable":"500.00"}},
+    {"id":"C02","scenario":"精确小数分红","given":{"cash_per_ten":"10.03","record_quantity":"1000"},"expected":{"cash_per_share":"1.003","gross_receivable":"1003.00"}},
+    {"id":"C03","scenario":"登记日买入","given":{"opening_quantity":"1000","record_day_buy":"200","cash_per_share":"0.5"},"expected":{"eligible_quantity":"1200","gross_receivable":"600.00"}},
+    {"id":"C04","scenario":"登记日卖出","given":{"opening_quantity":"1000","record_day_sell":"200","cash_per_share":"0.5"},"expected":{"eligible_quantity":"800","gross_receivable":"400.00"}},
+    {"id":"C05","scenario":"登记后全部卖出","given":{"record_quantity":"1000","current_quantity":"0","cash_per_share":"0.5"},"expected":{"eligible_quantity":"1000","gross_receivable":"500.00"}},
+    {"id":"C06","scenario":"除息后首次买入","given":{"record_quantity":"0","current_quantity":"1000","cash_per_share":"0.5"},"expected":{"eligible_quantity":"0","gross_receivable":"0.00"}},
+    {"id":"C07","scenario":"期初生效日迟于登记日","given":{"opening_effective":"2026-07-11","record_date":"2026-07-09","quantity":"1000"},"expected":{"gross_receivable":null,"state":"needs_history_verification"}},
+    {"id":"C08","scenario":"预案尚未正式实施","given":{"stage":"proposed","quantity":"1000","cash_per_share":"0.5"},"expected":{"formal_receivable":null,"scenario_amount":"500.00"}},
+    {"id":"C09","scenario":"取消方案","given":{"old_pending":"500.00","new_stage":"cancelled"},"expected":{"effective_pending":"0.00","old_version_retained":true,"automatic_receipt":false}},
+    {"id":"C10","scenario":"同年度两次派息","given":{"events":[{"round":"interim","gross":"300.00"},{"round":"final","gross":"500.00"}]},"expected":{"event_count":2,"gross_total":"800.00"}},
+    {"id":"C11","scenario":"金额更正且已有实收","given":{"old_receivable":"500.00","confirmed_received":"500.00","new_receivable":"600.00"},"expected":{"confirmed_received":"500.00","difference":"100.00","review_required":true}},
+    {"id":"C12","scenario":"重复同步及任务补跑","given":{"same_event_same_revision_runs":3},"expected":{"effective_entitlement_count":1,"automatic_receipt_count":0}},
+    {"id":"C13","scenario":"派息日期未知","given":{"ex_date":"2026-07-10","payment_date":null},"expected":{"payment_date":null,"monthly_bucket":"undated","automatic_receipt":false}},
+    {"id":"C14","scenario":"部分到账及分次核对","given":{"receivable":"500.00","receipts":["300.00","200.00"]},"expected":{"remaining_after_each":["200.00","0.00"],"received_total":"500.00"}},
+    {"id":"C15","scenario":"实际到账后补扣税","given":{"receipt":"500.00","later_tax_adjustment":"-50.00"},"expected":{"net_cash":"450.00","original_receipt_retained":true}},
+    {"id":"C16","scenario":"利润财年和到账年分开","given":{"report_year":2025,"received_on":"2026-07-10","received":"500.00"},"expected":{"income_calendar_year":2026,"report_year":2025}},
+    {"id":"C17","scenario":"公司行动未验证","given":{"stock_bonus_ratio":null,"cash_per_share":"0.5"},"expected":{"automatic_entitlement":false,"state":"corporate_action_unverified"}},
+    {"id":"C18","scenario":"无明确每股金额的预披露","given":{"stage":"预披露","cash_per_ten":null,"plan":"以中期利润一定比例分配"},"expected":{"cash_per_share":null,"formal_receivable":null,"state":"needs_amount_and_implementation"}},
+    {"id":"C19","scenario":"历史修改导致中途负仓","given":{"opening_quantity":"100","sell_quantity":"100","retroactive_opening_quantity":"50"},"expected":{"mutation_allowed":false,"reason":"negative_historical_position"}},
+    {"id":"C20","scenario":"实际到账不是系统到日确认","given":{"payment_date":"2026-07-10","today":"2026-07-11","user_confirmation":false},"expected":{"receipt_count":0,"state":"awaiting_reconciliation"}}
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "kind": "single_announcement_manual_check",
+  "observed_at": "2026-10-27T05:38:16.625165+00:00",
+  "issuer": "招商银行股份有限公司",
+  "code": "600036",
+  "art_code": "AN202607031826699619",
+  "title": "招商银行:招商银行股份有限公司2025年年度A股分红派息实施公告",
+  "source_url": "https://np-cnotice-stock.eastmoney.com/api/content/ann?art_code=AN202607031826699619&client_source=web&page_index=1",
+  "pdf_url": "https://pdf.dfcfw.com/pdf/H2_AN202607031826699619_1.pdf?1783100552000.pdf",
+  "content_sha256": "876fc26f4769b41f469b98cb2163fa8194a55bb2e401f7416218a8912ea196c6",
+  "facts": {
+    "report_period": "2025年度末期",
+    "cash_per_share_tax_gross": "1.003",
+    "record_date": "2026-07-09",
+    "ex_date": "2026-07-10",
+    "payment_date": "2026-07-10",
+    "payment_date_origin": "implementation_announcement",
+    "currency": "CNY"
+  },
+  "scope": "one issuer announcement mirrored by Eastmoney; manually checked, not proof of all records or a licensed feed",
+  "not_inferred": [
+    "individual_cash_receipt",
+    "investor_tax_rate",
+    "other_event_payment_dates"
+  ]
+}
