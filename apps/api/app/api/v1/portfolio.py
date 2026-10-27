@@ -1,0 +1,229 @@
+from __future__ import annotations
+
+import logging
+from typing import Annotated, Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator, model_validator
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.db import get_session
+from app.db.models import PortfolioAccount, User
+from app.security import get_current_user
+from app.services.portfolio import (
+    POLICY,
+    POLICY_SHA256,
+    PortfolioError,
+    account_out,
+    create_account,
+    delete_account,
+    enabled_for,
+    export_portfolio,
+    update_account,
+)
+from app.services.rate_limit import check_rate_limit, rate_limit_key
+
+
+class PrivateRoute(APIRoute):
+    def get_route_handler(self):
+        original = super().get_route_handler()
+
+        async def handle(request: Request):
+            try:
+                response = await original(request)
+            except RequestValidationError:
+                # Never echo submitted names/bodies back into generic error/telemetry paths.
+                response = JSONResponse(
+                    {
+                        "detail": {
+                            "code": "invalid_request",
+                            "message": "输入格式有误，请检查字段与确认选项",
+                        }
+                    },
+                    status_code=422,
+                )
+            except PortfolioError as exc:
+                response = JSONResponse(
+                    {"detail": {"code": exc.code, "message": exc.message}}, status_code=exc.status
+                )
+            except HTTPException as exc:
+                response = JSONResponse(
+                    {"detail": exc.detail}, status_code=exc.status_code, headers=exc.headers
+                )
+            except Exception as exc:  # noqa: BLE001 - redact private SQL/input exception details
+                logging.getLogger(__name__).error(
+                    "portfolio_request_failed error_type=%s", type(exc).__name__
+                )
+                response = JSONResponse(
+                    {"detail": {"code": "internal_error", "message": "服务暂不可用，请稍后重试"}},
+                    status_code=500,
+                )
+            response.headers["Cache-Control"] = "private, no-store"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Vary"] = "Authorization, Cookie"
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"
+            return response
+
+        return handle
+
+
+router = APIRouter(prefix="/portfolio", tags=["private-portfolio"], route_class=PrivateRoute)
+
+
+class Consent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    accepted: StrictBool
+
+    @field_validator("accepted")
+    @classmethod
+    def explicit_acceptance(cls, value: bool) -> bool:
+        if value is not True:
+            raise ValueError("explicit acknowledgement required")
+        return value
+
+    version: Annotated[str, Field(min_length=1, max_length=64)]
+    sha256: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
+
+
+class CreateAccount(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: Annotated[str, Field(min_length=1, max_length=40)]
+    currency: Literal["CNY"] = "CNY"
+    consent: Consent
+
+
+class UpdateAccount(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_version: Annotated[int, Field(ge=1)]
+    name: Annotated[str | None, Field(min_length=1, max_length=40)] = None
+    is_archived: StrictBool | None = None
+
+    @model_validator(mode="after")
+    def valid_changes(self):
+        fields = self.model_fields_set - {"expected_version"}
+        if not fields or any(getattr(self, field) is None for field in fields):
+            raise ValueError("supply a non-null account change")
+        return self
+
+
+class DeleteAccount(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_version: Annotated[int, Field(ge=1)]
+    confirmation: Literal["DELETE"]
+
+
+SessionDep = Annotated[Session, Depends(get_session)]
+UserDep = Annotated[User, Depends(get_current_user)]
+
+
+def write_limit(session: Session, user_id: int, *, export: bool = False) -> None:
+    check_rate_limit(
+        session,
+        key=rate_limit_key("portfolio_export" if export else "portfolio_write", str(user_id)),
+        limit=10 if export else 30,
+        window_seconds=60,
+    )
+
+
+def commit_mutation(session: Session, action):
+    try:
+        result = action()
+        session.commit()
+        return result
+    except PortfolioError:
+        session.rollback()
+        raise
+    except IntegrityError as exc:
+        session.rollback()
+        raise PortfolioError("account_conflict", "账户信息发生冲突，请刷新后重试") from exc
+
+
+@router.get("/policy", summary="私人账本说明的当前版本和文本摘要")
+def policy() -> dict:
+    return {"policy": POLICY, "sha256": POLICY_SHA256}
+
+
+@router.get("/accounts", summary="只列出本人账本，不自动创建")
+def accounts(session: SessionDep, user: UserDep) -> dict:
+    rows = session.scalars(
+        select(PortfolioAccount).where(PortfolioAccount.user_id == user.id)
+    ).all()
+    return {
+        "items": [account_out(row) for row in rows],
+        "create_enabled": enabled_for(user.id),
+        "account_limit": 1,
+        "scope": "account_metadata_only_v2_50",
+        "capabilities": {"positions": False, "trades": False, "automatic_dividends": False},
+    }
+
+
+@router.post("/accounts", status_code=201, summary="主动确认说明后创建本人单账户")
+def create(body: CreateAccount, session: SessionDep, user: UserDep) -> dict:
+    write_limit(session, user.id)
+    account = commit_mutation(
+        session,
+        lambda: create_account(
+            session,
+            user.id,
+            body.name,
+            body.consent.model_dump(),
+        ),
+    )
+    return account_out(account)
+
+
+@router.get("/accounts/{account_id}", summary="本人账本信息")
+def detail(account_id: str, session: SessionDep, user: UserDep) -> dict:
+    from app.services.portfolio import own_account
+
+    return account_out(own_account(session, user.id, account_id))
+
+
+@router.patch("/accounts/{account_id}", summary="维护本人账本，不依赖会员")
+def update(account_id: str, body: UpdateAccount, session: SessionDep, user: UserDep) -> dict:
+    write_limit(session, user.id)
+    account = commit_mutation(
+        session,
+        lambda: update_account(
+            session,
+            user.id,
+            account_id,
+            body.expected_version,
+            body.model_dump(exclude_unset=True, exclude={"expected_version"}),
+        ),
+    )
+    return account_out(account)
+
+
+@router.delete("/accounts/{account_id}", summary="明确确认后删除本人账本和关联操作记录")
+def remove(account_id: str, body: DeleteAccount, session: SessionDep, user: UserDep) -> dict:
+    write_limit(session, user.id)
+    commit_mutation(
+        session,
+        lambda: delete_account(
+            session,
+            user.id,
+            account_id,
+            body.expected_version,
+        ),
+    )
+    return {"deleted": True, "retained": "minimal_privacy_acknowledgement_and_deletion_marker"}
+
+
+@router.get("/export", summary="免费导出本人当前账户元数据和说明确认")
+def export(session: SessionDep, user: UserDep) -> JSONResponse:
+    write_limit(session, user.id, export=True)
+    data = export_portfolio(session, user.id)
+    return JSONResponse(
+        jsonable_encoder(data),
+        headers={
+            "Content-Disposition": 'attachment; filename="stocklab-portfolio.json"',
+            "Content-Type": "application/json; charset=utf-8",
+        },
+    )

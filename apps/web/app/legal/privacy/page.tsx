@@ -8,7 +8,7 @@ export default function PrivacyPage() {
       <header>
         <p className="text-xs uppercase tracking-[0.18em] text-jade-deep">Privacy Policy</p>
         <h1 className="mt-2 font-serif text-3xl text-ink">隐私政策</h1>
-        <p className="mt-2 text-xs text-muted">最后更新：2026-10-26</p>
+        <p className="mt-2 text-xs text-muted">最后更新：2026-10-27</p>
       </header>
 
       <section className="space-y-3">
@@ -39,8 +39,17 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p>
-          我们不会收集你的身份证号、银行卡号、证券账户或持仓信息，也不要求你上传任何证件。
+          我们不要求你的身份证号、银行卡号、真实证券账户号码、券商密码或任何证件。私人账本为自愿开启的独立功能，当前收集范围见下文。
         </p>
+      </section>
+
+      <section id="portfolio-data" className="scroll-mt-24 space-y-3">
+        <h2 className="font-serif text-xl text-ink">私人账本数据说明（自愿开启）</h2>
+        <p>私人账本当前处于内测，只有你主动阅读并确认说明后才建立。当前保存自定义名称、人民币币种、归档状态、操作时间，以及说明版本、文本摘要和确认记录。持仓、成交、税费和收息录入尚未开放，开放前将另行说明并确认。</p>
+        <p>账户仅归本人使用，不支持公开分享或普通管理员查询。私人账本页面不加载第三方访问统计，不把名称写入地址、浏览器草稿、业务分析或通用后台审计；必要的基础设施和安全日志仍可能记录请求路径及安全信息。</p>
+        <p>查看、维护、归档、JSON导出和删除基础账本免费，会员到期不冻结本人数据。归档保留信息；删除移除在线账户和关联操作记录，但保留不含名称的最小删除凭据及数据说明确认，便于证明处理范围和恢复后重新清理。</p>
+        <p>历史备份按存储方周期过期。当前GitHub加密备份配置保留14天，Railway备份期限取决于部署配置；这不表示所有副本都在14天内删除。恢复历史备份前后须取得最新删除清单并重新清理，无法取得清单时应保持私人账本关闭，核对完成后再开放。该恢复清理目前由运维执行，不承诺已自动跨存储同步。</p>
+        <p>你可以不建立私人账本，继续使用原有投研功能；进一步访问、更正或删除个人信息，可通过本页联系邮箱申请。账本内会展示提交时适用的具体说明，并保留对应版本，不以默认勾选或仅继续浏览代替主动确认。</p>
       </section>
 
       <section className="space-y-3">
@@ -125,7 +134,7 @@ export default function PrivacyPage() {
       <section className="space-y-3">
         <h2 className="font-serif text-xl text-ink">10. 政策更新与联系方式</h2>
         <p>
-          我们可能更新本政策。重大变更会在页面提示。继续使用本服务视为接受更新后的政策。
+          我们可能更新本政策。重大变更会在页面提示。需要新增私人数据范围的功能会再次展示说明并请求主动确认，单纯继续浏览不会替代该确认。
         </p>
         <p>
           联系邮箱：

@@ -9,6 +9,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Numeric,
@@ -628,3 +629,70 @@ class DividendEventVersion(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class PortfolioPrivacyAcceptance(Base):
+    __tablename__ = "portfolio_privacy_acceptances"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "policy_version", "policy_sha256", name="uq_portfolio_acceptance"
+        ),
+        UniqueConstraint("id", "user_id", name="uq_portfolio_acceptance_owner"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    policy_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    policy_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    policy_snapshot: Mapped[dict] = mapped_column(JSONType, nullable=False)
+    accepted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PortfolioAccount(Base):
+    __tablename__ = "portfolio_accounts"
+    __table_args__ = (
+        UniqueConstraint("user_id", name="uq_portfolio_single_account"),
+        UniqueConstraint("id", "user_id", name="uq_portfolio_account_owner"),
+        ForeignKeyConstraint(
+            ["privacy_acceptance_id", "user_id"],
+            ["portfolio_privacy_acceptances.id", "portfolio_privacy_acceptances.user_id"],
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String(40), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="CNY")
+    is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    privacy_acceptance_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PortfolioAuditEvent(Base):
+    __tablename__ = "portfolio_audit_events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["account_id", "user_id"], ["portfolio_accounts.id", "portfolio_accounts.user_id"],
+            ondelete="CASCADE",
+        ),
+        Index("ix_portfolio_audit_owner", "user_id", "account_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    account_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    action: Mapped[str] = mapped_column(String(16), nullable=False)
+    account_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PortfolioDeletion(Base):
+    __tablename__ = "portfolio_deletions"
+    __table_args__ = (Index("ix_portfolio_deletions_user", "user_id"),)
+
+    # No account FK: this minimal record intentionally survives account removal.
+    account_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

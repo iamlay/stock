@@ -11,6 +11,7 @@ from app.api.v1 import (
     market,
     notifications,
     plans,
+    portfolio,
     previews,
     stock_watchlist,
     stocks,
@@ -35,3 +36,5 @@ api_router.include_router(plans.router)
 api_router.include_router(billing.router)
 
 api_router.include_router(previews.router)
+
+api_router.include_router(portfolio.router)

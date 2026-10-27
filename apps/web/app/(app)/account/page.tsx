@@ -257,6 +257,12 @@ export default function AccountPage() {
         </div>
       </section>
 
+      <section className="card p-5">
+        <h2 className="text-base font-medium text-ink">私人账本</h2>
+        <p className="mt-1 text-xs leading-6 text-muted">自愿开启的账户管理内测，支持免费导出和删除。持仓及收息录入尚未开放。</p>
+        <a href="/portfolio" className="mt-3 inline-block text-sm text-jade-deep hover:underline">进入私人账本 →</a>
+      </section>
+
       <TrialPanel profile={me} onProfile={setMe} />
 
       <section id="membership" className="card scroll-mt-24 p-5">

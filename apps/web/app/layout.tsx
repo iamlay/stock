@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Analytics } from "@vercel/analytics/next";
 
+import { AnalyticsBoundary } from "@/components/analytics-boundary";
 import { BaiduAnalytics } from "@/components/baidu-analytics";
 import { SessionCookieSync } from "@/components/session-cookie-sync";
 
@@ -29,8 +30,10 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
     <html lang="zh-CN">
       <body>
         {children}
-        <Analytics />
-        <BaiduAnalytics />
+        <AnalyticsBoundary>
+          <Analytics />
+          <BaiduAnalytics />
+        </AnalyticsBoundary>
         <SessionCookieSync />
       </body>
     </html>

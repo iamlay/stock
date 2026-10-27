@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
     guest_daily_limit: int = 20
     free_daily_limit: int = 50
+    portfolio_enabled: bool = False
+    portfolio_user_ids: str = ""
     advanced_samples_enabled: bool = True
     stock_preview_enabled: bool = False
     stock_preview_percent: int = Field(default=0, ge=0, le=100)
