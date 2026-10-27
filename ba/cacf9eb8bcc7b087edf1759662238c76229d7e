@@ -1,0 +1,19 @@
+apps/web/components/chrome.tsx
+  s_21701fd56cd8c0::t_2fff43bbddab36 13,78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bacacf9eb8bcc7b087edf1759662238c76229d7e",
+  "prompts": {},
+  "sessions": {
+    "s_21701fd56cd8c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "unknown"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
