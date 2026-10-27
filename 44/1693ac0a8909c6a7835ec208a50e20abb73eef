@@ -1,0 +1,19 @@
+apps/web/components/stock-search-box.tsx
+  s_d90564a5b68cd9::t_06e89b13df19e7 53,63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "441693ac0a8909c6a7835ec208a50e20abb73eef",
+  "prompts": {},
+  "sessions": {
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
