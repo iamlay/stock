@@ -1,0 +1,27 @@
+.github/workflows/stock-quotes.yml
+  s_d90564a5b68cd9::t_1b2ca25f48f020 1-57
+docs/DEPLOYMENT.md
+  s_d90564a5b68cd9::t_1b2ca25f48f020 277-290
+docs/DEVELOPMENT_PLAN.md
+  s_d90564a5b68cd9::t_1b2ca25f48f020 1607-1609
+docs/OPERATIONS.md
+  s_d90564a5b68cd9::t_1b2ca25f48f020 18,52,81,196-200,536
+docs/V2_51R_DELIVERY.md
+  s_d90564a5b68cd9::t_1b2ca25f48f020 89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8d4582bfc3e62d87fb706ab1571edba6dcfd0aa8",
+  "prompts": {},
+  "sessions": {
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
