@@ -16,10 +16,14 @@ def test_stock_quality_flags_high_yield_and_missing_industry(session) -> None:
     high.price = 10
     high.dividend_yield_ttm = 16
     high.dividend_yield_fy = 4
-    high.updated_at = datetime.now(UTC) - timedelta(days=10)
+    # Anchor both fixtures to the report date, not the wall clock.
+    as_of = date(2026, 10, 21)
+    stamp = datetime(2026, 10, 21, tzinfo=UTC)
+    high.updated_at = stamp - timedelta(days=10)
+    session.get(StockMetric, "000001").updated_at = stamp
     session.commit()
 
-    report = run_stock_quality(session, as_of=date(2026, 10, 21))
+    report = run_stock_quality(session, as_of=as_of)
     checks = report["summary"]["checks"]
     assert checks["yield_high"]["count"] == 1
     assert checks["ttm_fy_divergence"]["count"] == 1

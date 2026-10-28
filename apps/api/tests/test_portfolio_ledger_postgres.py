@@ -186,6 +186,12 @@ def test_ledger_migration_keeps_old_account_consent(pg_engine, account):
     with pg_engine.begin() as conn, Operations.context(MigrationContext.configure(conn)):
         module.downgrade()
         module.upgrade()
+        # Bring the rebuilt V2-51 tables to the current application schema.
+        next_path = path.with_name("f1a7b9c52346_portfolio_positions.py")
+        next_spec = importlib.util.spec_from_file_location("positions_migration", next_path)
+        next_module = importlib.util.module_from_spec(next_spec)
+        next_spec.loader.exec_module(next_module)
+        next_module.upgrade()
     with Session(pg_engine) as session:
         assert session.get(PortfolioAccount, identifier).privacy_acceptance_id == before
         add_entry(session, owner, identifier, payload())

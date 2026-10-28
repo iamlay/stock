@@ -298,3 +298,98 @@ def entry(account_id: str, body: CreateEntry, session: SessionDep, user: UserDep
     return commit_mutation(
         session, lambda: add_entry(session, user.id, account_id, body.model_dump(mode="json"))
     )
+
+
+class PositionPreferences(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    basis: Literal["weighted", "net", "dividend", "unknown"] = "weighted"
+    group: Annotated[str, Field(max_length=40)] = ""
+    forecast: Literal["skip", "12", "36", "60", "custom"] = "skip"
+    custom: Annotated[str | None, Field(max_length=19)] = None
+
+
+class PositionInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_version: Annotated[int, Field(strict=True, ge=1)]
+    request_id: UUID
+    code: Annotated[str, Field(pattern=r"^[0-9]{6}$")]
+    kind: Literal[
+        "snapshot", "buy", "sell", "opening", "adjustment", "reversal", "preference", "rebase"
+    ]
+    event_date: date
+    quantity: Annotated[str, Field(max_length=19)] = "0"
+    cost: Annotated[str, Field(max_length=20)] = "0"
+    input_mode: Literal["per_share", "total"] = "per_share"
+    basis: Literal["weighted", "net", "dividend", "unknown"] = "weighted"
+    fees: Annotated[str | None, Field(max_length=19)] = None
+    preferences: PositionPreferences = Field(default_factory=PositionPreferences)
+    day_order: Annotated[int | None, Field(strict=True, ge=1, le=1000000)] = None
+    note: Annotated[str, Field(max_length=500)] = ""
+    evidence: Annotated[str, Field(max_length=500)] = ""
+    reverses_id: UUID | None = None
+
+    @field_validator("event_date", mode="before")
+    @classmethod
+    def calendar_date_only(cls, value):
+        return CreateEntry.calendar_date_only(value)
+
+    @model_validator(mode="after")
+    def explicit_baseline(self):
+        if self.kind in {"snapshot", "rebase", "opening", "adjustment"} and not {
+            "quantity",
+            "cost",
+            "basis",
+        }.issubset(self.model_fields_set):
+            raise ValueError("baseline quantity, cost and basis must be explicit")
+        if self.kind in {"buy", "sell"} and self.input_mode != "per_share":
+            raise ValueError("trade price must be per share")
+        return self
+
+
+class ConfirmPosition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    entry: PositionInput
+    preview_token: Annotated[str, Field(min_length=1, max_length=2048)]
+
+
+class StockSearch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    query: Annotated[str, Field(max_length=64)]
+
+
+@router.post("/accounts/{account_id}/stock-search", summary="按名称或代码搜索全部已收录A股")
+def position_search(account_id: str, body: StockSearch, session: SessionDep, user: UserDep):
+    from app.services.portfolio_positions import search
+
+    return search(session, user.id, account_id, body.query)
+
+
+@router.get("/accounts/{account_id}/holdings", summary="本人持仓、多口径成本和分红参考")
+def position_list(account_id: str, session: SessionDep, user: UserDep):
+    from app.services.portfolio_positions import holdings
+
+    return holdings(session, user.id, account_id)
+
+
+@router.post("/accounts/{account_id}/position-preview", summary="只试算，不保存持仓")
+def position_preview(account_id: str, body: PositionInput, session: SessionDep, user: UserDep):
+    from app.services.portfolio_positions import preview
+
+    return preview(session, user.id, account_id, body.model_dump(mode="json"))
+
+
+@router.post(
+    "/accounts/{account_id}/position-confirm",
+    status_code=201,
+    summary="核验预览版本后幂等保存持仓或交易",
+)
+def position_confirm(account_id: str, body: ConfirmPosition, session: SessionDep, user: UserDep):
+    from app.services.portfolio_positions import confirm
+
+    write_limit(session, user.id)
+    return commit_mutation(
+        session,
+        lambda: confirm(
+            session, user.id, account_id, body.entry.model_dump(mode="json"), body.preview_token
+        ),
+    )

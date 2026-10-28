@@ -724,7 +724,8 @@ class PortfolioEntry(Base):
         ),
         CheckConstraint("day_order > 0", name="ck_portfolio_entry_order"),
         CheckConstraint(
-            "kind IN ('opening','buy','sell','adjustment','reversal')",
+            "kind IN ('opening','buy','sell','adjustment','reversal',"
+            "'snapshot','preference','rebase')",
             name="ck_portfolio_entry_kind",
         ),
         Index("ix_portfolio_entries_owner", "user_id", "account_id", "event_date"),
@@ -744,6 +745,7 @@ class PortfolioEntry(Base):
     total_cost: Mapped[Decimal] = mapped_column(Numeric(20, 6), nullable=False)
     history_status: Mapped[str] = mapped_column(String(24), nullable=False)
     source: Mapped[str] = mapped_column(String(16), nullable=False, default="manual")
+    details: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     note: Mapped[str] = mapped_column(String(500), nullable=False)
     evidence: Mapped[str] = mapped_column(String(500), nullable=False)
     reverses_id: Mapped[str | None] = mapped_column(String(36))

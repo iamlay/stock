@@ -21,11 +21,11 @@ from app.db.models import (
 from app.settings import settings
 
 POLICY = {
-    "version": "portfolio-ledger-2026-10-27.v2",
+    "version": "portfolio-positions-2026-10-28.v3",
     "scope": "private_holdings_and_trades",
     "title": "私人账本数据说明",
     "sections": [
-        "你可以自愿建立一个人民币私人账本。保存自定义名称、币种、归档状态、期初持仓、股票代码、日期、数量、成交价、费用、成本、备注及依据，用于重算持仓和交易盈亏；收息到账尚未开放，不连接券商。",
+        "你可以自愿建立一个人民币私人账本。保存自定义名称、币种、归档状态、期初持仓、股票代码、日期、数量、成交价、费用、成本、备注及依据，并保存日终持仓快照、成本口径、费用是否已知、分组及个人分红参考设置，用于重算持仓和交易盈亏；收息到账尚未开放，不连接券商。",
         "名称只用于自己的账本管理，不需要填写证券账户号码、身份证、银行卡、券商密码或上传证件。其他用户和普通管理员接口均不能查看你的账本。",
         "确认后，服务器会保存本说明版本、文本摘要和确认时间。基础账户维护、JSON导出和删除免费，会员到期不影响使用。",
         "私人账本页面不加载第三方访问统计，不把名称、持仓、交易及备注存入页面地址、本地草稿、业务分析或通用后台审计。运行平台可能保留请求路径与安全日志，请勿在地址栏提交私人信息。",
@@ -235,8 +235,14 @@ def export_portfolio(session: Session, user_id: int) -> dict:
     ).all()
     from app.services.portfolio_ledger import ledger_snapshot
 
+    ledgers = [
+        {"account_id": row.id, **ledger_snapshot(session, user_id, row.id)} for row in accounts
+    ]
+    redesigned = any(entry.get("details") for ledger in ledgers for entry in ledger["entries"])
     return {
-        "schema_version": "portfolio-ledger-export-v2",
+        "schema_version": "portfolio-positions-export-v3"
+        if redesigned
+        else "portfolio-ledger-export-v2",
         "scope": "holdings_and_trades_v2_51",
         "generated_at": datetime.now(UTC),
         "accounts": [account_out(row) for row in accounts],
@@ -258,8 +264,6 @@ def export_portfolio(session: Session, user_id: int) -> dict:
             }
             for row in history
         ],
-        "ledgers": [
-            {"account_id": row.id, **ledger_snapshot(session, user_id, row.id)} for row in accounts
-        ],
+        "ledgers": ledgers,
         "capabilities": {"positions": True, "trades": True, "automatic_dividends": False},
     }

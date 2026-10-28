@@ -101,8 +101,13 @@ export function PortfolioPanel() {
     return () => { window.removeEventListener("pagehide", pagehide); window.removeEventListener("storage", storage); window.removeEventListener("pageshow", revoke); };
   }, [load]);
 
+  function confirmDraftExit() {
+    return !document.querySelector("[data-portfolio-draft]") || window.confirm("当前录入尚未保存，此操作会清空表单，是否继续？");
+  }
+
   async function mutate(action: () => Promise<unknown>, success: string) {
     if (sessionToken.current !== getToken()) { window.location.replace("/portfolio"); return; }
+    if (!confirmDraftExit()) return;
     const current = generation.current;
     const op = ++operation.current;
     setBusy(true); setError(""); setMessage("");
@@ -160,17 +165,17 @@ export function PortfolioPanel() {
     <a className="inline-block text-jade-deep underline" href="/login?next=%2Fportfolio">登录后继续</a>
   </section>;
 
-  return <div className="mx-auto max-w-3xl space-y-5">
+  return <div className="mx-auto max-w-5xl space-y-5">
     <header className="flex flex-wrap items-end justify-between gap-3">
       <div><p className="text-xs tracking-widest text-jade-deep">PRIVATE PORTFOLIO</p>
         <h1 className="mt-2 font-serif text-3xl">私人账本</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">记录期初持仓与买卖，按历史流水重算数量、成本和已实现盈亏。收息核对将逐步开放。</p>
+        <p className="mt-2 text-sm leading-6 text-muted">录入已有持仓或记录买卖，明确成本口径，查看分红参考。实际收息核对将逐步开放。</p>
       </div><a href="/account" className="text-sm text-jade-deep hover:underline">返回个人中心</a>
     </header>
     {loading ? <p role="status" className="py-8 text-sm text-muted">正在读取私人账本…</p> : null}
     {error ? <p role="alert" className="rounded-sm border border-loss/30 p-3 text-sm text-loss">{error}</p> : null}
     {message ? <p role="status" className="text-sm text-jade-deep">{message}</p> : null}
-    {!loading ? <button type="button" className={button} disabled={busy} onClick={() => void load()}>刷新</button> : null}
+    {!loading ? <button type="button" className={button} disabled={busy} onClick={() => { if (confirmDraftExit()) void load(); }}>刷新</button> : null}
     {!loading && list && !account ? <section className="card space-y-4 p-5 sm:p-6">
       {!list.create_enabled ? <p className="text-sm text-muted">私人账本正在内测，暂未开放创建。已有账本仍可查看、维护、导出和删除。</p> : policy ? <>
         <h2 className="font-medium">{policy.policy.title}</h2>
@@ -192,7 +197,8 @@ export function PortfolioPanel() {
         </form>
       </> : null}
     </section> : null}
-    {!loading && account ? <section className="card space-y-5 p-5 sm:p-6">
+    {!loading && account ? <PortfolioLedger key={`${account.id}:${account.version}`} account={account} policy={policy} refresh={(message) => { if (message) setMessage(message); void load(); }} authFailure={fail} /> : null}
+    {!loading && account ? <details className="card space-y-5 p-5 sm:p-6"><summary className="cursor-pointer text-sm">账本设置 · 名称、导出、归档与删除</summary>
       <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="break-all font-medium">{account.name}</h2>
         <span className="text-xs text-muted">{account.is_archived ? "已归档" : "使用中"} · 人民币</span></div>
       <form onSubmit={(event) => { event.preventDefault(); update({ name: name.trim() }); }} className="space-y-3">
@@ -218,7 +224,7 @@ export function PortfolioPanel() {
         <button type="submit" className={`${button} text-loss`} disabled={confirmDelete !== "删除账本" || busy}>确认删除</button>
         <button type="button" className="ml-3 text-sm text-muted" onClick={() => { setDeleting(false); setConfirmDelete(""); }} disabled={busy}>取消</button>
       </form> : null}
-    </section> : null}
-    {!loading && account ? <PortfolioLedger key={`${account.id}:${account.version}`} account={account} policy={policy} refresh={() => void load()} authFailure={fail} /> : null}
+    </details> : null}
+
   </div>;
 }

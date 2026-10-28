@@ -1,144 +1,584 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getToken } from "@/lib/auth";
-import { portfolioRequest, PortfolioRequestError, type PortfolioAccount, type PortfolioPolicy } from "@/lib/portfolio";
+import {
+  portfolioRequest,
+  PortfolioRequestError,
+  type PortfolioAccount,
+  type PortfolioPolicy,
+} from "@/lib/portfolio";
+import {
+  amount,
+  basisLabels,
+  kindLabels,
+  type Entry,
+  type Holdings,
+  type Kind,
+  type Position,
+} from "@/lib/portfolio-positions";
+import { PortfolioPositionForm } from "@/components/portfolio-position-form";
 
-const button = "rounded-sm border border-line px-4 py-2 text-sm disabled:opacity-50 hover:border-jade";
-const input = "w-full min-w-0 rounded-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-jade";
-const labels: Record<string, string> = { opening: "期初持仓", buy: "买入", sell: "卖出", adjustment: "持仓调整", reversal: "冲正撤销" };
-type Entry = {
-  id: string; code: string; kind: string; event_date: string; day_order: number;
-  quantity: string; price: string; fees: string; total_cost: string;
-  history_status: string; note: string; evidence: string; active: boolean; reverses_id: string | null;
-};
-type Position = { code: string; quantity: string; total_cost: string; average_cost: string | null;
-  realized_pnl: string; fees: string; known_since: string; history_status: string; has_adjustment: boolean };
-type Ledger = { account_version: number; consent_required: boolean; entries: Entry[]; positions: Position[];
-  review_ranges: { code: string; from_date: string; status: string }[] };
-const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-const empty = () => ({ code: "", kind: "opening", event_date: today(), day_order: "10", quantity: "", price: "0", fees: "0", total_cost: "", history_status: "since_date", note: "", evidence: "", reverses_id: null as string | null });
-// Preserve decimal strings. Never convert portfolio amounts through JS Number.
-const amount = (value: string | null) => value === null ? "—" : value.replace(/(\.\d*?[1-9])0+$|\.0+$/, "$1");
-
-export function PortfolioLedger({ account, policy, refresh, authFailure }: {
-  account: PortfolioAccount; policy: PortfolioPolicy | null; refresh: () => void; authFailure: (error: unknown) => void;
+const button =
+  "rounded-lg border border-line px-4 py-2 text-sm disabled:opacity-50 hover:border-jade";
+function sourceLink(url: string | null) {
+  try {
+    const u = new URL(url ?? "");
+    return ["https:", "http:"].includes(u.protocol) ? u.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+export function PortfolioLedger({
+  account,
+  policy,
+  refresh,
+  authFailure,
+}: {
+  account: PortfolioAccount;
+  policy: PortfolioPolicy | null;
+  refresh: (message?: string) => void;
+  authFailure: (error: unknown) => void;
 }) {
-  const [data, setData] = useState<Ledger | null>(null);
+  const [data, setData] = useState<Holdings | null>(null);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [accepted, setAccepted] = useState(false);
-  const [form, setForm] = useState(empty);
+  const [group, setGroup] = useState("");
+  const [sort, setSort] = useState("name");
+  const [closed, setClosed] = useState(false);
+  const [editing, setEditing] = useState<{
+    id: string;
+    kind: Kind;
+    position?: Position;
+    correction?: Entry;
+  } | null>(null);
   const alive = useRef(false);
   const token = useRef(getToken());
-  const request = useRef<{ content: string; id: string } | null>(null);
   const current = () => alive.current && token.current === getToken();
   useEffect(() => {
     alive.current = true;
     token.current = getToken();
-    void portfolioRequest<Ledger>(`/accounts/${account.id}/ledger`).then((result) => {
-      if (current()) setData(result);
-    }).catch((err) => {
-      if (!current()) return;
-      if (err instanceof PortfolioRequestError && err.status === 401) authFailure(err);
-      else setError(err instanceof Error ? err.message : "流水暂时无法读取，请刷新。");
-    });
-    return () => { alive.current = false; };
+    void portfolioRequest<Holdings>(`/accounts/${account.id}/holdings`)
+      .then((result) => {
+        if (current()) setData(result);
+      })
+      .catch((err) => {
+        if (!current()) return;
+        if (err instanceof PortfolioRequestError && err.status === 401)
+          authFailure(err);
+        else
+          setError(
+            err instanceof Error ? err.message : "持仓暂时无法读取，请刷新。",
+          );
+      });
+    return () => {
+      alive.current = false;
+    };
   }, [account.id, authFailure]);
-
-  async function save(path: string, body: unknown) {
-    if (!current() || busy) return;
-    setBusy(true); setError("");
+  async function accept() {
+    if (!data || !policy || !accepted || busy || !current()) return;
+    setBusy(true);
+    setError("");
     try {
-      await portfolioRequest(path, { method: "POST", body: JSON.stringify(body) });
+      await portfolioRequest(`/accounts/${account.id}/consent`, {
+        method: "POST",
+        body: JSON.stringify({
+          expected_version: data.account_version,
+          consent: {
+            accepted: true,
+            version: policy.policy.version,
+            sha256: policy.sha256,
+          },
+        }),
+      });
       if (current()) refresh();
     } catch (err) {
-      if (!current()) return;
-      if (err instanceof PortfolioRequestError && err.status === 401) authFailure(err);
-      else setError(err instanceof Error ? err.message : "保存失败，请稍后重试。");
-    } finally { if (current()) setBusy(false); }
+      if (current()) {
+        authFailure(err);
+        setError(err instanceof Error ? err.message : "确认失败");
+      }
+    } finally {
+      if (current()) setBusy(false);
+    }
   }
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!data) return;
-    const content = JSON.stringify({ ...form, day_order: Number(form.day_order) });
-    if (request.current?.content !== content) request.current = { content, id: crypto.randomUUID() };
-    void save(`/accounts/${account.id}/entries`, { ...JSON.parse(content),
-      expected_version: data.account_version, request_id: request.current.id });
+  function open(kind: Kind, position?: Position, correction?: Entry) {
+    setEditing({ id: crypto.randomUUID(), kind, position, correction });
+    setMessage("");
+    setError("");
   }
-
-  function edit(entry: Entry, reverse: boolean) {
-    setForm({ code: entry.code, kind: reverse ? "reversal" : entry.kind,
-      event_date: entry.event_date, day_order: String(entry.day_order),
-      quantity: reverse ? "0" : entry.quantity, price: reverse ? "0" : entry.price,
-      fees: reverse ? "0" : entry.fees, total_cost: reverse ? "0" : entry.total_cost,
-      history_status: entry.history_status, note: "", evidence: reverse ? "" : entry.evidence,
-      reverses_id: entry.id });
-    document.getElementById("ledger-entry-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  const disabled = busy || account.is_archived;
-  const balance = ["opening", "adjustment"].includes(form.kind);
-  const reversal = form.kind === "reversal";
-  return <section className="card space-y-5 p-5 sm:p-6">
-    <h2 className="font-serif text-xl">持仓与交易</h2>
-    <p className="text-sm leading-6 text-muted">按移动加权平均计算。买入费用计入成本，卖出费用扣减交易盈亏；现金股息不冲减成本。这里不连接券商，不代表券商核实结果。</p>
-    {error ? <p role="alert" className="text-sm text-loss">{error} 如提示版本变化，请点击页面“刷新”。</p> : null}
-    {!data ? <p className="text-sm text-muted">正在读取持仓与流水…</p> : <>
-      {data.consent_required ? <div className="space-y-3 border border-line p-4">
-        <h3 className="font-medium">首次录入前，请确认新增数据范围</h3>
-        {policy ? <>
-          <ul className="list-disc space-y-2 pl-5 text-sm leading-6">{policy.policy.sections.map((text, i) => <li key={i}>{text}</li>)}</ul>
-          <a className="text-sm text-jade-deep underline" href={policy.policy.privacy_path} target="_blank" rel="noreferrer">完整隐私政策</a>
-          <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={accepted} disabled={busy} onChange={(e) => setAccepted(e.target.checked)} />我已阅读，自愿保存持仓与交易数据及确认记录。</label>
-          <button type="button" className={button} disabled={!accepted || busy} onClick={() => void save(`/accounts/${account.id}/consent`, { expected_version: data.account_version, consent: { accepted: true, version: policy.policy.version, sha256: policy.sha256 } })}>确认并启用交易录入</button>
-        </> : <p>数据说明暂不可用，请刷新后再确认；已有数据仍可查看和导出。</p>}
-      </div> : null}
-      <div className="space-y-3">
-        <h3 className="font-medium">当前持仓与交易盈亏</h3>
-        {!data.positions.length ? <p className="text-sm text-muted">尚无有效持仓流水。可先录入有生效日期的期初持仓。</p> : data.positions.map((p) => <article key={p.code} className="space-y-2 rounded-sm border border-line p-3 text-sm">
-          <h4 className="font-medium">{p.code}</h4>
-          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {[["数量（股）", p.quantity], ["持仓总成本（元）", p.total_cost], ["平均成本（元/股）", p.average_cost], ["已实现交易盈亏（元）", p.realized_pnl], ["累计费用（元）", p.fees]].map(([label, value]) => <div key={label}><dt className="text-xs text-muted">{label}</dt><dd className="mt-1 break-all tabular-nums">{amount(value)}</dd></div>)}
-          </dl>
-          <p className="text-xs leading-6 text-muted">历史起点：{p.known_since}；此前持仓未知，不倒推分红权益。{p.history_status === "incomplete" ? "区间内历史仍不完整，需补充核对。" : "仅按已录入的起点后流水计算。"}{p.has_adjustment ? "含人工调整，分红权益待核对。" : ""}</p>
-        </article>)}
-        <p className="text-xs text-muted">未实现盈亏、已收股息及组合收益率暂不计算，不能当作零收益。</p>
-      </div>
-      {account.is_archived ? <p className="text-sm text-muted">账本已归档，仍可查看与导出；恢复后可继续录入或更正。</p> : null}
-      {!data.consent_required && !account.is_archived ? <form id="ledger-entry-form" className="scroll-mt-24 space-y-4 border-t border-line pt-5" onSubmit={submit}>
-        <h3 className="font-medium">{form.reverses_id ? reversal ? "确认冲正撤销原流水" : "更正流水（保留原记录）" : "录入流水"}</h3>
-        {form.reverses_id ? <p className="break-all text-xs text-muted">关联原记录：{form.reverses_id}。提交后重算全部后续流水；如出现历史超卖，将拒绝整笔操作。</p> : null}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="space-y-1 text-sm"><span>股票代码</span><input aria-label="股票代码" className={input} value={form.code} maxLength={6} pattern="[0-9]{6}" required readOnly={!!form.reverses_id} disabled={disabled} autoComplete="off" placeholder="例如：600036" onChange={(e) => setForm({ ...form, code: e.target.value })} /></label>
-          <label className="space-y-1 text-sm"><span>流水类型</span><select aria-label="流水类型" className={input} value={form.kind} disabled={disabled || !!form.reverses_id} onChange={(e) => setForm({ ...form, kind: e.target.value, price: "0", fees: "0", total_cost: ["opening", "adjustment"].includes(e.target.value) ? "" : "0" })}>{Object.entries(labels).filter(([key]) => key !== "reversal" || reversal).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label>
-          <label className="space-y-1 text-sm"><span>生效 / 成交日期</span><input aria-label="生效日期" className={input} type="date" value={form.event_date} max={today()} required disabled={disabled || reversal} onChange={(e) => setForm({ ...form, event_date: e.target.value })} /></label>
-          <label className="space-y-1 text-sm"><span>同日顺序（小的先发生）</span><input aria-label="同日顺序" className={input} type="number" min={1} max={1000000} step={1} value={form.day_order} required disabled={disabled || reversal} onChange={(e) => setForm({ ...form, day_order: e.target.value })} /></label>
-          {!reversal ? <>
-            <label className="space-y-1 text-sm"><span>{form.kind === "adjustment" ? "调整后总数量（股）" : "数量（股）"}</span><input aria-label="数量" className={input} inputMode="decimal" value={form.quantity} required disabled={disabled} autoComplete="off" onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></label>
-            {balance ? <label className="space-y-1 text-sm"><span>{form.kind === "adjustment" ? "调整后持仓总成本（元）" : "期初总成本（元）"}</span><input aria-label="总成本" className={input} inputMode="decimal" value={form.total_cost} required disabled={disabled} autoComplete="off" onChange={(e) => setForm({ ...form, total_cost: e.target.value })} /></label> : <>
-              <label className="space-y-1 text-sm"><span>成交价（元/股）</span><input aria-label="成交价" className={input} inputMode="decimal" value={form.price} required disabled={disabled} autoComplete="off" onChange={(e) => setForm({ ...form, price: e.target.value })} /></label>
-              <label className="space-y-1 text-sm"><span>本笔全部费用（元）</span><input aria-label="费用" className={input} inputMode="decimal" value={form.fees} required disabled={disabled} autoComplete="off" onChange={(e) => setForm({ ...form, fees: e.target.value })} /></label>
-            </>}
-            <label className="space-y-1 text-sm"><span>历史完整性</span><select aria-label="历史完整性" className={input} value={form.history_status} disabled={disabled} onChange={(e) => setForm({ ...form, history_status: e.target.value })}><option value="since_date">仅确认录入起点后的历史</option><option value="incomplete">仍有缺失，待核对</option></select></label>
-          </> : null}
+  const canWrite = !!data && !data.consent_required && !account.is_archived;
+  const positions =
+    data?.positions
+      .filter(
+        (p) =>
+          (!group || (p.preferences.group || "未分组") === group) &&
+          (closed || !/^0(?:\.0+)?$/.test(p.quantity)),
+      )
+      .sort((a, b) =>
+        sort === "name"
+          ? a.name.localeCompare(b.name, "zh")
+          : sort === "code"
+            ? a.code.localeCompare(b.code)
+            : Number(b.market_value ?? -1) - Number(a.market_value ?? -1),
+      ) ?? [];
+  if (editing && data)
+    return (
+      <PortfolioPositionForm
+        key={editing.id}
+        accountId={account.id}
+        version={data.account_version}
+        positions={data.positions}
+        initialKind={editing.kind}
+        initialPosition={editing.position}
+        correction={editing.correction}
+        onCancel={() => setEditing(null)}
+        onError={(err) => {
+          if (err instanceof PortfolioRequestError && err.status === 401)
+            authFailure(err);
+        }}
+        onSaved={(result) => {
+          setData(result);
+          setEditing(null);
+          refresh("持仓已保存，可继续添加下一只股票。");
+        }}
+      />
+    );
+  return (
+    <section className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-serif text-2xl">我的持仓</h2>
+          <p className="mt-1 text-xs text-muted">
+            {account.name} · 人民币 ·{" "}
+            {data?.positions.filter((p) => !/^0(?:\.0+)?$/.test(p.quantity))
+              .length ?? 0}
+            只
+          </p>
         </div>
-        <label className="block space-y-1 text-sm"><span>备注 / 原因{form.reverses_id || form.kind === "adjustment" ? "（必填）" : ""}</span><textarea aria-label="备注" className={input} maxLength={500} value={form.note} required={!!form.reverses_id || form.kind === "adjustment"} disabled={disabled} autoComplete="off" onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
-        {form.kind === "adjustment" || (form.reverses_id && !reversal) ? <label className="block space-y-1 text-sm"><span>核对依据（请勿填写账户号码或密码）</span><textarea aria-label="核对依据" className={input} value={form.evidence} maxLength={500} required={form.kind === "adjustment"} disabled={disabled} autoComplete="off" onChange={(e) => setForm({ ...form, evidence: e.target.value })} /></label> : null}
-        <p className="text-xs leading-6 text-muted">调整填写调整后的总数量与总成本，不是差额；不计为买卖盈亏。金额最多6位小数。历史补录、更正和冲正均保留分红待核对范围，不自动确认到账。</p>
-        <div className="flex flex-wrap gap-3"><button type="submit" className={`${button} bg-ink text-paper`} disabled={disabled}>{busy ? "正在保存…" : reversal ? "确认冲正并重算" : "保存并重算"}</button>{form.reverses_id ? <button type="button" className={button} disabled={busy} onClick={() => setForm(empty())}>取消更正</button> : null}</div>
-      </form> : null}
-      <div className="space-y-3 border-t border-line pt-4"><h3 className="font-medium">全部流水（含更正历史）</h3>
-        {!data.entries.length ? <p className="text-sm text-muted">尚无记录。</p> : data.entries.map((e) => <article key={e.id} className="space-y-2 border-b border-line pb-3 text-sm">
-          <p className="flex flex-wrap gap-x-3 gap-y-1"><strong>{e.code} · {labels[e.kind]}</strong><span>{e.event_date} · 顺序 {e.day_order}</span><span className="text-muted">{e.active ? "有效" : e.kind === "reversal" ? "冲正凭据" : "已被冲正 / 更正"}</span></p>
-          {e.kind !== "reversal" ? <p className="break-words text-xs text-muted">数量 {amount(e.quantity)} · 成交价 {amount(e.price)} · 费用 {amount(e.fees)}{["opening", "adjustment"].includes(e.kind) ? ` · 总成本 ${amount(e.total_cost)}` : ""}</p> : null}
-          {e.note ? <p className="break-all">原因 / 备注：{e.note}</p> : null}{e.evidence ? <p className="break-all text-xs text-muted">依据：{e.evidence}</p> : null}
-          {e.reverses_id ? <p className="break-all text-xs text-muted">关联原记录：{e.reverses_id}</p> : null}
-          {e.active && !data.consent_required && !account.is_archived ? <div className="flex gap-3"><button type="button" className={button} disabled={busy} onClick={() => edit(e, false)}>更正</button><button type="button" className={button} disabled={busy} onClick={() => edit(e, true)}>冲正撤销</button></div> : null}
-        </article>)}
+        <button
+          type="button"
+          className={`${button} bg-jade text-white`}
+          disabled={!canWrite}
+          onClick={() => open("snapshot")}
+        >
+          ＋ 添加持仓
+        </button>
       </div>
-      {data.review_ranges.length ? <p className="text-xs leading-6 text-muted">已记录 {data.review_ranges.length} 次持仓变动的分红待核对范围。分红权益与到账模块尚未开放，当前没有自动应收或实收记录。</p> : null}
-    </>}
-  </section>;
+      {message ? (
+        <p role="status" className="text-sm text-jade-deep">
+          {message}
+        </p>
+      ) : null}
+      {error ? (
+        <p role="alert" className="text-sm text-loss">
+          {error}
+        </p>
+      ) : null}
+      {!data ? (
+        <p className="text-sm text-muted">正在读取持仓…</p>
+      ) : (
+        <>
+          {data.consent_required ? (
+            <div className="card space-y-3 p-5">
+              <h3 className="font-medium">请确认新版持仓数据范围</h3>
+              {policy ? (
+                <>
+                  <ul className="list-disc space-y-2 pl-5 text-sm leading-6">
+                    {policy.policy.sections.map((t, i) => (
+                      <li key={i}>{t}</li>
+                    ))}
+                  </ul>
+                  <a
+                    className="text-sm text-jade-deep underline"
+                    href={policy.policy.privacy_path}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    完整隐私政策
+                  </a>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={accepted}
+                      disabled={busy}
+                      onChange={(e) => setAccepted(e.target.checked)}
+                    />
+                    我已阅读，自愿保存上述持仓与参考设置。
+                  </label>
+                  <button
+                    type="button"
+                    className={button}
+                    disabled={!accepted || busy}
+                    onClick={() => void accept()}
+                  >
+                    确认并启用新版录入
+                  </button>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="rounded-xl bg-ink p-5 text-paper">
+            <p className="text-sm opacity-80">已知行情对应市值</p>
+            <strong className="mt-2 block break-all text-3xl">
+              ¥ {amount(data.known_market_value)}
+            </strong>
+            <p className="mt-2 text-xs opacity-80">
+              {data.missing_quotes
+                ? `${data.missing_quotes}只持仓缺报价，未计入此金额。`
+                : "报价时点见各持仓，不代表实时成交价。"}{" "}
+              起点前收益未知，实际分红到账尚未开放。
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <label>
+              分组{" "}
+              <select
+                aria-label="筛选分组"
+                className="rounded border border-line bg-surface p-2"
+                value={group}
+                onChange={(e) => setGroup(e.target.value)}
+              >
+                <option value="">全部</option>
+                {Array.from(
+                  new Set(
+                    data.positions.map((p) => p.preferences.group || "未分组"),
+                  ),
+                )
+                  .sort()
+                  .map((g) => (
+                    <option key={g}>{g}</option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              排序{" "}
+              <select
+                aria-label="排序"
+                className="rounded border border-line bg-surface p-2"
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+              >
+                <option value="name">名称</option>
+                <option value="code">代码</option>
+                <option value="value">市值从高到低</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={closed}
+                onChange={(e) => setClosed(e.target.checked)}
+              />
+              显示已清仓
+            </label>
+          </div>
+          {account.is_archived ? (
+            <p className="text-sm text-muted">
+              账本已归档，可在下方设置中恢复。
+            </p>
+          ) : null}
+          {!positions.length ? (
+            <div className="card p-8 text-center text-sm text-muted">
+              {data.positions.length
+                ? "当前筛选下没有持仓。"
+                : "还没有持仓。按券商当前持仓录入，或记下一笔买入。"}
+            </div>
+          ) : (
+            positions.map((p) => {
+              const basis = p.preferences.basis;
+              const cost = basis === "unknown" ? null : p.costs[basis];
+              return (
+                <article
+                  key={p.code}
+                  className="card space-y-4 rounded-xl p-5 sm:p-6"
+                >
+                  <div className="flex flex-wrap justify-between gap-3">
+                    <div>
+                      <h3 className="font-medium">
+                        {p.name}{" "}
+                        <span className="ml-2 text-xs text-muted">A股</span>
+                      </h3>
+                      <p className="mt-1 text-sm text-muted">
+                        {p.code} · {p.preferences.group || "未分组"}
+                      </p>
+                    </div>
+                    <div className="text-sm">
+                      <p className="text-xs text-muted">年度分红参考 · 税前</p>
+                      <strong className="mt-1 block text-lg text-jade-deep">
+                        {p.forecast.annual_amount === null
+                          ? p.forecast.status === "not_set"
+                            ? "未设置"
+                            : "资料不足"
+                          : `¥ ${amount(p.forecast.annual_amount)}`}
+                      </strong>
+                    </div>
+                  </div>
+                  <dl className="grid grid-cols-2 gap-4 rounded-lg bg-paper p-4 sm:grid-cols-4">
+                    {[
+                      ["持仓（股）", p.quantity],
+                      ["市值（元）", p.market_value],
+                      [`${basisLabels[basis]}（元/股）`, cost?.per_share],
+                      ["当前价格股息率（%）", p.price_yield],
+                    ].map(([label, value]) => (
+                      <div key={label}>
+                        <dt className="text-xs text-muted">{label}</dt>
+                        <dd className="mt-2 break-all font-medium tabular-nums">
+                          {amount(value)}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {cost?.total &&
+                  basis !== "weighted" &&
+                  Number(cost.total) <= 0 ? (
+                    <p className="text-sm text-jade-deep">
+                      所选口径下净投入已回收，不再计算负分母股息率。
+                    </p>
+                  ) : null}
+                  {p.reference !== null ? (
+                    <p className="text-xs text-muted">
+                      原始未知口径参考总额：{amount(p.reference)}{" "}
+                      元，不作为当前每股成本或盈亏依据。
+                    </p>
+                  ) : null}
+                  <p className="text-xs leading-6 text-muted">
+                    {p.quote
+                      ? `报价 ¥${amount(p.quote.price)} · ${new Date(p.quote.at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}`
+                      : "暂无可用报价"}
+                    。历史起点 {p.known_since}
+                    {p.date_semantics === "end_of_day"
+                      ? "（日终快照）"
+                      : "（原记录语义）"}
+                    ；此前未知。
+                    {p.history_status === "incomplete" ? "期间记录仍有缺失，显示值仅根据已录入资料计算，请补充核对。" : ""}
+                    {p.estimated ? "含未知费用，成本及盈亏为估算。" : ""}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className={button}
+                      disabled={!canWrite}
+                      onClick={() => open("buy", p)}
+                    >
+                      买入
+                    </button>
+                    <button
+                      type="button"
+                      className={button}
+                      disabled={!canWrite || /^0(?:\.0+)?$/.test(p.quantity)}
+                      onClick={() => open("sell", p)}
+                    >
+                      卖出
+                    </button>
+                    <button
+                      type="button"
+                      className={button}
+                      disabled={!canWrite}
+                      onClick={() => open("rebase", p)}
+                    >
+                      修正当前持仓
+                    </button>
+                    <button
+                      type="button"
+                      className={button}
+                      disabled={!canWrite}
+                      onClick={() => open("preference", p)}
+                    >
+                      分组与分红参考
+                    </button>
+                    <a
+                      href={`/stocks/${p.code}?tab=dividend`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={button}
+                    >
+                      分红档案 ↗
+                    </a>
+                  </div>
+                  <details>
+                    <summary className="cursor-pointer text-sm text-jade-deep">
+                      成本明细、分红依据与交易记录
+                    </summary>
+                    <div className="mt-4 space-y-4">
+                      <dl className="grid gap-3 sm:grid-cols-3">
+                        {(["weighted", "net", "dividend"] as const).map((b) => (
+                          <div
+                            key={b}
+                            className="rounded-lg border border-line p-3 text-sm"
+                          >
+                            <dt>{basisLabels[b]}</dt>
+                            <dd className="mt-2">
+                              {p.costs[b].per_share === null
+                                ? "资料不足 / 已清仓"
+                                : `${amount(p.costs[b].per_share)} 元/股`}
+                            </dd>
+                            <dd className="mt-1 text-xs text-muted">
+                              总额 {amount(p.costs[b].total)} 元
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                      <p className="text-sm">
+                        当前周期记账起点后交易盈亏：{amount(p.realized_pnl)}{" "}
+                        元。加权成本股息率：{amount(p.cost_yield)}%。
+                      </p>
+                      {p.closed_cycles.length ? (
+                        <details>
+                          <summary className="cursor-pointer text-sm">
+                            此前记账区间（{p.closed_cycles.length}）
+                          </summary>
+                          {p.closed_cycles.map((c) => (
+                            <p
+                              className="mt-2 text-xs text-muted"
+                              key={c.cycle_id}
+                            >
+                              该区间已记录交易盈亏 {amount(c.realized_pnl)}{" "}
+                              元；不抵减新周期成本。
+                            </p>
+                          ))}
+                        </details>
+                      ) : null}
+                      <p className="text-xs leading-6 text-muted">
+                        {p.forecast.note}。明细窗口：({p.forecast.from_date},{" "}
+                        {p.forecast.to_date}]；日期缺失的记录单独待核对。
+                      </p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead>
+                            <tr className="border-b border-line">
+                              <th className="p-2 whitespace-nowrap">
+                                报告期 / 除息日
+                              </th>
+                              <th className="p-2 whitespace-nowrap">
+                                每股现金（元）
+                              </th>
+                              <th className="p-2 whitespace-nowrap">
+                                阶段 / 来源
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {p.forecast.details.map((d) => (
+                              <tr
+                                key={d.event_id}
+                                className="border-b border-line"
+                              >
+                                <td className="p-2 whitespace-nowrap">
+                                  {d.report_date || "未知"}
+                                  <br />
+                                  {d.ex_date || "待核对"}
+                                </td>
+                                <td className="p-2">
+                                  {amount(d.cash_per_share)}
+                                </td>
+                                <td className="p-2">
+                                  {d.stage === "implemented"
+                                    ? "已实施"
+                                    : d.stage === "proposal"
+                                      ? "预案"
+                                      : "待核对"}
+                                  <br />
+                                  {sourceLink(d.source_url) ? (
+                                    <a
+                                      href={sourceLink(d.source_url)}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="underline"
+                                    >
+                                      {d.source}
+                                    </a>
+                                  ) : (
+                                    d.source
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {!p.forecast.details.length ? (
+                          <p className="py-3 text-xs text-muted">
+                            没有可展示的窗口内记录；不代表确认无分红。
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="space-y-3">
+                        {data.entries
+                          .filter((e) => e.code === p.code)
+                          .map((e) => (
+                            <div
+                              key={e.id}
+                              className="border-t border-line pt-3 text-xs leading-6"
+                            >
+                              <p>
+                                {e.event_date} · {kindLabels[e.kind]} · 当天顺序{" "}
+                                {e.day_order} ·{" "}
+                                {e.active ? "有效" : "已撤销 / 更正凭据"}
+                              </p>
+                              {!["preference", "reversal"].includes(e.kind) ? (
+                                <p>
+                                  数量 {amount(e.quantity)} ·{" "}
+                                  {["snapshot", "rebase"].includes(e.kind)
+                                    ? `${basisLabels[e.details?.basis ?? "unknown"]} 总额 ${amount(e.details?.amount)}`
+                                    : `价格 ${amount(e.price)} · 费用 ${amount(e.fees)}${e.details?.fees_known === false ? "（未知，暂按0）" : ""}`}
+                                  {["opening", "adjustment"].includes(e.kind)
+                                    ? ` · 原总成本 ${amount(e.total_cost)}`
+                                    : ""}
+                                </p>
+                              ) : null}
+                              {e.note ? (
+                                <p className="break-all">原因：{e.note}</p>
+                              ) : null}
+                              {e.evidence ? (
+                                <p className="break-all">依据：{e.evidence}</p>
+                              ) : null}
+                              {e.active &&
+                              !["preference", "reversal"].includes(e.kind) ? (
+                                <div className="mt-2 flex gap-2">
+                                  <button
+                                    type="button"
+                                    className={button}
+                                    disabled={!canWrite}
+                                    onClick={() => open(e.kind, p, e)}
+                                  >
+                                    更正
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={button}
+                                    disabled={!canWrite}
+                                    onClick={() => open("reversal", p, e)}
+                                  >
+                                    撤销
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  </details>
+                </article>
+              );
+            })
+          )}
+          <details className="card p-5">
+            <summary className="cursor-pointer text-sm">
+              全部记录（含已撤销持仓）
+            </summary>
+            <div className="mt-3 space-y-2 text-xs text-muted">
+              {data.entries.map((e) => (
+                <p key={e.id}>
+                  {e.code} · {e.event_date} · {kindLabels[e.kind]} ·{" "}
+                  {e.active ? "有效" : "已撤销 / 更正凭据"}
+                  {e.note ? ` · ${e.note}` : ""}
+                </p>
+              ))}
+            </div>
+          </details>
+        </>
+      )}
+    </section>
+  );
 }

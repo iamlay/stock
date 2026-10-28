@@ -113,11 +113,16 @@ def entry_out(row, cancelled):
         result[key] = format(Decimal(result[key]), ".6f")
     stamp = row.created_at
     result["created_at"] = stamp if stamp.tzinfo else stamp.replace(tzinfo=UTC)
+    result["details"] = getattr(row, "details", None)
     result["active"] = row.id not in cancelled and row.kind != "reversal"
     return result
 
 
 def replay(rows) -> list[dict]:
+    if any(getattr(r, "details", None) for r in rows):
+        from app.services.portfolio_positions import project
+
+        return project(rows)
     cancelled = {row.reverses_id for row in rows if row.reverses_id}
     active = sorted(
         (r for r in rows if r.id not in cancelled and r.kind != "reversal"),
@@ -214,7 +219,7 @@ def ledger_snapshot(session, user_id, account_id):
     return dict(
         account_version=account.version,
         consent_required=not current_consent(session, account),
-        rule_version=RULE_VERSION,
+        rule_version="positions-cny-v3" if any(r.details for r in rows) else RULE_VERSION,
         entries=[entry_out(r, cancelled) for r in rows],
         positions=replay(rows),
         review_ranges=[
@@ -255,6 +260,8 @@ def add_entry(session, user_id, account_id, payload):
         raise accounts.PortfolioError("account_archived", "请先恢复账本再录入或冲正流水")
     if not current_consent(session, account):
         raise accounts.PortfolioError("privacy_ack_required", "请先确认持仓与交易数据说明", 403)
+    if any(r.details for r in rows):
+        fail("new_entry_required", "账本已启用新版持仓，请使用新版预览和保存入口")
     kind = payload["kind"]
     code = payload["code"]
     instrument = session.get(Instrument, code)
