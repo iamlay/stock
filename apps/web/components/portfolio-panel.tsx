@@ -19,7 +19,8 @@ function analyticsPresent(): boolean {
   ));
 }
 
-export function PortfolioPanel() {
+export function PortfolioPanel({ selectedCode }: { selectedCode?: string } = {}) {
+  const portfolioPath = selectedCode ? `/portfolio/${selectedCode}` : "/portfolio";
   const [policy, setPolicy] = useState<PortfolioPolicy | null>(null);
   const [list, setList] = useState<PortfolioList | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,7 +57,7 @@ export function PortfolioPanel() {
         portfolioRequest<unknown>("/policy"), portfolioRequest<PortfolioList>("/accounts"),
       ]);
       if (current !== generation.current) return;
-      if (token !== getToken()) { window.location.replace("/portfolio"); return; }
+      if (token !== getToken()) { window.location.replace(portfolioPath); return; }
       if (accountResult.status === "rejected") throw accountResult.reason;
       const accounts = accountResult.value;
       setList(accounts); setName(accounts.items[0]?.name ?? ""); sessionToken.current = token;
@@ -68,16 +69,16 @@ export function PortfolioPanel() {
       setAccepted(false); setDeleting(false); setConfirmDelete("");
     } catch (err) { if (current === generation.current) fail(err); }
     finally { if (current === generation.current) setLoading(false); }
-  }, [fail]);
+  }, [fail, portfolioPath]);
 
   useEffect(() => {
     // Entering through a public SPA page may leave analytics globals alive after unmount.
     // Reload BEFORE fetching or displaying ANY private metadata.
-    if (analyticsPresent()) { window.location.replace("/portfolio"); return; }
+    if (analyticsPresent()) { window.location.replace(portfolioPath); return; }
     if (!getToken()) { setAuthRequired(true); setLoading(false); return; }
     void load();
     return () => { generation.current += 1; };
-  }, [load]);
+  }, [load, portfolioPath]);
 
   useEffect(() => {
     const revoke = () => {
@@ -99,14 +100,14 @@ export function PortfolioPanel() {
     window.addEventListener("storage", storage);
     window.addEventListener("pageshow", revoke);
     return () => { window.removeEventListener("pagehide", pagehide); window.removeEventListener("storage", storage); window.removeEventListener("pageshow", revoke); };
-  }, [load]);
+  }, [load, portfolioPath]);
 
   function confirmDraftExit() {
     return !document.querySelector("[data-portfolio-draft]") || window.confirm("当前录入尚未保存，此操作会清空表单，是否继续？");
   }
 
   async function mutate(action: () => Promise<unknown>, success: string) {
-    if (sessionToken.current !== getToken()) { window.location.replace("/portfolio"); return; }
+    if (sessionToken.current !== getToken()) { window.location.replace(portfolioPath); return; }
     if (!confirmDraftExit()) return;
     const current = generation.current;
     const op = ++operation.current;
@@ -144,7 +145,7 @@ export function PortfolioPanel() {
   }
 
   async function download() {
-    if (sessionToken.current !== getToken()) { window.location.replace("/portfolio"); return; }
+    if (sessionToken.current !== getToken()) { window.location.replace(portfolioPath); return; }
     setBusy(true); setError("");
     const current = generation.current;
     const op = ++operation.current;
@@ -162,20 +163,20 @@ export function PortfolioPanel() {
 
   if (authRequired) return <section className="card space-y-3 p-6">
     <h1 className="font-serif text-2xl">私人账本</h1><p>请登录并验证邮箱后管理自己的账本。</p>
-    <a className="inline-block text-jade-deep underline" href="/login?next=%2Fportfolio">登录后继续</a>
+    <a className="inline-block text-jade-deep underline" href={`/login?next=${encodeURIComponent(portfolioPath)}`}>登录后继续</a>
   </section>;
 
   return <div className="mx-auto max-w-5xl space-y-5">
-    <header className="flex flex-wrap items-end justify-between gap-3">
-      <div><p className="text-xs tracking-widest text-jade-deep">PRIVATE PORTFOLIO</p>
-        <h1 className="mt-2 font-serif text-3xl">私人账本</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">录入已有持仓或记录买卖，明确成本口径，查看分红参考。实际收息核对将逐步开放。</p>
-      </div><a href="/account" className="text-sm text-jade-deep hover:underline">返回个人中心</a>
-    </header>
+    {!selectedCode ? <header className="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 className="font-serif text-3xl">我的持仓</h1>
+        <p className="mt-2 text-sm leading-6 text-muted">管理持仓，查看每年的分红参考。</p>
+      </div>{!loading ? <button type="button" className={button} disabled={busy} onClick={() => { if (confirmDraftExit()) void load(); }}>刷新</button> : null}
+    </header> : null}
     {loading ? <p role="status" className="py-8 text-sm text-muted">正在读取私人账本…</p> : null}
     {error ? <p role="alert" className="rounded-sm border border-loss/30 p-3 text-sm text-loss">{error}</p> : null}
     {message ? <p role="status" className="text-sm text-jade-deep">{message}</p> : null}
-    {!loading ? <button type="button" className={button} disabled={busy} onClick={() => { if (confirmDraftExit()) void load(); }}>刷新</button> : null}
+    {selectedCode && !loading ? <button type="button" className={button} disabled={busy} onClick={() => { if (confirmDraftExit()) void load(); }}>刷新</button> : null}
     {!loading && list && !account ? <section className="card space-y-4 p-5 sm:p-6">
       {!list.create_enabled ? <p className="text-sm text-muted">私人账本正在内测，暂未开放创建。已有账本仍可查看、维护、导出和删除。</p> : policy ? <>
         <h2 className="font-medium">{policy.policy.title}</h2>
@@ -197,8 +198,8 @@ export function PortfolioPanel() {
         </form>
       </> : null}
     </section> : null}
-    {!loading && account ? <PortfolioLedger key={`${account.id}:${account.version}`} account={account} policy={policy} refresh={(message) => { if (message) setMessage(message); void load(); }} authFailure={fail} /> : null}
-    {!loading && account ? <details className="card space-y-5 p-5 sm:p-6"><summary className="cursor-pointer text-sm">账本设置 · 名称、导出、归档与删除</summary>
+    {!loading && account ? <PortfolioLedger key={`${account.id}:${account.version}`} account={account} selectedCode={selectedCode} policy={policy} refresh={(message) => { if (message) setMessage(message); void load(); }} authFailure={fail} /> : null}
+    {!selectedCode && !loading && account ? <details className="card space-y-5 p-5 sm:p-6"><summary className="cursor-pointer text-sm">账本设置 · 名称、导出、归档与删除</summary>
       <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="break-all font-medium">{account.name}</h2>
         <span className="text-xs text-muted">{account.is_archived ? "已归档" : "使用中"} · 人民币</span></div>
       <form onSubmit={(event) => { event.preventDefault(); update({ name: name.trim() }); }} className="space-y-3">

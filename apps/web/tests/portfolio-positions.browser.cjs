@@ -178,9 +178,41 @@ const fixture = JSON.parse(
     );
     await p.getByRole("button", { name: "核对并预览", exact: true }).click();
     await p.getByRole("button", { name: "确认保存", exact: true }).click();
+    await p
+      .getByRole("link", { name: "查看招商银行持仓详情", exact: true })
+      .waitFor();
+    assert.equal(
+      await p.getByRole("button", { name: "买入", exact: true }).count(),
+      0,
+    );
+    assert.equal(
+      await p
+        .getByText("成本明细、分红依据与交易记录", { exact: true })
+        .count(),
+      0,
+    );
+    await p.screenshot({
+      path:
+        (process.env.STOCKLAB_BROWSER_OUTPUT || "/tmp") +
+        "/stock-holdings-list-mobile.png",
+      fullPage: true,
+    });
+    assert.equal(
+      await p.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+      false,
+    );
+    await p
+      .getByRole("link", { name: "查看招商银行持仓详情", exact: true })
+      .click();
+    await p.waitForURL("**/portfolio/600036");
+    await p.reload();
+    await p.getByTestId("position-detail").waitFor();
     await p.getByRole("button", { name: "卖出", exact: true }).waitFor();
     assert.equal(writes.length, 1);
-    await p.getByText("¥ 1005", { exact: true }).waitFor();
+    assert.equal(
+      await p.getByTestId("position-annual-reference").innerText(),
+      "¥1,005.00",
+    );
     console.log(
       "PASS signed cost, optional custom forecast, preview no write and save",
     );
@@ -225,9 +257,15 @@ const fixture = JSON.parse(
     await p.getByLabel("分组", { exact: true }).fill("观察仓");
     await p.getByRole("button", { name: "核对并预览", exact: true }).click();
     await p.getByRole("button", { name: "确认保存", exact: true }).click();
-    await p.getByText("¥ 335", { exact: true }).waitFor();
-    await p.getByText(/已收录历史参考：每股每年 0.67 元/).waitFor();
-    await p.getByText("1.356825", { exact: true }).waitFor();
+    await p
+      .getByTestId("position-annual-reference")
+      .filter({ hasText: "¥335.00" })
+      .waitFor();
+    await p.getByText(/已收录历史参考 · 过去36个月/).waitFor();
+    await p
+      .getByTestId("position-price-yield")
+      .filter({ hasText: "1.36%" })
+      .waitFor();
     console.log(
       "PASS historical reference from recorded dividends, fixed 3-year divisor and quote fallback",
     );
@@ -242,16 +280,31 @@ const fixture = JSON.parse(
     await p.getByRole("button", { name: "确认保存", exact: true }).click();
     await p.getByRole("button", { name: "卖出", exact: true }).waitFor();
     console.log("PASS explicit current holding rebase");
-    await p.getByText("49380", { exact: true }).waitFor();
+    await p
+      .getByTestId("position-market-value")
+      .filter({ hasText: "¥49,380.00" })
+      .waitFor();
     quoteOverride = 67;
     await p.clock.fastForward(300001);
-    await p.getByText("67000", { exact: true }).waitFor();
-    await p.getByText("1", { exact: true }).waitFor();
+    await p
+      .getByTestId("position-market-value")
+      .filter({ hasText: "¥67,000.00" })
+      .waitFor();
+    await p
+      .getByTestId("position-price-yield")
+      .filter({ hasText: "1.00%" })
+      .waitFor();
     // Failed background fetch retains the last known holdings, then recovers.
     failHoldings = true;
     await p.clock.fastForward(300001);
     await p.getByText(/持仓刷新失败，已保留上次数据/).waitFor();
-    assert.equal(await p.getByText("67000", { exact: true }).count(), 1);
+    assert.equal(
+      await p
+        .getByTestId("position-market-value")
+        .filter({ hasText: "¥67,000.00" })
+        .count(),
+      1,
+    );
     failHoldings = false;
     // Hidden tabs skip requests; returning after the interval fetches immediately.
     await p.evaluate(() => {
@@ -270,8 +323,14 @@ const fixture = JSON.parse(
       window.testHidden = false;
       document.dispatchEvent(new Event("visibilitychange"));
     });
-    await p.getByText("100000", { exact: true }).waitFor();
-    await p.getByText("0.67", { exact: true }).waitFor();
+    await p
+      .getByTestId("position-market-value")
+      .filter({ hasText: "¥100,000.00" })
+      .waitFor();
+    await p
+      .getByTestId("position-price-yield")
+      .filter({ hasText: "0.67%" })
+      .waitFor();
     // Editing is never interrupted by polling and keeps unsaved values intact.
     await p.getByRole("button", { name: "买入", exact: true }).click();
     await p.getByLabel("数量", { exact: true }).fill("123");
@@ -283,7 +342,10 @@ const fixture = JSON.parse(
       "123",
     );
     await p.getByRole("button", { name: "返回持仓", exact: true }).click();
-    await p.getByText("100000", { exact: true }).waitFor();
+    await p
+      .getByTestId("position-market-value")
+      .filter({ hasText: "¥100,000.00" })
+      .waitFor();
     console.log(
       "PASS 5-minute quotes/market value/yield refresh, retry, visibility and draft protection",
     );
@@ -299,6 +361,16 @@ const fixture = JSON.parse(
       path:
         (process.env.STOCKLAB_BROWSER_OUTPUT || "/tmp") +
         "/stock-v251r-holdings-desktop.png",
+      fullPage: true,
+    });
+    await p.getByRole("link", { name: "← 返回我的持仓", exact: true }).click();
+    await p
+      .getByRole("link", { name: "查看招商银行持仓详情", exact: true })
+      .waitFor();
+    await p.screenshot({
+      path:
+        (process.env.STOCKLAB_BROWSER_OUTPUT || "/tmp") +
+        "/stock-holdings-list-desktop.png",
       fullPage: true,
     });
     await p
@@ -321,6 +393,14 @@ const fixture = JSON.parse(
         .isDisabled(),
     );
     console.log("PASS account version refresh and archive");
+    await p.goto("http://127.0.0.1:3100/portfolio/601088");
+    await p.getByText(/当前账本中没有这只股票的持仓/).waitFor();
+    assert.equal(await p.getByTestId("position-detail").count(), 0);
+    await p.goto("http://127.0.0.1:3100/portfolio/600036");
+    await p.getByTestId("position-detail").waitFor();
+    assert(
+      await p.getByRole("button", { name: "买入", exact: true }).isDisabled(),
+    );
     assert.deepEqual(errors, []);
     assert.deepEqual(outside, []);
     assert(writes.every((w) => typeof w.entry.quantity === "string"));
@@ -337,8 +417,12 @@ const fixture = JSON.parse(
     const loggedOutReads = holdingsReads;
     await p.clock.fastForward(600001);
     assert.equal(holdingsReads, loggedOutReads);
+    assert.match(
+      await p.getByRole("link", { name: "登录后继续" }).getAttribute("href"),
+      /next=%2Fportfolio%2F600036/,
+    );
     console.log(
-      "PASS logout clears private data, no external requests or JS errors",
+      "PASS list/detail navigation, archived/read-only, unknown stock and private deep-link logout",
     );
   } catch (e) {
     await p.screenshot({

@@ -4,6 +4,7 @@ const RETURN_ROUTES = new Set([
   "account",
   "dashboard",
   "watchlist",
+  "portfolio",
   "etf",
   "stocks",
   "strategies",

@@ -7,6 +7,8 @@ test("returns to pricing and preserves a research task's query and hash", () => 
   for (const path of [
     "/",
     "/pricing",
+    "/portfolio",
+    "/portfolio/600036",
     "/pricing?plan=standard-monthly#checkout",
     "/stocks/600036?tab=grid",
     "/strategies/dual-ma?code=510300&start=2020-01-01",
@@ -65,4 +67,12 @@ test("strategy returns restore inputs but cannot replay a calculation", () => {
   assert.equal(safeReturnPath("/strategies/dual-ma?code=510300&run=1&fast=10&run=1#result"),
     "/strategies/dual-ma?code=510300&fast=10#result");
   assert.equal(safeReturnPath("/strategies/dual-ma?%72un=1"), "/strategies/dual-ma");
+});
+
+test("private holding destination survives login and verification", () => {
+  const destination = "/portfolio/600036";
+  const login = new URL(withReturnPath("/login", destination), "https://stocklab.invalid");
+  const verify = new URL(withReturnPath("/verify-email?token=x", login.searchParams.get("next")), "https://stocklab.invalid");
+  assert.equal(safeReturnPath(verify.searchParams.get("next")), destination);
+  assert.equal(safeReturnPath("/portfolio/../../api/session"), "/account");
 });

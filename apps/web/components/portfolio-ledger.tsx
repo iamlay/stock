@@ -1,5 +1,14 @@
 "use client";
 
+import Link from "next/link";
+import { PortfolioPositionDetail } from "@/components/portfolio-position-detail";
+import {
+  displayNumber,
+  displayQuantity,
+  displayMoney,
+  displayPercent,
+  shortBasis,
+} from "@/lib/portfolio-display";
 import { useEffect, useRef, useState } from "react";
 import { getToken } from "@/lib/auth";
 import {
@@ -9,8 +18,6 @@ import {
   type PortfolioPolicy,
 } from "@/lib/portfolio";
 import {
-  amount,
-  basisLabels,
   kindLabels,
   type Entry,
   type Holdings,
@@ -21,21 +28,15 @@ import { PortfolioPositionForm } from "@/components/portfolio-position-form";
 
 const button =
   "rounded-lg border border-line px-4 py-2 text-sm disabled:opacity-50 hover:border-jade";
-function sourceLink(url: string | null) {
-  try {
-    const u = new URL(url ?? "");
-    return ["https:", "http:"].includes(u.protocol) ? u.href : undefined;
-  } catch {
-    return undefined;
-  }
-}
 export function PortfolioLedger({
   account,
+  selectedCode,
   policy,
   refresh,
   authFailure,
 }: {
   account: PortfolioAccount;
+  selectedCode?: string;
   policy: PortfolioPolicy | null;
   refresh: (message?: string) => void;
   authFailure: (error: unknown) => void;
@@ -192,15 +193,61 @@ export function PortfolioLedger({
         onSaved={(result) => {
           setData(result);
           setEditing(null);
-          refresh("持仓已保存，可继续添加下一只股票。");
+          refresh(
+            selectedCode
+              ? "持仓已更新。"
+              : "持仓已保存，可继续添加下一只股票。",
+          );
         }}
       />
     );
+  if (selectedCode) {
+    const position = data?.positions.find((p) => p.code === selectedCode);
+    return (
+      <section className="space-y-4">
+        <Link
+          href="/portfolio"
+          className="inline-flex py-2 text-sm text-jade-deep"
+        >
+          ← 返回我的持仓
+        </Link>
+        {error ? (
+          <p role="alert" className="text-sm text-loss">
+            {error}
+          </p>
+        ) : null}
+        {!data ? (
+          <p role="status">正在读取持仓…</p>
+        ) : !position ? (
+          <div className="card rounded-2xl p-8">
+            当前账本中没有这只股票的持仓。请返回列表查看。
+          </div>
+        ) : (
+          <>
+            {data.consent_required ? (
+              <p className="text-sm text-muted">
+                请返回持仓列表确认新版数据说明后进行编辑。
+              </p>
+            ) : null}
+            {account.is_archived ? (
+              <p className="text-sm text-muted">账本已归档，返回列表可恢复。</p>
+            ) : null}
+            <PortfolioPositionDetail
+              position={position}
+              entries={data.entries}
+              canWrite={canWrite}
+              onEdit={open}
+            />
+          </>
+        )}
+      </section>
+    );
+  }
   return (
     <section className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-serif text-2xl">我的持仓</h2>
+          <h2 className="text-base font-medium">股票资产</h2>
           <p className="mt-1 text-xs text-muted">
             {account.name} · 人民币 ·{" "}
             {data?.positions.filter((p) => !/^0(?:\.0+)?$/.test(p.quantity))
@@ -270,16 +317,16 @@ export function PortfolioLedger({
               ) : null}
             </div>
           ) : null}
-          <div className="rounded-xl bg-ink p-5 text-paper">
+          <div className="rounded-2xl bg-ink p-5 text-paper">
             <p className="text-sm opacity-80">已知行情对应市值</p>
             <strong className="mt-2 block break-all text-3xl">
-              ¥ {amount(data.known_market_value)}
+              {displayMoney(data.known_market_value)}
             </strong>
             <p className="mt-2 text-xs opacity-80">
               {data.missing_quotes
                 ? `${data.missing_quotes}只持仓缺报价，未计入此金额。`
                 : "报价时点见各持仓，不代表实时成交价。"}{" "}
-              页面可见时每5分钟刷新，行情以报价时间为准。起点前收益未知，实际分红到账尚未开放。
+              每5分钟自动刷新 · 分红为年度参考，非实际到账。
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -337,306 +384,93 @@ export function PortfolioLedger({
                 : "还没有持仓。按券商当前持仓录入，或记下一笔买入。"}
             </div>
           ) : (
-            positions.map((p) => {
-              const basis = p.preferences.basis;
-              const cost = basis === "unknown" ? null : p.costs[basis];
-              return (
-                <article
-                  key={p.code}
-                  className="card space-y-4 rounded-xl p-5 sm:p-6"
-                >
-                  <div className="flex flex-wrap justify-between gap-3">
-                    <div>
-                      <h3 className="font-medium">
-                        {p.name}{" "}
-                        <span className="ml-2 text-xs text-muted">A股</span>
-                      </h3>
-                      <p className="mt-1 text-sm text-muted">
-                        {p.code} · {p.preferences.group || "未分组"}
-                      </p>
-                    </div>
-                    <div className="text-sm">
-                      <p className="text-xs text-muted">年度分红参考 · 税前</p>
-                      <strong className="mt-1 block text-lg text-jade-deep">
-                        {p.forecast.annual_amount === null
-                          ? p.forecast.status === "not_set"
-                            ? "未设置"
-                            : p.forecast.reason_label || "分红记录待核对"
-                          : `¥ ${amount(p.forecast.annual_amount)}`}
-                      </strong>
-                    </div>
-                  </div>
-                  {p.forecast.status === "historical_reference" ? (
-                    <p className="text-xs leading-6 text-muted">
-                      已收录历史参考：每股每年{" "}
-                      {amount(p.forecast.annual_per_share)}{" "}
-                      元（税前）；数据可能不完整，不代表未来派息。
-                    </p>
-                  ) : null}
-                  <dl className="grid grid-cols-2 gap-4 rounded-lg bg-paper p-4 sm:grid-cols-4">
-                    {[
-                      ["持仓（股）", p.quantity],
-                      ["市值（元）", p.market_value],
-                      [`${basisLabels[basis]}（元/股）`, cost?.per_share],
-                      ["当前价格股息率（%）", p.price_yield],
-                    ].map(([label, value]) => (
-                      <div key={label}>
-                        <dt className="text-xs text-muted">{label}</dt>
-                        <dd className="mt-2 break-all font-medium tabular-nums">
-                          {label === "当前价格股息率（%）" && value == null
-                            ? p.price_yield_issues?.join("；") ||
-                              p.price_yield_reason ||
-                              "分红参考或报价待补齐"
-                            : amount(value)}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                  {cost?.total &&
-                  basis !== "weighted" &&
-                  Number(cost.total) <= 0 ? (
-                    <p className="text-sm text-jade-deep">
-                      所选口径下净投入已回收，不再计算负分母股息率。
-                    </p>
-                  ) : null}
-                  {p.reference !== null ? (
-                    <p className="text-xs text-muted">
-                      原始未知口径参考总额：{amount(p.reference)}{" "}
-                      元，不作为当前每股成本或盈亏依据。
-                    </p>
-                  ) : null}
-                  <p className="text-xs leading-6 text-muted">
-                    {p.quote
-                      ? `报价 ¥${amount(p.quote.price)} · ${p.quote.time_label || "报价时间"} ${new Date(p.quote.at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}`
-                      : "暂无可用报价"}
-                    。历史起点 {p.known_since}
-                    {p.date_semantics === "end_of_day"
-                      ? "（日终快照）"
-                      : "（原记录语义）"}
-                    ；此前未知。
-                    {p.history_status === "incomplete"
-                      ? "期间记录仍有缺失，显示值仅根据已录入资料计算，请补充核对。"
-                      : ""}
-                    {p.estimated ? "含未知费用，成本及盈亏为估算。" : ""}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className={button}
-                      disabled={!canWrite}
-                      onClick={() => open("buy", p)}
-                    >
-                      买入
-                    </button>
-                    <button
-                      type="button"
-                      className={button}
-                      disabled={!canWrite || /^0(?:\.0+)?$/.test(p.quantity)}
-                      onClick={() => open("sell", p)}
-                    >
-                      卖出
-                    </button>
-                    <button
-                      type="button"
-                      className={button}
-                      disabled={!canWrite}
-                      onClick={() => open("rebase", p)}
-                    >
-                      修正当前持仓
-                    </button>
-                    <button
-                      type="button"
-                      className={button}
-                      disabled={!canWrite}
-                      onClick={() => open("preference", p)}
-                    >
-                      分组与分红参考
-                    </button>
-                    <a
-                      href={`/stocks/${p.code}?tab=dividend`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={button}
-                    >
-                      分红档案 ↗
-                    </a>
-                  </div>
-                  <details>
-                    <summary className="cursor-pointer text-sm text-jade-deep">
-                      成本明细、分红依据与交易记录
-                    </summary>
-                    <div className="mt-4 space-y-4">
-                      <dl className="grid gap-3 sm:grid-cols-3">
-                        {(["weighted", "net", "dividend"] as const).map((b) => (
-                          <div
-                            key={b}
-                            className="rounded-lg border border-line p-3 text-sm"
-                          >
-                            <dt>{basisLabels[b]}</dt>
-                            <dd className="mt-2">
-                              {p.costs[b].per_share === null
-                                ? "资料不足 / 已清仓"
-                                : `${amount(p.costs[b].per_share)} 元/股`}
-                            </dd>
-                            <dd className="mt-1 text-xs text-muted">
-                              总额 {amount(p.costs[b].total)} 元
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
-                      <p className="text-sm">
-                        当前周期记账起点后交易盈亏：{amount(p.realized_pnl)}{" "}
-                        元。加权成本股息率：{amount(p.cost_yield)}%。
-                      </p>
-                      {p.closed_cycles.length ? (
-                        <details>
-                          <summary className="cursor-pointer text-sm">
-                            此前记账区间（{p.closed_cycles.length}）
-                          </summary>
-                          {p.closed_cycles.map((c) => (
-                            <p
-                              className="mt-2 text-xs text-muted"
-                              key={c.cycle_id}
-                            >
-                              该区间已记录交易盈亏 {amount(c.realized_pnl)}{" "}
-                              元；不抵减新周期成本。
-                            </p>
-                          ))}
-                        </details>
-                      ) : null}
-                      <p className="text-xs leading-6 text-muted">
-                        {p.forecast.note}。明细窗口：({p.forecast.from_date},{" "}
-                        {p.forecast.to_date}]；日期缺失的记录单独待核对。
-                      </p>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs">
-                          <thead>
-                            <tr className="border-b border-line">
-                              <th className="p-2 whitespace-nowrap">
-                                报告期 / 除息日
-                              </th>
-                              <th className="p-2 whitespace-nowrap">
-                                每股现金（元）
-                              </th>
-                              <th className="p-2 whitespace-nowrap">
-                                阶段 / 来源
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {p.forecast.details.map((d) => (
-                              <tr
-                                key={d.event_id}
-                                className="border-b border-line"
-                              >
-                                <td className="p-2 whitespace-nowrap">
-                                  {d.report_date || "未知"}
-                                  <br />
-                                  {d.ex_date || "待核对"}
-                                </td>
-                                <td className="p-2">
-                                  {amount(d.cash_per_share)}
-                                </td>
-                                <td className="p-2">
-                                  {(
-                                    {
-                                      implemented: "已实施",
-                                      proposed: "预案",
-                                      approved: "已通过，未实施",
-                                      cancelled: "已取消",
-                                      no_distribution: "不分配",
-                                      historical: "历史记录",
-                                    } as Record<string, string>
-                                  )[d.stage] || "待核对"}
-                                  <p>
-                                    {d.included
-                                      ? "计入参考"
-                                      : d.exclusion_reason || "待核对"}
-                                  </p>
-                                  <br />
-                                  {sourceLink(d.source_url) ? (
-                                    <a
-                                      href={sourceLink(d.source_url)}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="underline"
-                                    >
-                                      {d.source}
-                                    </a>
-                                  ) : (
-                                    d.source
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        {!p.forecast.details.length ? (
-                          <p className="py-3 text-xs text-muted">
-                            没有可展示的窗口内记录；不代表确认无分红。
+            <div className="grid gap-4 lg:grid-cols-2">
+              {positions.map((p) => {
+                const cost =
+                  p.preferences.basis === "unknown"
+                    ? null
+                    : p.costs[p.preferences.basis].per_share;
+                return (
+                  <Link
+                    key={p.code}
+                    href={`/portfolio/${p.code}`}
+                    aria-label={`查看${p.name}持仓详情`}
+                    className="block min-w-0 rounded-2xl border border-line/60 bg-surface p-4 transition hover:border-jade/50 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-jade sm:p-5"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 gap-3">
+                        <span
+                          aria-hidden="true"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-paper font-serif text-xl"
+                        >
+                          {p.name.slice(0, 1)}
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="break-words font-semibold">
+                            {p.name}{" "}
+                            <span className="rounded bg-jade-soft px-1 text-[10px] font-normal text-jade-deep">
+                              A股
+                            </span>
+                          </h3>
+                          <p className="mt-1 text-xs text-muted">
+                            {p.code}
+                            {/^0(?:\.0+)?$/.test(p.quantity) ? " · 已清仓" : ""}
                           </p>
-                        ) : null}
+                        </div>
                       </div>
-                      <div className="space-y-3">
-                        {data.entries
-                          .filter((e) => e.code === p.code)
-                          .map((e) => (
-                            <div
-                              key={e.id}
-                              className="border-t border-line pt-3 text-xs leading-6"
-                            >
-                              <p>
-                                {e.event_date} · {kindLabels[e.kind]} · 当天顺序{" "}
-                                {e.day_order} ·{" "}
-                                {e.active ? "有效" : "已撤销 / 更正凭据"}
-                              </p>
-                              {!["preference", "reversal"].includes(e.kind) ? (
-                                <p>
-                                  数量 {amount(e.quantity)} ·{" "}
-                                  {["snapshot", "rebase"].includes(e.kind)
-                                    ? `${basisLabels[e.details?.basis ?? "unknown"]} 总额 ${amount(e.details?.amount)}`
-                                    : `价格 ${amount(e.price)} · 费用 ${amount(e.fees)}${e.details?.fees_known === false ? "（未知，暂按0）" : ""}`}
-                                  {["opening", "adjustment"].includes(e.kind)
-                                    ? ` · 原总成本 ${amount(e.total_cost)}`
-                                    : ""}
-                                </p>
-                              ) : null}
-                              {e.note ? (
-                                <p className="break-all">原因：{e.note}</p>
-                              ) : null}
-                              {e.evidence ? (
-                                <p className="break-all">依据：{e.evidence}</p>
-                              ) : null}
-                              {e.active &&
-                              !["preference", "reversal"].includes(e.kind) ? (
-                                <div className="mt-2 flex gap-2">
-                                  <button
-                                    type="button"
-                                    className={button}
-                                    disabled={!canWrite}
-                                    onClick={() => open(e.kind, p, e)}
-                                  >
-                                    更正
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className={button}
-                                    disabled={!canWrite}
-                                    onClick={() => open("reversal", p, e)}
-                                  >
-                                    撤销
-                                  </button>
-                                </div>
-                              ) : null}
-                            </div>
-                          ))}
+                      <div className="max-w-[46%] shrink-0 text-right">
+                        <strong className="block break-all text-lg tabular-nums text-jade-deep sm:text-xl">
+                          {displayMoney(p.forecast.annual_amount, true)}
+                        </strong>
+                        <span className="text-[11px] text-muted">
+                          年度分红参考
+                        </span>
                       </div>
                     </div>
-                  </details>
-                </article>
-              );
-            })
+                    <dl className="mt-4 grid grid-cols-4 divide-x divide-line/60 rounded-xl bg-paper/80 py-3 text-center">
+                      {[
+                        ["持仓", displayQuantity(p.quantity), "股"],
+                        ["市值", displayMoney(p.market_value, true), ""],
+                        [
+                          "成本/股",
+                          cost == null ? "—" : `¥${displayNumber(cost, 4)}`,
+                          "",
+                        ],
+                        ["股价息率", displayPercent(p.price_yield), ""],
+                      ].map(([label, value, unit]) => (
+                        <div key={label} className="min-w-0 px-1 sm:px-2">
+                          <dt className="text-[11px] text-muted">{label}</dt>
+                          <dd
+                            className={`mt-1.5 break-all text-xs font-semibold tabular-nums sm:text-sm ${label === "股价息率" ? "text-jade-deep" : ""}`}
+                          >
+                            {value}
+                            <span className="ml-0.5 text-[10px] font-normal">
+                              {unit}
+                            </span>
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <p className="mt-3 flex flex-wrap justify-between gap-1 text-[11px] text-muted">
+                      <span>
+                        {shortBasis[p.preferences.basis]} ·{" "}
+                        {p.preferences.group || "未分组"}
+                      </span>
+                      <span>
+                        {p.forecast.annual_amount == null
+                          ? "分红参考待设置或补齐"
+                          : p.forecast.status === "user_estimate"
+                            ? "自定义参考"
+                            : "已收录历史参考"}{" "}
+                        <span aria-hidden="true">›</span>
+                      </span>
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
           )}
+
           <details className="card p-5">
             <summary className="cursor-pointer text-sm">
               全部记录（含已撤销持仓）
