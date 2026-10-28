@@ -290,7 +290,7 @@ python -m etl.cli cron
 `cron` 每次会：
 
 1. 把过期未用邀请码标记为 `expired`；
-2. 交易时段内刷新最新报价；
+2. 交易时段内刷新ETF、自选股及未归档账本当前持仓股票的最新报价；
 3. 非交易时段跳过报价，只做邀请码过期。
 
 4. **Settings → Cron Schedule**：

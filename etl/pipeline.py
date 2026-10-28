@@ -4,6 +4,8 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from datetime import time as clock_time
+from decimal import Decimal
+from itertools import groupby
 from zoneinfo import ZoneInfo
 
 from app.db.models import (
@@ -14,6 +16,8 @@ from app.db.models import (
     IndexValuation,
     Instrument,
     MarketDaily,
+    PortfolioAccount,
+    PortfolioEntry,
     RealtimeQuote,
     StockRealtimeQuote,
     StockWatchlist,
@@ -312,8 +316,10 @@ def is_trading_session(session: Session, now: datetime | None = None) -> bool:
     )
 
 
-def sync_stock_watchlist_quotes(session: Session, codes: list[str] | None = None) -> dict:
-    """Refresh latest quotes for codes in any user's stock watchlist."""
+def sync_stock_watchlist_quotes(
+    session: Session, codes: list[str] | None = None
+) -> dict:
+    """Refresh the deduplicated union of watchlists and open, unarchived holdings."""
     if codes is None:
         codes = list(
             session.scalars(
@@ -323,6 +329,31 @@ def sync_stock_watchlist_quotes(session: Session, codes: list[str] | None = None
                 .distinct()
             ).all()
         )
+        # Replay the same immutable ledger as the holdings page: snapshots/adjustments
+        # replace quantity and reversals remove superseded facts, so SQL SUM is unsafe.
+        # Only public stock codes go to the quote provider, never account/quantity data.
+        from app.services.portfolio_positions import project
+
+        entries = session.scalars(
+            select(PortfolioEntry)
+            .join(
+                PortfolioAccount,
+                (PortfolioAccount.id == PortfolioEntry.account_id)
+                & (PortfolioAccount.user_id == PortfolioEntry.user_id),
+            )
+            .join(Instrument, Instrument.code == PortfolioEntry.code)
+            .where(
+                PortfolioAccount.is_archived.is_(False),
+                Instrument.is_active.is_(True),
+                Instrument.type == "stock",
+            )
+            .order_by(PortfolioEntry.account_id)
+            .execution_options(yield_per=1000)
+        )
+        for _, rows in groupby(entries, key=lambda row: row.account_id):
+            codes.extend(
+                p["code"] for p in project(list(rows)) if Decimal(p["quantity"]) > 0
+            )
     codes = sorted(set(codes))
     if not codes:
         return {"codes": 0, "quotes": 0, "latest": None}

@@ -202,10 +202,10 @@ python -m etl.cli cron
 做三件事：
 
 1. 刷新 ETF 最新报价；
-2. 刷新所有用户自选股最新报价；
+2. 刷新所有用户自选股及未归档账本中当前持仓股票的最新报价（合并去重，清仓/撤销记录不作为持仓标的）；
 3. 标记过期邀请码。
 
-自选股表：
+自选股与持仓共用报价表：
 
 ```text
 stock_realtime_quotes
@@ -524,3 +524,9 @@ python -m etl.cli sync-all --start 2016-01-01 --delay 0.2
 python -m etl.cli sync-shares
 python -m etl.cli sync-valuation
 ```
+
+### 持仓页报价自动刷新（2026-10-28）
+
+页面可见且未编辑表单时，每5分钟读取持仓接口，同步报价、已知市值和价格股息率；后台标签页暂停，回来且超过5分钟时立即刷新。请求不重叠，30秒超时，失败保留旧数据并提示重试；退出登录/离开页面时中止请求并清理定时器。行情日期继续显示来源的报价时刻。
+
+沿用 `python -m etl.cli cron` 和现有 Railway 5分钟计划，无新增数据库迁移。部署时更新 Web、API 和 Railway Cron 服务的代码；只有部署API/Web不会自动更新独立Cron服务的镜像。交易时段判断保持不变，非交易时段页面读取的是最近报价。命令 `stock-watchlist-quotes` 和任务名称为兼容已有监控保留，实际范围已包含持仓。

@@ -57,26 +57,77 @@ export function PortfolioLedger({
   const alive = useRef(false);
   const token = useRef(getToken());
   const current = () => alive.current && token.current === getToken();
+  const isEditing = editing !== null;
   useEffect(() => {
     alive.current = true;
     token.current = getToken();
-    void portfolioRequest<Holdings>(`/accounts/${account.id}/holdings`)
-      .then((result) => {
-        if (current()) setData(result);
-      })
-      .catch((err) => {
-        if (!current()) return;
-        if (err instanceof PortfolioRequestError && err.status === 401)
+    if (isEditing)
+      return () => {
+        alive.current = false;
+      };
+    let stopped = false;
+    let inFlight = false;
+    let lastAttempt = 0;
+    let controller: AbortController | null = null;
+    const intervalMs = 5 * 60 * 1000;
+    const readHoldings = async () => {
+      if (
+        stopped ||
+        inFlight ||
+        !current() ||
+        document.visibilityState === "hidden"
+      )
+        return;
+      inFlight = true;
+      lastAttempt = Date.now();
+      controller = new AbortController();
+      const requestController = controller;
+      const timeout = window.setTimeout(
+        () => requestController.abort(),
+        30_000,
+      );
+      try {
+        const result = await portfolioRequest<Holdings>(
+          `/accounts/${account.id}/holdings`,
+          {
+            signal: controller.signal,
+          },
+        );
+        if (!stopped && current()) {
+          setData(result);
+          setError("");
+        }
+      } catch (err) {
+        if (stopped || !current()) return;
+        if (err instanceof PortfolioRequestError && err.status === 401) {
+          stopped = true;
           authFailure(err);
-        else
+        } else {
           setError(
-            err instanceof Error ? err.message : "持仓暂时无法读取，请刷新。",
+            "持仓刷新失败，已保留上次数据；稍后自动重试，也可点击刷新。",
           );
-      });
-    return () => {
-      alive.current = false;
+        }
+      } finally {
+        window.clearTimeout(timeout);
+        inFlight = false;
+      }
     };
-  }, [account.id, authFailure]);
+    const refreshIfDue = () => {
+      if (Date.now() - lastAttempt >= intervalMs) void readHoldings();
+    };
+    void readHoldings();
+    const timer = window.setInterval(() => void readHoldings(), intervalMs);
+    document.addEventListener("visibilitychange", refreshIfDue);
+    window.addEventListener("focus", refreshIfDue);
+    return () => {
+      stopped = true;
+      alive.current = false;
+      controller?.abort();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshIfDue);
+      window.removeEventListener("focus", refreshIfDue);
+    };
+  }, [account.id, authFailure, isEditing]);
   async function accept() {
     if (!data || !policy || !accepted || busy || !current()) return;
     setBusy(true);
@@ -228,7 +279,7 @@ export function PortfolioLedger({
               {data.missing_quotes
                 ? `${data.missing_quotes}只持仓缺报价，未计入此金额。`
                 : "报价时点见各持仓，不代表实时成交价。"}{" "}
-              起点前收益未知，实际分红到账尚未开放。
+              页面可见时每5分钟刷新，行情以报价时间为准。起点前收益未知，实际分红到账尚未开放。
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-sm">

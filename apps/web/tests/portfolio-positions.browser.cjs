@@ -24,6 +24,9 @@ const fixture = JSON.parse(
     outside = [],
     writes = [];
   let delayed = false;
+  let holdingsReads = 0,
+    quoteOverride = null,
+    failHoldings = false;
   await ctx.route("**/*", (r) => {
     const u = new URL(r.request().url());
     if (!["127.0.0.1", "localhost"].includes(u.hostname)) {
@@ -44,9 +47,46 @@ const fixture = JSON.parse(
           "access-control-allow-headers": "authorization,content-type",
         },
       });
+    if (u.pathname.endsWith("/holdings")) {
+      holdingsReads++;
+      if (failHoldings)
+        return r.fulfill({
+          status: 503,
+          contentType: "application/json",
+          headers: { "access-control-allow-origin": "*" },
+          body: JSON.stringify({ detail: "temporary failure" }),
+        });
+    }
     const response = await r.fetch({
       url: "http://127.0.0.1:8012" + u.pathname + u.search,
     });
+    if (u.pathname.endsWith("/holdings") && quoteOverride && response.ok()) {
+      const data = await response.json();
+      for (const position of data.positions) {
+        position.quote = {
+          price: String(quoteOverride),
+          at: new Date().toISOString(),
+          time_label: "报价时间",
+        };
+        position.market_value = String(
+          Number(position.quantity) * quoteOverride,
+        );
+        position.price_yield = String(
+          (Number(position.forecast.annual_per_share) / quoteOverride) * 100,
+        );
+      }
+      data.known_market_value = String(
+        data.positions.reduce(
+          (sum, item) => sum + Number(item.market_value),
+          0,
+        ),
+      );
+      return r.fulfill({
+        response,
+        headers: { ...response.headers(), "access-control-allow-origin": "*" },
+        json: data,
+      });
+    }
     if (u.pathname.endsWith("/position-confirm"))
       writes.push(req.postDataJSON());
     if (
@@ -65,6 +105,7 @@ const fixture = JSON.parse(
     } catch {}
   });
   const p = await ctx.newPage();
+  await p.clock.install();
   p.setDefaultTimeout(15000);
   p.on("pageerror", (e) => errors.push(e.message));
   p.on("dialog", (d) => d.accept());
@@ -201,6 +242,52 @@ const fixture = JSON.parse(
     await p.getByRole("button", { name: "确认保存", exact: true }).click();
     await p.getByRole("button", { name: "卖出", exact: true }).waitFor();
     console.log("PASS explicit current holding rebase");
+    await p.getByText("49380", { exact: true }).waitFor();
+    quoteOverride = 67;
+    await p.clock.fastForward(300001);
+    await p.getByText("67000", { exact: true }).waitFor();
+    await p.getByText("1", { exact: true }).waitFor();
+    // Failed background fetch retains the last known holdings, then recovers.
+    failHoldings = true;
+    await p.clock.fastForward(300001);
+    await p.getByText(/持仓刷新失败，已保留上次数据/).waitFor();
+    assert.equal(await p.getByText("67000", { exact: true }).count(), 1);
+    failHoldings = false;
+    // Hidden tabs skip requests; returning after the interval fetches immediately.
+    await p.evaluate(() => {
+      window.testHidden = true;
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        get: () => (window.testHidden ? "hidden" : "visible"),
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    const hiddenReads = holdingsReads;
+    quoteOverride = 100;
+    await p.clock.fastForward(300001);
+    assert.equal(holdingsReads, hiddenReads);
+    await p.evaluate(() => {
+      window.testHidden = false;
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await p.getByText("100000", { exact: true }).waitFor();
+    await p.getByText("0.67", { exact: true }).waitFor();
+    // Editing is never interrupted by polling and keeps unsaved values intact.
+    await p.getByRole("button", { name: "买入", exact: true }).click();
+    await p.getByLabel("数量", { exact: true }).fill("123");
+    const editingReads = holdingsReads;
+    await p.clock.fastForward(300001);
+    assert.equal(holdingsReads, editingReads);
+    assert.equal(
+      await p.getByLabel("数量", { exact: true }).inputValue(),
+      "123",
+    );
+    await p.getByRole("button", { name: "返回持仓", exact: true }).click();
+    await p.getByText("100000", { exact: true }).waitFor();
+    console.log(
+      "PASS 5-minute quotes/market value/yield refresh, retry, visibility and draft protection",
+    );
+
     await p.screenshot({
       path:
         (process.env.STOCKLAB_BROWSER_OUTPUT || "/tmp") +
@@ -247,6 +334,9 @@ const fixture = JSON.parse(
       .getByText("请登录并验证邮箱后管理自己的账本。", { exact: true })
       .waitFor();
     assert.equal(await p.getByText("招商银行", { exact: true }).count(), 0);
+    const loggedOutReads = holdingsReads;
+    await p.clock.fastForward(600001);
+    assert.equal(holdingsReads, loggedOutReads);
     console.log(
       "PASS logout clears private data, no external requests or JS errors",
     );
