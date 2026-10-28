@@ -12,6 +12,7 @@ const nav = [
   { href: "/etf", label: "ETF 数据", short: "ETF" },
   { href: "/stocks", label: "股票", short: "股票" },
   { href: "/watchlist", label: "我的自选", short: "自选" },
+  { href: "/portfolio", label: "持仓", short: "持仓" },
   { href: "/notifications", label: "提醒", short: "提醒" },
   { href: "/strategies", label: "策略实验室", short: "策略" },
   { href: "/pricing", label: "会员", short: "会员" },
