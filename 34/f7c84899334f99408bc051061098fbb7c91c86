@@ -1,0 +1,101 @@
+apps/api/tests/test_portfolio_positions.py
+  s_d90564a5b68cd9::t_a4dcb2ec03003f 240-308
+  s_d90564a5b68cd9::t_78eac3e61e90b5 1-239,313
+  s_21701fd56cd8c0::t_4145a01a16551f 309-312,314-315
+apps/api/tests/test_stock_quality.py
+  s_d90564a5b68cd9::t_176b69806fcecf 19-23,26
+docs/DIVIDEND_PORTFOLIO_PLAN.md
+  s_21701fd56cd8c0::t_e19716bdcb8e88 45
+  s_21701fd56cd8c0::t_0efd874e16b1fa 46,258
+  s_d90564a5b68cd9::t_22ebf7dd288eec 50,262
+apps/api/app/services/portfolio_ledger.py
+  s_21701fd56cd8c0::t_e19716bdcb8e88 222
+  s_d90564a5b68cd9::t_194dabc77410cb 116,122-125,263-264
+apps/api/app/services/portfolio_positions.py
+  s_d90564a5b68cd9::t_fb2bd7fe56d2cc 113-114,119-138,142,365-370,474,481,496,498,500,510-511,568
+  s_d90564a5b68cd9::t_c0d472be419b65 1-5,7-21,27-30,39-59,65-68,73-89,108-109,139-141,143-150,159-160,181-190,196-211,244,248,251-255,264-272,286-296,334,353-364,371-379,383-394,398,404,419-436,442-447,451-466,473,475,479-480,482-491,499,501-509,512-524,547,556-557,570,577-586,601-613,624-637,650-652
+  s_d90564a5b68cd9::t_78eac3e61e90b5 6,22-26,31-38,60-64,69-72,90-107,110-112,115-118,151-158,161-180,191-195,212-243,245-247,249-250,256-263,273-285,297-333,335-352,380-382,395-397,399-403,405-409,415-418,437-441,448-450,467-472,476-478,492-495,497,525-546,548-555,558-567,569,571-576,587-600,614-623,638-649
+  s_d90564a5b68cd9::t_f500e97819aa5b 410-414
+scripts/check_portfolio_positions_browser.py
+  s_d90564a5b68cd9::t_2138d4b1e8a574 1-93,95-108,110-133,135-161
+  s_21701fd56cd8c0::t_f9e2a824da901e 94,109,134
+apps/web/components/portfolio-panel.tsx
+  s_d90564a5b68cd9::t_258a5e010f0ff9 168,172,201,227-228
+  s_21701fd56cd8c0::t_a3ec509955a47a 104-107,110,178,200
+apps/api/tests/test_portfolio_positions_postgres.py
+  s_21701fd56cd8c0::t_efefbcbf19bc6c 1-103
+apps/web/app/legal/privacy/page.tsx
+  s_d90564a5b68cd9::t_194dabc77410cb 48
+apps/api/app/services/portfolio.py
+  s_d90564a5b68cd9::t_542e15ee814fed 243-245
+  s_d90564a5b68cd9::t_194dabc77410cb 24,28
+  s_d90564a5b68cd9::t_0f21dab2b20482 238-241,267
+docs/PORTFOLIO_ENTRY_REDESIGN.md
+  s_d90564a5b68cd9::t_e730d215a24fe0 1-2,4,7-188
+  s_21701fd56cd8c0::t_e19716bdcb8e88 3
+  s_21701fd56cd8c0::t_0efd874e16b1fa 5-6
+apps/api/app/db/models.py
+  s_d90564a5b68cd9::t_194dabc77410cb 748
+  s_21701fd56cd8c0::t_a75319ee3ffe5c 727-728
+docs/DEVELOPMENT_PLAN.md
+  s_21701fd56cd8c0::t_e19716bdcb8e88 5,1337-1340,1372
+  s_21701fd56cd8c0::t_0efd874e16b1fa 6,1341,1370,1600
+  s_d90564a5b68cd9::t_7abd1bcaf94628 8,1369,1371,1601
+apps/web/components/portfolio-ledger.tsx
+  s_d90564a5b68cd9::t_04257a33e0219b 5-19,22-41,45,48-49,51-56,63-78,82-83,85-95,98-104,106-109,112-158,160-167,169-583
+  s_d90564a5b68cd9::t_258a5e010f0ff9 3,20,43,50,80-81,111
+apps/api/app/api/v1/portfolio.py
+  s_d90564a5b68cd9::t_78eac3e61e90b5 381-385,390-395
+  s_d90564a5b68cd9::t_fb2bd7fe56d2cc 316-318
+  s_d90564a5b68cd9::t_b64a02fca1f850 301-315,319-380,386-389
+docs/V2_51R_DELIVERY.md
+  s_21701fd56cd8c0::t_e19716bdcb8e88 1-36,39-40,42-73
+  s_d90564a5b68cd9::t_5814147a5e1eb3 37-38,41
+docs/prototypes/portfolio-entry.html
+  s_21701fd56cd8c0::t_0efd874e16b1fa 1-10,12-24,26-32,34
+  s_d90564a5b68cd9::t_6752fbffcfb610 25,33
+  s_21701fd56cd8c0::t_79a5392985b37d 11
+apps/api/tests/test_portfolio_ledger_postgres.py
+  s_d90564a5b68cd9::t_176b69806fcecf 189-194
+docs/adr/0012-portfolio-position-baselines.md
+  s_21701fd56cd8c0::t_e19716bdcb8e88 1-28
+apps/web/lib/portfolio-positions.ts
+  s_d90564a5b68cd9::t_9c20f1b939138b 1,173,179-182,187-188,193-194,198
+  s_d90564a5b68cd9::t_04257a33e0219b 2-172,174-178,183-186,189-192,195-197
+apps/web/tests/portfolio-positions.browser.cjs
+  s_d90564a5b68cd9::t_2138d4b1e8a574 263
+  s_d90564a5b68cd9::t_04257a33e0219b 1-262
+apps/web/components/portfolio-stock-picker.tsx
+  s_d90564a5b68cd9::t_04257a33e0219b 7-18,27-28,32-38,40-62,64-68,70-174
+  s_d90564a5b68cd9::t_9c20f1b939138b 1-6,19-26,29-31,39,63,69,175
+apps/web/components/portfolio-position-form.tsx
+  s_d90564a5b68cd9::t_ee4d573ee0eef3 1-5,23-24,29,50-51,73-74,102-103,107-112,116-120,135,142-143,145,154-160,174,182-184,206,216,226,242-244,248,263-264,278,330,707,847
+  s_d90564a5b68cd9::t_04257a33e0219b 6-22,25-28,30-49,52-72,75-101,104-106,113-115,121-134,136-141,144,146-153,161-173,175-181,185-205,207-215,217-225,227-241,245-247,249-262,265-277,279-329,331-706,708-846
+apps/api/alembic/versions/f1a7b9c52346_portfolio_positions.py
+  s_d90564a5b68cd9::t_194dabc77410cb 1-20,22-31
+  s_d90564a5b68cd9::t_fb2bd7fe56d2cc 21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "34f7c84899334f99408bc051061098fbb7c91c86",
+  "prompts": {},
+  "sessions": {
+    "s_21701fd56cd8c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "unknown"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    },
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
