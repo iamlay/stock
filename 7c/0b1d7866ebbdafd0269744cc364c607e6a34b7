@@ -1,0 +1,62 @@
+apps/web/lib/return-path.ts
+  s_d90564a5b68cd9::t_544efa1d39c860 7
+apps/web/tests/return-path.test.ts
+  s_d90564a5b68cd9::t_544efa1d39c860 10-11,71-77
+  s_d90564a5b68cd9::t_a5a1f3b2613848 78
+apps/web/components/portfolio-ledger.tsx
+  s_21701fd56cd8c0::t_7c2dd121003e03 3-6,8-9,11,33,39,196-200,204-205,207-213,215-217,220,222-224,226,228-230,233,235-241,243,245,250,320,323,329,387-392,394-409,411-417,419,421-427,430-431,433-434,438,441-451,453-455,457-463,465-468,470-471,473
+  s_21701fd56cd8c0::t_304eb42d92709a 7,432
+  s_d90564a5b68cd9::t_e820cccef7a6c7 10,206,214,218-219,221,225,227,231-232,234,242,244,393,410,435-437,439-440,452,456,464,469
+apps/web/lib/portfolio-display.ts
+  s_21701fd56cd8c0::t_304eb42d92709a 29
+  s_21701fd56cd8c0::t_7c2dd121003e03 1-12,14-24,27-28
+  s_21701fd56cd8c0::t_859f414a38e98d 30-33
+  s_21701fd56cd8c0::t_c9cd63f87b129a 13,25-26
+apps/web/components/portfolio-position-evidence.tsx
+  s_21701fd56cd8c0::t_7c2dd121003e03 1-7,9-23,25-137,140-151,153-182
+  s_21701fd56cd8c0::t_5a16a99c93b195 8,24,138-139,152
+docs/V2_51R_DELIVERY.md
+  s_d90564a5b68cd9::t_cc55efff350d51 92-101
+apps/web/components/portfolio-position-detail.tsx
+  s_21701fd56cd8c0::t_304eb42d92709a 14-223
+  s_21701fd56cd8c0::t_65114ad9c3a31d 1-13,224-277
+docs/PORTFOLIO_ENTRY_REDESIGN.md
+  s_21701fd56cd8c0::t_859f414a38e98d 191-250
+apps/web/components/portfolio-panel.tsx
+  s_21701fd56cd8c0::t_7c2dd121003e03 72,81,103
+  s_21701fd56cd8c0::t_859f414a38e98d 22-23,60,77,110,148,166,170-171,173,175,201-202
+  s_d90564a5b68cd9::t_d56ece2bd07668 172,174,179
+docs/DEVELOPMENT_PLAN.md
+  s_21701fd56cd8c0::t_859f414a38e98d 5,1385,1387-1389,1607,1616-1619
+  s_d90564a5b68cd9::t_cc55efff350d51 1341-1343,1620-1621
+apps/web/tests/portfolio-positions.browser.cjs
+  s_21701fd56cd8c0::t_859f414a38e98d 181-206,212-215,260-263,265-268,283-286,289-296,301-307,326-333,345-348,366-375,401-403,420-423
+  s_21701fd56cd8c0::t_304eb42d92709a 207-209,264,396-400,425
+apps/web/app/(app)/portfolio/[code]/page.tsx
+  s_21701fd56cd8c0::t_7c2dd121003e03 1-11,13,15-19
+  s_21701fd56cd8c0::t_6b464abe8df70e 12,14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7c0b1d7866ebbdafd0269744cc364c607e6a34b7",
+  "prompts": {},
+  "sessions": {
+    "s_21701fd56cd8c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "unknown"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    },
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
