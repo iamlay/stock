@@ -1,0 +1,57 @@
+name: Stock Quotes
+
+on:
+  schedule:
+    # UTC: weekdays 01:00-07:59 = Asia/Shanghai 09:00-15:59.
+    # The command skips weekends, lunch break and hours outside A-share sessions.
+    - cron: "*/5 1-7 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Refresh outside trading hours (manual verification only)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stock-quotes
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/api/pyproject.toml
+
+      - name: Check database configuration
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+        run: |
+          if [ -z "$STOCKLAB_DATABASE_URL" ]; then
+            echo "::error::Repository secret STOCKLAB_DATABASE_URL is required."
+            exit 1
+          fi
+
+      - name: Install API package
+        run: pip install -e apps/api
+
+      # Reuse the deployed schema; do not run migrations in a five-minute job.
+      - name: Refresh watchlist and portfolio stock quotes
+        env:
+          STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
+          FORCE_REFRESH: ${{ github.event_name == 'workflow_dispatch' && inputs.force }}
+        run: |
+          if [ "$FORCE_REFRESH" = "true" ]; then
+            python -m etl.cli stock-watchlist-quotes --force
+          else
+            python -m etl.cli stock-watchlist-quotes
+          fi

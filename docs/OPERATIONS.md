@@ -15,7 +15,7 @@
 | Web | `https://stock.iamlay.com` | Next.js，Vercel |
 | API | `https://stock-production-c535.up.railway.app` | FastAPI，Railway API |
 | PostgreSQL | Railway Postgres | 生产数据库 |
-| 5 分钟 Cron | Railway `stocklab-cron` | `python -m etl.cli cron` |
+| 5 分钟股票报价 | GitHub Actions `Stock Quotes` | `python -m etl.cli stock-watchlist-quotes` |
 | ETL | GitHub Actions `ETL` | 每天 18:30 |
 | 备份 | GitHub Actions `DB Backup` | 每天 03:00 |
 | 质量检查 | GitHub Actions `Stock Quality` | 每周一 20:00 |
@@ -49,7 +49,7 @@
 | `NEXT_TELEMETRY_DISABLED` | 可选 `1` |
 
 > `API_BASE_URL` 和 `NEXT_PUBLIC_API_BASE_URL` 都不带末尾 `/`。
-> Web 部署在 Vercel，Railway 只跑 API、PostgreSQL 和 Cron。
+> Web 部署在 Vercel，Railway 跑 API 和 PostgreSQL；股票报价调度使用 GitHub Actions，Railway Cron 仅为备选。
 
 ### GitHub Secrets
 
@@ -78,7 +78,7 @@
    - Start Command：`pnpm --filter @stocklab/web start`
    - 目标端口：`3000`
    - 变量：`API_BASE_URL`、`NEXT_PUBLIC_API_BASE_URL`
-5. 创建 cron 服务：
+5. 股票报价启用 GitHub Actions `Stock Quotes`，复用数据库Secret；以下Railway Cron配置仅为备选：
    - Dockerfile：`apps/api/Dockerfile`
    - Start Command：`python -m etl.cli cron`
    - Cron：`*/5 1-7 * * 1-5`
@@ -193,7 +193,11 @@ alembic -c apps/api/alembic.ini downgrade -1
 | `DB Restore Test` | 手动 | 恢复最近备份 | 验证备份 |
 | `Uptime Monitor` | 每小时 | API/Web/数据新鲜度 | 可用性告警 |
 
-### Railway 5 分钟 Cron
+### 5 分钟股票报价：GitHub Actions（当前方案）
+
+工作流为 `.github/workflows/stock-quotes.yml`，复用 `STOCKLAB_DATABASE_URL` Secret。推送到默认分支后定时执行，可手动 Run workflow；盘外验收勾选 force。抓取失败会使任务失败，无需数据库迁移或独立Railway服务。计划为工作日北京时间09:00–15:59每5分钟，脚本跳过午休和非交易时段；节假日可能读到旧报价，调度也可能延迟，检查原始报价时间。
+
+### Railway Cron（备选，非当前方案）
 
 ```text
 python -m etl.cli cron
@@ -529,4 +533,4 @@ python -m etl.cli sync-valuation
 
 页面可见且未编辑表单时，每5分钟读取持仓接口，同步报价、已知市值和价格股息率；后台标签页暂停，回来且超过5分钟时立即刷新。请求不重叠，30秒超时，失败保留旧数据并提示重试；退出登录/离开页面时中止请求并清理定时器。行情日期继续显示来源的报价时刻。
 
-沿用 `python -m etl.cli cron` 和现有 Railway 5分钟计划，无新增数据库迁移。部署时更新 Web、API 和 Railway Cron 服务的代码；只有部署API/Web不会自动更新独立Cron服务的镜像。交易时段判断保持不变，非交易时段页面读取的是最近报价。命令 `stock-watchlist-quotes` 和任务名称为兼容已有监控保留，实际范围已包含持仓。
+使用 GitHub Actions `Stock Quotes` 调度，无新增数据库迁移。工作流推送到默认分支后运行，无需Railway Cron服务。交易时段判断保持不变，非交易时段页面读取的是最近报价。命令 `stock-watchlist-quotes` 和任务名称为兼容已有监控保留，实际范围已包含持仓。

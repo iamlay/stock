@@ -274,7 +274,20 @@ expired invites: 3
 
 > 后台打开邀请码列表、批次、导出时也会惰性执行过期标记；Cron 只是保证没人访问时状态也能更新。
 
-## 3.7 5 分钟最新报价 Cron（Railway）
+## 3.7 5 分钟股票报价（GitHub Actions）
+
+当前使用独立 `.github/workflows/stock-quotes.yml`，Actions 中名称为 **Stock Quotes**。推送到默认分支后启用定时触发：工作日北京时间09:00–15:59每5分钟；命令内部按北京时间跳过午休和非交易时段。当前时段判断不识别法定节假日，节假日可能读取上一交易日快照，界面仍显示原始报价时间。
+
+- 复用仓库 Secret `STOCKLAB_DATABASE_URL`（Railway公网连接），与现有ETL一致。
+- 执行 `python -m etl.cli stock-watchlist-quotes`，合并自选股和未归档账本当前持仓。只更新股票报价，不跑全市场ETL、ETF报价、邀请码维护或数据库迁移。
+- 支持 **Actions → Stock Quotes → Run workflow**；非交易时段验收可勾选 `force`，定时执行不强制刷新。
+- 同一任务不并发执行，超时10分钟；缺Secret或抓取失败明确报错。现有18:30 ETL保持不变。
+- 无需新增或更新Railway Cron服务；如果另有旧Cron执行同样任务，避免重复启用。
+- GitHub定时任务只在默认分支执行，可能排队延迟，并非严格实时；公网仓库长期无活动也可能停用定时任务。见[GitHub官方说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
+
+验收日志示例：`stock watchlist quotes codes=... rows=... latest=...`；非交易时段正常输出 `skip: outside A-share trading session`。先确保既有API迁移已部署，再运行本任务。本次不新增迁移。
+
+### 备选：Railway Cron（仅供选择，不是当前默认部署）
 
 1. 同一项目 → **New → GitHub Repo** → 选同一个仓库；
 2. 服务设置：
