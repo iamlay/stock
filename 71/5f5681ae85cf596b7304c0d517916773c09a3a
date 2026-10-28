@@ -1,0 +1,47 @@
+apps/web/components/portfolio-ledger.tsx
+  s_d90564a5b68cd9::t_d370969d16e3a7 85-88
+  s_d90564a5b68cd9::t_5ede1f49c602c1 60,64-83,89-103,105,107,109-110,112-118,120-121,123,125-128,130,282
+  s_d90564a5b68cd9::t_2a7f1616eb77fb 84,111,119
+docs/V2_51R_DELIVERY.md
+  s_21701fd56cd8c0::t_c119eee37eeaab 90-91
+  s_21701fd56cd8c0::t_c0fb53c194f388 84-89
+etl/pipeline.py
+  s_d90564a5b68cd9::t_5ede1f49c602c1 19-20,319-322,332-356
+  s_d90564a5b68cd9::t_e538c0a0df95dc 7-8
+docs/DEVELOPMENT_PLAN.md
+  s_d90564a5b68cd9::t_e90693a9529b01 1606-1607
+apps/api/tests/test_portfolio_quote_targets.py
+  s_d90564a5b68cd9::t_2a7f1616eb77fb 31-33,35,38-41,43-45,48,50-53,65,81-83,85,88-91,94-95,97,99-110,112-122,131,140-141,158
+  s_d90564a5b68cd9::t_5b1aaa7796159c 111
+  s_21701fd56cd8c0::t_4a2f0cbb612780 1-30,34,36-37,42,46-47,49,54-64,66-80,84,86-87,92-93,96,98,123-130,132-139,142-157,159-182
+apps/web/tests/portfolio-positions.browser.cjs
+  s_21701fd56cd8c0::t_cdb37ce54603c8 27-29,50-59,63-89,108,245-290,337-339
+docs/DEPLOYMENT.md
+  s_21701fd56cd8c0::t_6836bed26209e9 293
+docs/OPERATIONS.md
+  s_21701fd56cd8c0::t_e3084a96188b37 205,208,527-532
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "715f5681ae85cf596b7304c0d517916773c09a3a",
+  "prompts": {},
+  "sessions": {
+    "s_21701fd56cd8c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "unknown"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    },
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
