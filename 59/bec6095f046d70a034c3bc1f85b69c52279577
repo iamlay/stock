@@ -1,0 +1,59 @@
+apps/api/app/services/portfolio_positions.py
+  s_d90564a5b68cd9::t_6d35ff7560988c 24,288-301,303-310,312,343,345-346,358-374,551-553
+docs/DEVELOPMENT_PLAN.md
+  s_21701fd56cd8c0::t_24c4d57dd006e4 1339,1602-1605
+apps/api/tests/test_portfolio_dividend_reference.py
+  s_d90564a5b68cd9::t_759a3d7b834511 1-236
+apps/web/components/portfolio-position-form.tsx
+  s_d90564a5b68cd9::t_8a6135310f5b13 601,792-796
+  s_d90564a5b68cd9::t_a6c1d341fa660e 798-802
+apps/web/tests/portfolio-positions.browser.cjs
+  s_21701fd56cd8c0::t_24c4d57dd006e4 190-192
+  s_21701fd56cd8c0::t_fdce72736f7d79 187-189
+docs/adr/0013-portfolio-dividend-reference.md
+  s_21701fd56cd8c0::t_24c4d57dd006e4 1-21
+docs/V2_51R_DELIVERY.md
+  s_d90564a5b68cd9::t_3ea15140fd08d8 82
+  s_d90564a5b68cd9::t_eb32cd31169253 83
+  s_21701fd56cd8c0::t_24c4d57dd006e4 14,73-81
+apps/api/app/services/portfolio_dividend_reference.py
+  s_d90564a5b68cd9::t_6d35ff7560988c 1-249,253-286
+  s_d90564a5b68cd9::t_df8ff9769b2e39 250-252
+apps/web/lib/portfolio-positions.ts
+  s_d90564a5b68cd9::t_a6c1d341fa660e 87-92
+  s_d90564a5b68cd9::t_8a6135310f5b13 47-52,61-62,95-96,157
+apps/web/components/portfolio-ledger.tsx
+  s_d90564a5b68cd9::t_a6c1d341fa660e 320-322,336-338,366-368,490-504
+  s_d90564a5b68cd9::t_8a6135310f5b13 313,318-319,323-324,335,339,359
+docs/PORTFOLIO_ENTRY_REDESIGN.md
+  s_21701fd56cd8c0::t_24c4d57dd006e4 3,130
+  s_21701fd56cd8c0::t_b5f438e8df54de 131
+docs/adr/0012-portfolio-position-baselines.md
+  s_d90564a5b68cd9::t_3ea15140fd08d8 29-30
+scripts/check_portfolio_positions_browser.py
+  s_d90564a5b68cd9::t_4958d97b333802 13,18-24,96-110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "59bec6095f046d70a034c3bc1f85b69c52279577",
+  "prompts": {},
+  "sessions": {
+    "s_21701fd56cd8c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "unknown"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    },
+    "s_d90564a5b68cd9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17724-1947-7840-9719-ee30cb7e6d1e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ray <1187074543@qq.com>"
+    }
+  }
+}
