@@ -10,12 +10,18 @@ import subprocess
 import tempfile
 import time
 import urllib.request
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from urllib.error import URLError
 from uuid import uuid4
 
-from app.db.models import Instrument, PortfolioPrivacyAcceptance, User
+from app.db.models import (
+    Instrument,
+    PortfolioPrivacyAcceptance,
+    StockDividend,
+    StockMetric,
+    User,
+)
 from app.security import create_access_token
 from app.services.portfolio import POLICY, POLICY_SHA256, create_account
 from app.settings import settings
@@ -87,6 +93,21 @@ try:
             ]
         )
         s.flush()
+        # Synthetic reference data, isolated from the configured application database.
+        s.add_all(
+            [
+                StockDividend(
+                    code="600036",
+                    ex_date=date.today(),
+                    report_date=date(2025, 12, 31),
+                    fiscal_year=2025,
+                    cash_per_share="2.01",
+                    progress="实施分配",
+                    plan="测试每10股派20.1元",
+                ),
+                StockMetric(code="600036", price="49.38"),
+            ]
+        )
         a = create_account(
             s,
             owner.id,

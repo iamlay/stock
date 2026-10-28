@@ -310,11 +310,18 @@ export function PortfolioLedger({
                         {p.forecast.annual_amount === null
                           ? p.forecast.status === "not_set"
                             ? "未设置"
-                            : "资料不足"
+                            : p.forecast.reason_label || "分红记录待核对"
                           : `¥ ${amount(p.forecast.annual_amount)}`}
                       </strong>
                     </div>
                   </div>
+                  {p.forecast.status === "historical_reference" ? (
+                    <p className="text-xs leading-6 text-muted">
+                      已收录历史参考：每股每年{" "}
+                      {amount(p.forecast.annual_per_share)}{" "}
+                      元（税前）；数据可能不完整，不代表未来派息。
+                    </p>
+                  ) : null}
                   <dl className="grid grid-cols-2 gap-4 rounded-lg bg-paper p-4 sm:grid-cols-4">
                     {[
                       ["持仓（股）", p.quantity],
@@ -325,7 +332,11 @@ export function PortfolioLedger({
                       <div key={label}>
                         <dt className="text-xs text-muted">{label}</dt>
                         <dd className="mt-2 break-all font-medium tabular-nums">
-                          {amount(value)}
+                          {label === "当前价格股息率（%）" && value == null
+                            ? p.price_yield_issues?.join("；") ||
+                              p.price_yield_reason ||
+                              "分红参考或报价待补齐"
+                            : amount(value)}
                         </dd>
                       </div>
                     ))}
@@ -345,14 +356,16 @@ export function PortfolioLedger({
                   ) : null}
                   <p className="text-xs leading-6 text-muted">
                     {p.quote
-                      ? `报价 ¥${amount(p.quote.price)} · ${new Date(p.quote.at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}`
+                      ? `报价 ¥${amount(p.quote.price)} · ${p.quote.time_label || "报价时间"} ${new Date(p.quote.at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}`
                       : "暂无可用报价"}
                     。历史起点 {p.known_since}
                     {p.date_semantics === "end_of_day"
                       ? "（日终快照）"
                       : "（原记录语义）"}
                     ；此前未知。
-                    {p.history_status === "incomplete" ? "期间记录仍有缺失，显示值仅根据已录入资料计算，请补充核对。" : ""}
+                    {p.history_status === "incomplete"
+                      ? "期间记录仍有缺失，显示值仅根据已录入资料计算，请补充核对。"
+                      : ""}
                     {p.estimated ? "含未知费用，成本及盈亏为估算。" : ""}
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -474,11 +487,21 @@ export function PortfolioLedger({
                                   {amount(d.cash_per_share)}
                                 </td>
                                 <td className="p-2">
-                                  {d.stage === "implemented"
-                                    ? "已实施"
-                                    : d.stage === "proposal"
-                                      ? "预案"
-                                      : "待核对"}
+                                  {(
+                                    {
+                                      implemented: "已实施",
+                                      proposed: "预案",
+                                      approved: "已通过，未实施",
+                                      cancelled: "已取消",
+                                      no_distribution: "不分配",
+                                      historical: "历史记录",
+                                    } as Record<string, string>
+                                  )[d.stage] || "待核对"}
+                                  <p>
+                                    {d.included
+                                      ? "计入参考"
+                                      : d.exclusion_reason || "待核对"}
+                                  </p>
                                   <br />
                                   {sourceLink(d.source_url) ? (
                                     <a

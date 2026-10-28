@@ -6,7 +6,6 @@ in versioned details, NEVER in legacy total_cost. No inferred dividend receipts.
 
 from __future__ import annotations
 
-import calendar
 import hashlib
 import json
 import re
@@ -19,11 +18,10 @@ import jwt
 from sqlalchemy import func, or_, select
 
 from app.db.models import (
-    DividendEvent,
-    DividendEventVersion,
     Instrument,
     PortfolioEntry,
     PortfolioReviewRange,
+    StockMetric,
     StockRealtimeQuote,
 )
 from app.services import portfolio as accounts
@@ -287,69 +285,31 @@ def search(session, user_id, account_id, term):
 
 
 def history_reference(session, code, preferences, quantity=ZERO):
-    """No coverage attestation exists in V2-49. Show evidence, never infer zero/full coverage."""
-    window = preferences.get("forecast", "skip")
-    custom = preferences.get("custom")
-    end = today()
-    months = int(window) if window in {"12", "36", "60"} else 12
-    year = end.year - months // 12
-    start = end.replace(year=year, day=min(end.day, calendar.monthrange(year, end.month)[1]))
-    rows = (
-        session.execute(
-            select(DividendEventVersion)
-            .join(
-                DividendEvent,
-                (DividendEvent.id == DividendEventVersion.event_id)
-                & (DividendEvent.current_revision == DividendEventVersion.revision),
-            )
-            .where(
-                DividendEvent.code == code,
-                or_(
-                    DividendEventVersion.ex_date.is_(None),
-                    (DividendEventVersion.ex_date > start) & (DividendEventVersion.ex_date <= end),
-                ),
-            )
-            .order_by(DividendEventVersion.ex_date.desc())
-            .limit(200)
+    from app.services.portfolio_dividend_reference import reference
+
+    return reference(session, code, preferences, quantity, as_of=today())
+
+
+def quote_reference(session, code):
+    quote = session.get(StockRealtimeQuote, code)
+    if quote and quote.price > 0:
+        stamp = quote.quote_time
+        return dict(
+            price=string(Decimal(quote.price)),
+            at=stamp if stamp.tzinfo else stamp.replace(tzinfo=UTC),
+            source="stock_realtime_quotes",
+            time_label="报价时间",
         )
-        .scalars()
-        .all()
-    )
-    details = [
-        dict(
-            event_id=r.event_id,
-            revision=r.revision,
-            report_date=r.report_date,
-            ex_date=r.ex_date,
-            cash_per_share=string(Decimal(r.cash_per_share))
-            if r.cash_per_share is not None
-            else None,
-            stage=r.stage,
-            evidence_status=r.evidence_status,
-            source=r.source,
-            source_url=r.announcement_url or r.source_url,
+    metric = session.get(StockMetric, code)
+    if metric and metric.price is not None and metric.price > 0:
+        stamp = metric.updated_at
+        return dict(
+            price=string(Decimal(metric.price)),
+            at=stamp if stamp.tzinfo else stamp.replace(tzinfo=UTC),
+            source="stock_metrics",
+            time_label="行情快照更新时间",
         )
-        for r in rows
-    ]
-    value = Decimal(custom) if window == "custom" and custom is not None else None
-    return dict(
-        window=window,
-        as_of=end,
-        from_date=start,
-        to_date=end,
-        status="user_estimate"
-        if value is not None
-        else "not_set"
-        if window == "skip"
-        else "insufficient",
-        annual_per_share=string(value),
-        annual_amount=string(quantity * value) if value is not None else None,
-        note="自定义税前情景，不代表应收或到账"
-        if value is not None
-        else "历史窗口尚无完整覆盖及特别分红/送转核验，暂不计算；可查看已收录明细或使用自定义参考",
-        details=details,
-        coverage_verified=False,
-    )
+    return None
 
 
 def position_preferences(rows):
@@ -380,10 +340,10 @@ def _holdings(session, user_id, account_id):
         p.update(
             name=stock.name if stock else p["code"], preferences=prefs.get(p["code"], DEFAULT_PREFS)
         )
-        quote = session.get(StockRealtimeQuote, p["code"])
+        quote = quote_reference(session, p["code"])
         q = Decimal(p["quantity"])
-        price = Decimal(quote.price) if quote and quote.price > 0 else None
-        p["quote"] = dict(price=string(price), at=quote.quote_time) if price is not None else None
+        price = Decimal(quote["price"]) if quote else None
+        p["quote"] = quote
         p["market_value"] = string(q * price) if price is not None else None
         if q:
             if price is None:
@@ -394,6 +354,23 @@ def _holdings(session, user_id, account_id):
         annual = p["forecast"]["annual_per_share"]
         p["price_yield"] = (
             string(Decimal(annual) / price * 100) if annual is not None and price else None
+        )
+        p["price_yield_status"] = (
+            p["forecast"]["reason"]
+            if annual is None
+            else "missing_quote"
+            if price is None
+            else "available"
+        )
+        p["price_yield_reason"] = (
+            p["forecast"]["reason_label"]
+            if annual is None
+            else "暂无有效报价"
+            if price is None
+            else None
+        )
+        p["price_yield_issues"] = ([p["forecast"]["reason_label"]] if annual is None else []) + (
+            ["暂无有效报价"] if price is None else []
         )
         weighted = p["costs"]["weighted"]["per_share"]
         p["cost_yield"] = (
@@ -571,6 +548,9 @@ def prepare(session, user_id, account_id, data, rows):
         fees_known=meta["fees_known"],
         resulting_position=position,
         preferences=prefs,
+        forecast=history_reference(
+            session, code, prefs, Decimal(position["quantity"]) if position else ZERO
+        ),
         date_semantics=meta.get("date_semantics", "trade"),
         warning="起点以前的盈亏和分红未知；历史参考不生成应收或到账。日终快照已含截至日交易。",
     )

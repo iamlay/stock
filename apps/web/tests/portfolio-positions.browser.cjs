@@ -184,8 +184,12 @@ const fixture = JSON.parse(
     await p.getByLabel("分组", { exact: true }).fill("观察仓");
     await p.getByRole("button", { name: "核对并预览", exact: true }).click();
     await p.getByRole("button", { name: "确认保存", exact: true }).click();
-    await p.getByText("资料不足", { exact: true }).waitFor();
-    console.log("PASS settings update, missing data not zero");
+    await p.getByText("¥ 335", { exact: true }).waitFor();
+    await p.getByText(/已收录历史参考：每股每年 0.67 元/).waitFor();
+    await p.getByText("1.356825", { exact: true }).waitFor();
+    console.log(
+      "PASS historical reference from recorded dividends, fixed 3-year divisor and quote fallback",
+    );
     await p.getByRole("button", { name: "修正当前持仓", exact: true }).click();
     await p.getByLabel("数量", { exact: true }).fill("1000");
     await p.getByLabel("日期", { exact: true }).fill("2025-01-04");

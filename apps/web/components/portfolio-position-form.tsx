@@ -598,7 +598,7 @@ export function PortfolioPositionForm({
                   </label>
                 ) : null}
                 <p className="text-xs leading-6 text-muted">
-                  历史数据尚无完整覆盖核验，暂不自动计算年均值。自定义仅为情景参考，不生成应收或到账；保存后可展开历史明细。
+                  按除息日统计已收录的普通现金分红，分别除以1、3或5年；预案、特别分红及重复记录不计入。数据可能不完整，预览时显示计算结果和缺失原因。历史与自定义参考均不生成应收或到账。
                 </p>
               </div>
             </details>
@@ -789,12 +789,17 @@ export function PortfolioPositionForm({
               <p>分组：{payload.preferences.group || "未分组"}</p>
               <p>
                 分红参考：
-                {payload.preferences.forecast === "custom"
-                  ? `自定义 ${amount(payload.preferences.custom)} 元/股/年（税前）`
-                  : payload.preferences.forecast === "skip"
-                    ? "暂未设置"
-                    : `过去${payload.preferences.forecast}个月，覆盖不足，暂不计算`}
+                {preview.summary.forecast
+                  ? preview.summary.forecast.annual_per_share != null
+                    ? `${amount(preview.summary.forecast.annual_per_share)} 元/股/年（税前），年度参考 ¥${amount(preview.summary.forecast.annual_amount)}`
+                    : preview.summary.forecast.reason_label || "分红记录待核对"
+                  : "分红参考待加载"}
               </p>
+              {preview.summary.forecast ? (
+                <p className="text-xs leading-6 text-muted">
+                  {preview.summary.forecast.note}
+                </p>
+              ) : null}
               <p>
                 保存后持仓：
                 {amount(preview.summary.resulting_position?.quantity ?? "0")} 股

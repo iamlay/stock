@@ -44,6 +44,12 @@ export type Cost = {
   status: string;
 };
 export type Forecast = {
+  reason?: string;
+  reason_label?: string;
+  issues?: string[];
+  recorded_total?: string;
+  divisor_years?: number;
+  coverage_verified?: boolean;
   window: string;
   status: string;
   note: string;
@@ -52,6 +58,8 @@ export type Forecast = {
   from_date: string;
   to_date: string;
   details: {
+    included?: boolean;
+    exclusion_reason?: string | null;
     event_id: string;
     revision: number;
     report_date: string | null;
@@ -76,9 +84,16 @@ export type Position = {
   realized_pnl: string | null;
   estimated: boolean;
   market_value: string | null;
-  quote: { price: string; at: string } | null;
+  quote: {
+    price: string;
+    at: string;
+    source?: string;
+    time_label?: string;
+  } | null;
   forecast: Forecast;
   price_yield: string | null;
+  price_yield_reason?: string | null;
+  price_yield_issues?: string[];
   cost_yield: string | null;
   closed_cycles: {
     cycle_id: string;
@@ -139,6 +154,7 @@ export type Preview = {
   preview_token: string;
   expires_in: number;
   summary: {
+    forecast?: Forecast;
     stock: StockChoice;
     kind: Kind;
     event_date: string;
