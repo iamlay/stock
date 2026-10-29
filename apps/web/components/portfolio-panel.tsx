@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { PortfolioLedger } from "@/components/portfolio-ledger";
 import { flushSync } from "react-dom";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
@@ -171,7 +173,10 @@ export function PortfolioPanel({ selectedCode }: { selectedCode?: string } = {})
       <div>
         <h1 className="font-serif text-3xl">我的持仓</h1>
         <p className="mt-2 text-sm leading-6 text-muted">管理持仓，查看每年的分红参考。</p>
-      </div>{!loading ? <button type="button" className={button} disabled={busy} onClick={() => { if (confirmDraftExit()) void load(); }}>刷新</button> : null}
+      </div>{!loading ? <div className="flex gap-2">
+        <Link href="/portfolio/income" className={button}>收息账本</Link>
+        <button type="button" className={button} disabled={busy} onClick={() => { if (confirmDraftExit()) void load(); }}>刷新</button>
+      </div> : null}
     </header> : null}
     {loading ? <p role="status" className="py-8 text-sm text-muted">正在读取私人账本…</p> : null}
     {error ? <p role="alert" className="rounded-sm border border-loss/30 p-3 text-sm text-loss">{error}</p> : null}

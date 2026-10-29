@@ -300,6 +300,99 @@ def entry(account_id: str, body: CreateEntry, session: SessionDep, user: UserDep
     )
 
 
+class ReceiptInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_version: Annotated[int, Field(strict=True, ge=1)]
+    request_id: UUID
+    entitlement_id: Annotated[str | None, Field(max_length=36)] = None
+    code: Annotated[str, Field(pattern=r"^[0-9]{6}$")]
+    received_date: date
+    net_amount: Annotated[str, Field(max_length=20)]
+    gross_amount: Annotated[str | None, Field(max_length=20)] = None
+    tax_amount: Annotated[str | None, Field(max_length=20)] = None
+    note: Annotated[str, Field(max_length=500)] = ""
+
+    @field_validator("received_date", mode="before")
+    @classmethod
+    def calendar_date_only(cls, value):
+        return CreateEntry.calendar_date_only(value)
+
+
+class ReverseReceipt(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_version: Annotated[int, Field(strict=True, ge=1)]
+
+
+@router.get("/accounts/{account_id}/income", summary="本人应收与实收汇总")
+def income(account_id: str, session: SessionDep, user: UserDep):
+    from app.services.portfolio_income import income_snapshot
+
+    return income_snapshot(session, user.id, account_id)
+
+
+@router.post("/accounts/{account_id}/income/refresh", summary="按已核对事件重算应收")
+def income_refresh(account_id: str, session: SessionDep, user: UserDep):
+    from app.services.portfolio_income import sync_entitlements
+
+    write_limit(session, user.id)
+    result = commit_mutation(
+        session, lambda: sync_entitlements(session, user.id, account_id)
+    )
+    return result
+
+
+@router.post("/accounts/{account_id}/receipts", status_code=201, summary="登记实际到账")
+def add_receipt(
+    account_id: str, body: ReceiptInput, session: SessionDep, user: UserDep
+):
+    from app.services.portfolio_income import create_receipt
+
+    write_limit(session, user.id)
+    return commit_mutation(
+        session,
+        lambda: create_receipt(
+            session,
+            user.id,
+            account_id,
+            expected_version=body.expected_version,
+            request_id=str(body.request_id),
+            entitlement_id=body.entitlement_id,
+            code=body.code,
+            received_date=body.received_date,
+            net_amount=body.net_amount,
+            gross_amount=body.gross_amount,
+            tax_amount=body.tax_amount,
+            note=body.note,
+        ),
+    )
+
+
+@router.post(
+    "/accounts/{account_id}/receipts/{receipt_id}/reverse",
+    summary="撤销实际到账记录，保留审计链",
+)
+def reverse_receipt(
+    account_id: str,
+    receipt_id: str,
+    body: ReverseReceipt,
+    session: SessionDep,
+    user: UserDep,
+):
+    from app.services.portfolio_income import reverse_receipt as reverse
+
+    write_limit(session, user.id)
+    return commit_mutation(
+        session,
+        lambda: reverse(
+            session,
+            user.id,
+            account_id,
+            receipt_id,
+            expected_version=body.expected_version,
+        ),
+    )
+
+
 class PositionPreferences(BaseModel):
     model_config = ConfigDict(extra="forbid")
     basis: Literal["weighted", "net", "dividend", "unknown"] = "weighted"

@@ -773,3 +773,81 @@ class PortfolioReviewRange(Base):
     account_version: Mapped[int] = mapped_column(Integer, nullable=False)
     reason: Mapped[str] = mapped_column(String(32), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class DividendEntitlement(Base):
+    """V2-52: versioned, evidence-backed gross dividend entitlement."""
+
+    __tablename__ = "dividend_entitlements"
+    __table_args__ = (
+        UniqueConstraint(
+            "account_id", "event_id", "revision", name="uq_dividend_entitlement_version"
+        ),
+        ForeignKeyConstraint(
+            ["account_id", "user_id"],
+            ["portfolio_accounts.id", "portfolio_accounts.user_id"],
+            ondelete="CASCADE",
+        ),
+        Index("ix_dividend_entitlements_owner", "user_id", "account_id", "is_active"),
+        CheckConstraint(
+            "eligible_quantity >= 0 AND cash_per_share >= 0 AND gross_amount >= 0",
+            name="ck_dividend_entitlement_nonnegative",
+        ),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    account_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("dividend_events.id", ondelete="CASCADE"), nullable=False
+    )
+    event_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    account_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    code: Mapped[str] = mapped_column(String(16), nullable=False)
+    record_date: Mapped[date] = mapped_column(Date, nullable=False)
+    payment_date: Mapped[date | None] = mapped_column(Date)
+    eligible_quantity: Mapped[Decimal] = mapped_column(Numeric(20, 6), nullable=False)
+    cash_per_share: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
+    gross_amount: Mapped[Decimal] = mapped_column(Numeric(20, 2), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    calculation_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    review_reasons: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class DividendReceipt(Base):
+    """V2-53: user-confirmed actual dividend cash. Reversal is append-only audit, not delete."""
+
+    __tablename__ = "dividend_receipts"
+    __table_args__ = (
+        UniqueConstraint("account_id", "request_id", name="uq_dividend_receipt_request"),
+        ForeignKeyConstraint(
+            ["account_id", "user_id"],
+            ["portfolio_accounts.id", "portfolio_accounts.user_id"],
+            ondelete="CASCADE",
+        ),
+        Index("ix_dividend_receipts_owner", "user_id", "account_id", "received_date"),
+        CheckConstraint(
+            "net_amount > 0 AND (gross_amount IS NULL OR gross_amount >= 0)",
+            name="ck_dividend_receipt_amount",
+        ),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    account_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    entitlement_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("dividend_entitlements.id", ondelete="SET NULL")
+    )
+    code: Mapped[str] = mapped_column(String(16), nullable=False)
+    received_date: Mapped[date] = mapped_column(Date, nullable=False)
+    gross_amount: Mapped[Decimal | None] = mapped_column(Numeric(20, 2))
+    tax_amount: Mapped[Decimal | None] = mapped_column(Numeric(20, 2))
+    net_amount: Mapped[Decimal] = mapped_column(Numeric(20, 2), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    note: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    request_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    reversed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

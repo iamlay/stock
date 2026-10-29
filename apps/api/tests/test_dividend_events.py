@@ -371,7 +371,7 @@ def test_both_etl_paths_write_observations_and_preserve_research_contract(
 
 def test_real_saved_v248_rows_are_losslessly_ingested_offline(session):
     path = Path(__file__).parents[3] / "docs/evidence/v2-48/live-2026-10-27/snapshot.json"
-    snapshot = json.loads(path.read_text())
+    snapshot = json.loads(path.read_text(encoding="utf-8"))
     codes = []
     for item in snapshot["requests"]:
         seed(session, item["code"])

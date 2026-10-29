@@ -264,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
     snapshot = (
         collect_snapshot(args.codes, page_size=args.page_size, timeout=args.timeout)
         if args.live
-        else json.loads(args.snapshot.read_text())
+        else json.loads(args.snapshot.read_text(encoding="utf-8"))
     )
     report = build_report(snapshot)
     args.output.mkdir(parents=True, exist_ok=True)

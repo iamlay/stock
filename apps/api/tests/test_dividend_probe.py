@@ -185,14 +185,14 @@ def test_collection_rejects_ambiguous_or_invalid_requests(codes):
 def test_saved_live_evidence_is_reproducible_and_remains_blocked(tmp_path):
     root = Path(__file__).resolve().parents[3]
     evidence = root / "docs/evidence/v2-48/live-2026-10-27"
-    saved = json.loads((evidence / "snapshot.json").read_text())
-    expected = json.loads((evidence / "report.json").read_text())
+    saved = json.loads((evidence / "snapshot.json").read_text(encoding="utf-8"))
+    expected = json.loads((evidence / "report.json").read_text(encoding="utf-8"))
     assert build_report(saved) == expected
     assert expected["at_least_30_distinct_raw_rows"] is True
     assert expected["assessment"] == "blocked_for_automatic_accounting"
     with patch("etl.dividend_probe.urllib.request.urlopen", side_effect=AssertionError("offline")):
         assert main(["--snapshot", str(evidence / "snapshot.json"), "--output", str(tmp_path)]) == 0
-    assert json.loads((tmp_path / "report.json").read_text()) == expected
+    assert json.loads((tmp_path / "report.json").read_text(encoding="utf-8")) == expected
 
 
 def test_insufficient_evidence_cli_returns_failure(tmp_path):
