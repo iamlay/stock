@@ -13,6 +13,7 @@ import re
 from datetime import UTC, date, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
@@ -564,3 +565,240 @@ def reverse_receipt(
                 entitlement.updated_at = datetime.now(UTC)
         session.flush()
     return _receipt_out(row)
+
+
+def _month_key(value: date) -> str:
+    return value.strftime("%Y-%m")
+
+
+def _event_amount(
+    rows: list[PortfolioEntry], event, version
+) -> tuple[str | None, str | None, str | None]:
+    if version.record_date is None or version.cash_per_share is None:
+        return None, None, "missing_record_date_or_cash"
+    quantity, known_since, reason = quantity_at(rows, event.code, version.record_date)
+    if quantity is None or quantity <= 0 or reason:
+        return None, None, reason or "no_eligible_quantity"
+    amount = _money(quantity * Decimal(version.cash_per_share))
+    return format(quantity, ".6f"), format(amount, ".2f"), None
+
+
+def income_home(session: Session, user_id: int, account_id: str, year: int) -> dict:
+    """Calendar + annual cash-flow projection for the next income action."""
+    if year < 2000 or year > 2100:
+        raise accounts.PortfolioError("invalid_year", "年份超出范围", 422)
+    accounts.own_account(session, user_id, account_id)
+    rows = entries_for(session, user_id, account_id)
+    codes = sorted({row.code for row in active_rows(rows) if row.kind != "preference"})
+    events = _current_events(session, codes)
+    today = datetime.now(ZoneInfo("Asia/Shanghai")).date()
+    entitlements = session.scalars(
+        select(DividendEntitlement).where(
+            DividendEntitlement.account_id == account_id,
+            DividendEntitlement.user_id == user_id,
+            DividendEntitlement.is_active.is_(True),
+        )
+    ).all()
+    entitlement_by_event = {row.event_id: row for row in entitlements}
+    received_by_entitlement = _received_map(session, [row.id for row in entitlements])
+    net_by_entitlement = _net_received_map(session, [row.id for row in entitlements])
+    receipts = session.scalars(
+        select(DividendReceipt).where(
+            DividendReceipt.account_id == account_id,
+            DividendReceipt.user_id == user_id,
+            DividendReceipt.status == "active",
+        )
+    ).all()
+
+    months = {
+        f"{year}-{month:02d}": {
+            "month": f"{year}-{month:02d}",
+            "received": ZERO,
+            "pending": ZERO,
+            "proposal": ZERO,
+        }
+        for month in range(1, 13)
+    }
+    calendar: dict[str, list[dict]] = {}
+    unknown: list[dict] = []
+    proposals: list[dict] = []
+    event_rows: list[dict] = []
+
+    for event, version in events:
+        if version.stage not in {"implemented", "approved", "proposed"}:
+            continue
+        quantity, amount, reason = _event_amount(rows, event, version)
+        entitlement = entitlement_by_event.get(event.id)
+        remaining = (
+            max(
+                Decimal(entitlement.gross_amount)
+                - received_by_entitlement.get(entitlement.id, ZERO),
+                ZERO,
+            )
+            if entitlement
+            else ZERO
+        )
+        item = {
+            "event_id": event.id,
+            "code": event.code,
+            "stage": version.stage,
+            "plan": version.plan,
+            "record_date": version.record_date.isoformat() if version.record_date else None,
+            "ex_date": version.ex_date.isoformat() if version.ex_date else None,
+            "payment_date": (
+                version.payment_date.isoformat() if version.payment_date else None
+            ),
+            "cash_per_share": _text(Decimal(version.cash_per_share))
+            if version.cash_per_share is not None
+            else None,
+            "eligible_quantity": quantity,
+            "amount": amount,
+            "entitlement_id": entitlement.id if entitlement else None,
+            "received_amount": _text(net_by_entitlement.get(entitlement.id, ZERO))
+            if entitlement
+            else None,
+            "remaining_amount": _text(remaining) if entitlement else None,
+            "reason": reason,
+        }
+        event_rows.append(item)
+
+        if version.stage in {"approved", "proposed"} and version.payment_date:
+            if version.payment_date.year == year:
+                month = months.get(_month_key(version.payment_date))
+                if month and amount:
+                    month["proposal"] += Decimal(amount)
+                proposals.append(item)
+        elif version.stage == "implemented" and entitlement:
+            if entitlement.payment_date and entitlement.payment_date.year == year:
+                month = months.get(_month_key(entitlement.payment_date))
+                if month:
+                    month["pending"] += remaining
+            if entitlement.payment_date is None:
+                unknown.append(item)
+
+        dates = [
+            ("record", version.record_date),
+            ("ex", version.ex_date),
+            ("payment", version.payment_date),
+        ]
+        for kind, event_date in dates:
+            if event_date is None or event_date.year != year:
+                continue
+            calendar.setdefault(event_date.isoformat(), []).append(
+                {
+                    **item,
+                    "date_type": kind,
+                    "date_type_label": {
+                        "record": "登记日",
+                        "ex": "除息日",
+                        "payment": "派息日",
+                    }[kind],
+                }
+            )
+
+    for receipt in receipts:
+        if receipt.received_date.year != year:
+            continue
+        key = _month_key(receipt.received_date)
+        if key in months:
+            months[key]["received"] += Decimal(receipt.net_amount)
+        calendar.setdefault(receipt.received_date.isoformat(), []).append(
+            {
+                "date_type": "received",
+                "date_type_label": "到账",
+                "event_id": None,
+                "code": receipt.code,
+                "stage": "received",
+                "plan": "",
+                "record_date": None,
+                "ex_date": None,
+                "payment_date": receipt.received_date.isoformat(),
+                "cash_per_share": None,
+                "eligible_quantity": None,
+                "amount": _text(Decimal(receipt.net_amount)),
+                "entitlement_id": receipt.entitlement_id,
+                "received_amount": _text(Decimal(receipt.net_amount)),
+                "remaining_amount": None,
+                "reason": None,
+            }
+        )
+
+    monthly = [
+        {
+            "month": row["month"],
+            "received": _text(row["received"]),
+            "pending": _text(row["pending"]),
+            "proposal": _text(row["proposal"]),
+        }
+        for row in months.values()
+    ]
+    year_received = sum(
+        (Decimal(row.net_amount) for row in receipts if row.received_date.year == year),
+        ZERO,
+    )
+    year_pending = sum(
+        (
+            max(Decimal(row.gross_amount) - received_by_entitlement.get(row.id, ZERO), ZERO)
+            for row in entitlements
+            if row.payment_date and row.payment_date.year == year
+        ),
+        ZERO,
+    )
+    year_proposal = sum(
+        (Decimal(item["amount"]) for item in proposals if item.get("amount")),
+        ZERO,
+    )
+    upcoming = sorted(
+        (
+            {
+                "code": row.code,
+                "amount": _text(
+                    max(Decimal(row.gross_amount) - received_by_entitlement.get(row.id, ZERO), ZERO)
+                ),
+                "payment_date": row.payment_date.isoformat(),
+            }
+            for row in entitlements
+            if row.payment_date
+            and row.payment_date >= today
+            and Decimal(row.gross_amount) - received_by_entitlement.get(row.id, ZERO) > 0
+        ),
+        key=lambda item: item["payment_date"],
+    )
+    return {
+        "year": year,
+        "as_of": datetime.now(UTC).isoformat(),
+        "summary": {
+            "received": _text(year_received),
+            "pending": _text(year_pending),
+            "proposal": _text(year_proposal),
+            "contract_pending": _text(
+                sum(
+                    (
+                        max(
+                            Decimal(row.gross_amount)
+                            - received_by_entitlement.get(row.id, ZERO),
+                            ZERO,
+                        )
+                        for row in entitlements
+                    ),
+                    ZERO,
+                )
+            ),
+            "unknown_count": len(unknown),
+            "next_payment": upcoming[0] if upcoming else None,
+        },
+        "monthly": monthly,
+        "calendar": [
+            {"date": key, "items": value} for key, value in sorted(calendar.items())
+        ],
+        "unknown": unknown,
+        "events": event_rows,
+        "entitlements": [
+            _entitlement_out(
+                row,
+                received_by_entitlement.get(row.id, ZERO),
+                net_by_entitlement.get(row.id, ZERO),
+            )
+            for row in entitlements
+        ],
+    }

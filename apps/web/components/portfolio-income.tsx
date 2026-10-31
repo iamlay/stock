@@ -230,6 +230,12 @@ export function PortfolioIncome() {
             重算应收
           </button>
           <Link
+            href="/income"
+            className="rounded-sm border border-line bg-surface px-3 py-2 text-sm text-jade-deep hover:border-jade"
+          >
+            收息首页
+          </Link>
+          <Link
             href="/portfolio"
             className="rounded-sm border border-line bg-surface px-3 py-2 text-sm text-ink-soft hover:border-ink"
           >

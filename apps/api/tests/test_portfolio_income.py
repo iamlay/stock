@@ -12,6 +12,7 @@ from app.db.models import (
 from app.services.portfolio import POLICY, POLICY_SHA256, create_account
 from app.services.portfolio_income import (
     create_receipt,
+    income_home,
     income_snapshot,
     reverse_receipt,
     sync_entitlements,
@@ -170,3 +171,13 @@ def test_entitlement_and_receipts(session, monkeypatch) -> None:
     assert snapshot["entitlements"][0]["status"] == "partial"
     assert len(snapshot["receipts"]) == 2
     assert any(row["status"] == "reversed" for row in snapshot["receipts"])
+
+    home = income_home(session, user.id, account.id, 2026)
+    assert home["summary"]["received"] == "30.00"
+    assert home["summary"]["pending"] == "20.00"
+    assert home["calendar"]
+    assert any(
+        item["date_type"] == "payment"
+        for day in home["calendar"]
+        for item in day["items"]
+    )

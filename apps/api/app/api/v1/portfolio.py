@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -328,6 +328,19 @@ def income(account_id: str, session: SessionDep, user: UserDep):
     from app.services.portfolio_income import income_snapshot
 
     return income_snapshot(session, user.id, account_id)
+
+
+@router.get("/accounts/{account_id}/income/home", summary="收息首页与分红日历")
+def income_home(
+    account_id: str,
+    session: SessionDep,
+    user: UserDep,
+    year: int | None = None,
+):
+    from app.services.portfolio_income import income_home as home
+
+    target = year or datetime.now(UTC).year
+    return home(session, user.id, account_id, target)
 
 
 @router.post("/accounts/{account_id}/income/refresh", summary="按已核对事件重算应收")
