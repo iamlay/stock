@@ -12,7 +12,7 @@ import json
 import re
 from datetime import UTC, date, datetime
 from decimal import ROUND_HALF_UP, Decimal
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, select
@@ -23,6 +23,7 @@ from app.db.models import (
     DividendEvent,
     DividendEventVersion,
     DividendReceipt,
+    PortfolioAccount,
     PortfolioEntry,
 )
 from app.services import portfolio as accounts
@@ -358,6 +359,7 @@ def _receipt_out(row: DividendReceipt) -> dict:
         "tax_amount": _text(Decimal(row.tax_amount)) if row.tax_amount is not None else None,
         "net_amount": _text(Decimal(row.net_amount)),
         "status": row.status,
+        "source": row.source,
         "note": row.note,
         "created_at": row.created_at.isoformat(),
         "reversed_at": row.reversed_at.isoformat() if row.reversed_at else None,
@@ -910,3 +912,78 @@ def income_home(session: Session, user_id: int, account_id: str, year: int) -> d
             for row in entitlements
         ],
     }
+
+
+def generate_due_receipts(session: Session, *, as_of: date | None = None) -> dict:
+    """Create one automatic receipt when an implemented event reaches payment day.
+
+    The amount is the announcement-derived gross entitlement, with tax left at zero.
+    It is intentionally editable: holders who actually had withholding can correct it.
+    """
+    today = as_of or datetime.now(ZoneInfo("Asia/Shanghai")).date()
+    entitlements = session.scalars(
+        select(DividendEntitlement).where(
+            DividendEntitlement.is_active.is_(True),
+            DividendEntitlement.payment_date.is_not(None),
+            DividendEntitlement.payment_date <= today,
+        )
+    ).all()
+    created = 0
+    skipped = 0
+    for entitlement in entitlements:
+        if Decimal(entitlement.gross_amount) <= 0:
+            skipped += 1
+            continue
+        account = session.get(PortfolioAccount, entitlement.account_id)
+        if account is None or account.is_archived:
+            skipped += 1
+            continue
+        if not current_consent(session, account):
+            skipped += 1
+            continue
+        if _active_received(session, entitlement.id) > 0:
+            skipped += 1
+            continue
+        existing = session.scalar(
+            select(DividendReceipt.id).where(
+                DividendReceipt.entitlement_id == entitlement.id,
+                DividendReceipt.source == "automatic",
+            )
+        )
+        if existing:
+            skipped += 1
+            continue
+        request_id = str(
+            uuid5(
+                NAMESPACE_URL,
+                f"stocklab:auto-receipt:{entitlement.id}:{entitlement.payment_date}",
+            )
+        )
+        row = DividendReceipt(
+            id=str(uuid4()),
+            account_id=entitlement.account_id,
+            user_id=entitlement.user_id,
+            entitlement_id=entitlement.id,
+            code=entitlement.code,
+            quantity=entitlement.eligible_quantity,
+            cash_per_share=entitlement.cash_per_share,
+            received_date=entitlement.payment_date,
+            gross_amount=entitlement.gross_amount,
+            tax_amount=ZERO,
+            net_amount=entitlement.gross_amount,
+            status="active",
+            source="automatic",
+            note="按公告派息日自动登记，请核对实际到账金额",
+            request_id=request_id,
+            request_hash=hashlib.sha256(request_id.encode()).hexdigest(),
+            created_at=datetime.now(UTC),
+        )
+        session.add(row)
+        account.version += 1
+        account.updated_at = datetime.now(UTC)
+        accounts._audit(session, account, "dividend_receipt_automatic")
+        entitlement.status = "settled"
+        entitlement.updated_at = datetime.now(UTC)
+        created += 1
+    session.commit()
+    return {"checked": len(entitlements), "created": created, "skipped": skipped}

@@ -20,6 +20,7 @@ type Receipt = {
   tax_amount: string | null;
   net_amount: string;
   status: string;
+  source: string;
   note: string;
 };
 
@@ -132,7 +133,14 @@ export function PortfolioDividendRecords({ code }: { code: string }) {
               className="card flex flex-wrap items-center justify-between gap-3 p-4"
             >
               <div>
-                <p className="text-sm font-medium">{row.received_date}</p>
+                <p className="text-sm font-medium">
+                  {row.received_date}
+                  {row.source === "automatic" ? (
+                    <span className="ml-2 rounded-full bg-jade-soft px-2 py-0.5 text-[10px] text-jade-deep">
+                      自动
+                    </span>
+                  ) : null}
+                </p>
                 <p className="tnum mt-1 text-xs text-muted">
                   {row.quantity && row.cash_per_share
                     ? `${row.quantity} 股 × ${row.cash_per_share} 元`

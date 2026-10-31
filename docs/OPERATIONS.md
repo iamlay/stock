@@ -181,7 +181,7 @@ alembic -c apps/api/alembic.ini downgrade -1
 | `ETL` | 工作日 18:30 | `etl.cli daily` + `etl.cli stock-daily` + `app.cli stock-alerts` | ETF/个股/提醒 |
 | `Stock Dividends` | 周一 19:00 | `etl.cli stock-dividends-bulk` | 分红与股息率 |
 | `Stock Quality` | 周一 20:00 | `etl.cli stock-metrics` + `stock-quality --write` | 质量检查 |
-| `Stock Alerts` | 手动 | `app.cli stock-alerts` | 只跑提醒 |
+| `Stock Alerts` | 每日 18:00 | `portfolio-receipts` + `stock-alerts` | 自动到账/提醒 |
 | `DB Backup` | 每天 03:00 | `pg_dump` + 加密 | 备份 |
 | `Stock Bars` | 每月 1 日 20:00 | `etl.cli stock-bars --limit 2000` | K 线 |
 | `Stock Yield Percentile` | 每月 1 日 22:00 | `stock-yield-percentile --limit 1000` | 10 年分位 |
@@ -252,6 +252,7 @@ python -m etl.cli stock-financials --limit 5000 --shard-count 5 --shard-index 1
 python -m etl.cli stock-financials --limit 5000 --force
 python -m etl.cli stock-quality --limit 5000 --write
 python -m etl.cli stock-status
+python -m app.cli portfolio-receipts
 python -m app.cli stock-alerts
 
 # 运维

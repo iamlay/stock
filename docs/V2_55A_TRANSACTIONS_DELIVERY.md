@@ -103,6 +103,26 @@ PATCH /api/v1/portfolio/accounts/{account_id}/receipts/{receipt_id}
 
 已撤销记录不能修改，只能重新添加。
 
+### 按公告派息日自动登记
+
+每日任务：
+
+```bash
+python -m app.cli portfolio-receipts
+```
+
+规则：
+
+- 正式实施应收；
+- 派息日 <= 今天；
+- 尚无有效到账记录；
+- 账户未归档且已确认隐私说明；
+- 自动生成一条 `source=automatic` 的到账记录；
+- 金额按公告应收，税额默认 0；
+- 可在分红记录中编辑并补税。
+
+自动记录展示“自动”标签，不会重复生成；撤销后不会自动重新生成。
+
 字段：
 
 ```text
@@ -140,6 +160,7 @@ d1a6b9e3f472_dividend_receipt_quantity
 ```text
 c9e4a1d7f250_bonus_reinvest
 d1a6b9e3f472_dividend_receipt_quantity
+e2b7c4a9d183_dividend_receipt_source
 ```
 
 更新 `portfolio_entries` 的 kind 约束。

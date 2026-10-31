@@ -848,6 +848,9 @@ class DividendReceipt(Base):
     tax_amount: Mapped[Decimal | None] = mapped_column(Numeric(20, 2))
     net_amount: Mapped[Decimal] = mapped_column(Numeric(20, 2), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    source: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="manual", server_default="manual"
+    )
     note: Mapped[str] = mapped_column(String(500), nullable=False, default="")
     request_id: Mapped[str] = mapped_column(String(36), nullable=False)
     request_hash: Mapped[str] = mapped_column(String(64), nullable=False)

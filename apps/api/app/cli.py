@@ -11,6 +11,7 @@ from app.db.models import RedeemCode, User
 from app.db.session import SessionLocal
 from app.services.alerts import run_stock_alerts
 from app.services.invites import expire_invites
+from app.services.portfolio_income import generate_due_receipts
 from app.settings import settings
 
 ALPHABET = string.ascii_uppercase + string.digits
@@ -133,6 +134,16 @@ def cmd_stock_alerts(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_portfolio_receipts(_: argparse.Namespace) -> int:
+    with SessionLocal() as session:
+        result = generate_due_receipts(session)
+    print(
+        f"portfolio receipts checked={result['checked']} "
+        f"created={result['created']} skipped={result['skipped']}"
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="stocklab-admin", description="StockLab admin CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -162,6 +173,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     alerts = sub.add_parser("stock-alerts", help="send watchlist price/dividend alerts")
     alerts.set_defaults(func=cmd_stock_alerts)
+
+    receipts = sub.add_parser(
+        "portfolio-receipts",
+        help="auto-create receipts for implemented events on payment day",
+    )
+    receipts.set_defaults(func=cmd_portfolio_receipts)
 
     return parser
 

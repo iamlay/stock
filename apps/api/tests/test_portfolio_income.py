@@ -3,6 +3,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 from app.db.models import (
+    DividendEntitlement,
     DividendEvent,
     DividendEventVersion,
     Instrument,
@@ -12,6 +13,7 @@ from app.db.models import (
 from app.services.portfolio import POLICY, POLICY_SHA256, create_account
 from app.services.portfolio_income import (
     create_receipt,
+    generate_due_receipts,
     income_home,
     income_snapshot,
     reverse_receipt,
@@ -89,7 +91,7 @@ def _event(session, code: str = "600519") -> DividendEvent:
 def test_entitlement_and_receipts(session, monkeypatch) -> None:
     monkeypatch.setattr(settings, "portfolio_enabled", True)
     user, account = _account(session)
-    _event(session)
+    event = _event(session)
     session.add(
         PortfolioEntry(
             id=str(uuid4()),
@@ -205,3 +207,35 @@ def test_entitlement_and_receipts(session, monkeypatch) -> None:
         for day in home["calendar"]
         for item in day["items"]
     )
+
+    session.add(
+        DividendEntitlement(
+            id=str(uuid4()),
+            account_id=account.id,
+            user_id=user.id,
+            event_id=event.id,
+            event_revision=2,
+            account_version=account.version,
+            revision=2,
+            code="600519",
+            record_date=date(2026, 6, 20),
+            payment_date=date(2026, 6, 30),
+            eligible_quantity=Decimal("100"),
+            cash_per_share=Decimal("0.50"),
+            gross_amount=Decimal("50.00"),
+            status="pending",
+            is_active=True,
+            calculation_version="test",
+            review_reasons=[],
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+    )
+    session.commit()
+    generated = generate_due_receipts(session, as_of=date(2026, 6, 30))
+    assert generated["created"] == 1
+    snapshot = income_snapshot(session, user.id, account.id)
+    automatic = [row for row in snapshot["receipts"] if row["source"] == "automatic"]
+    assert len(automatic) == 1
+    assert automatic[0]["code"] == "600519"
+    assert automatic[0]["net_amount"] == "50.00"

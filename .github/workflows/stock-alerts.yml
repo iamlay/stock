@@ -1,6 +1,9 @@
 name: Stock Alerts
 
 on:
+  schedule:
+    # Daily at 18:00 Asia/Shanghai, after payment-date data is available.
+    - cron: "0 10 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -31,5 +34,6 @@ jobs:
         env:
           STOCKLAB_DATABASE_URL: ${{ secrets.STOCKLAB_DATABASE_URL }}
         run: |
+          python -m app.cli portfolio-receipts
           python -m app.cli stock-alerts
           python -m etl.cli stock-status
