@@ -43,6 +43,34 @@ def save(ledger, data):
     )
 
 
+def test_delete_holding_removes_entries_and_income_records(ledger):
+    saved = save(
+        ledger,
+        input_data(
+            kind="snapshot", quantity="100", cost="10", basis="weighted"
+        ),
+    )
+    client, _, headers, account = ledger
+    result = client.request(
+        "DELETE",
+        f"/api/v1/portfolio/accounts/{account['id']}/holdings/600036",
+        headers=headers[0],
+        json={
+            "expected_version": saved["account_version"],
+            "confirmation": "DELETE",
+        },
+    )
+    assert result.status_code == 200, result.text
+    assert result.json()["deleted"] is True
+    assert result.json()["entries"] == 1
+    holdings = client.get(
+        f"/api/v1/portfolio/accounts/{account['id']}/holdings",
+        headers=headers[0],
+    )
+    assert holdings.status_code == 200
+    assert holdings.json()["positions"] == []
+
+
 def test_bonus_and_reinvest_only_change_quantity(ledger):
     first = save(
         ledger,

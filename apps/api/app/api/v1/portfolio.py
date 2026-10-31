@@ -460,6 +460,12 @@ def reverse_receipt(
     )
 
 
+class DeleteHolding(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_version: Annotated[int, Field(strict=True, ge=1)]
+    confirmation: Literal["DELETE"]
+
+
 class PositionPreferences(BaseModel):
     model_config = ConfigDict(extra="forbid")
     basis: Literal["weighted", "net", "dividend", "unknown"] = "weighted"
@@ -538,6 +544,32 @@ def position_list(account_id: str, session: SessionDep, user: UserDep):
     from app.services.portfolio_positions import holdings
 
     return holdings(session, user.id, account_id)
+
+
+@router.delete(
+    "/accounts/{account_id}/holdings/{code}",
+    summary="删除单只股票持仓、交易与关联分红记录",
+)
+def delete_holding(
+    account_id: str,
+    code: str,
+    body: DeleteHolding,
+    session: SessionDep,
+    user: UserDep,
+):
+    from app.services.portfolio_ledger import delete_holding as remove
+
+    write_limit(session, user.id)
+    return commit_mutation(
+        session,
+        lambda: remove(
+            session,
+            user.id,
+            account_id,
+            code,
+            expected_version=body.expected_version,
+        ),
+    )
 
 
 @router.post("/accounts/{account_id}/position-preview", summary="只试算，不保存持仓")

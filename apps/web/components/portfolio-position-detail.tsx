@@ -35,12 +35,14 @@ export function PortfolioPositionDetail({
   canWrite,
   onEdit,
   accountId,
+  onDelete,
 }: {
   position: Position;
   entries: Entry[];
   canWrite: boolean;
   onEdit: (kind: Kind, p: Position, entry?: Entry) => void;
   accountId: string;
+  onDelete: (p: Position) => void;
 }) {
   const [income, setIncome] = useState<IncomeSnapshot | null>(null);
   useEffect(() => {
@@ -357,15 +359,20 @@ export function PortfolioPositionDetail({
           </span>
           <span aria-hidden="true">↗</span>
         </a>
-        <div className="flex items-center justify-between gap-3 p-5 text-muted">
+        <button
+          type="button"
+          onClick={() => onDelete(p)}
+          disabled={!canWrite}
+          className="flex w-full items-center justify-between gap-3 p-5 text-left text-loss disabled:opacity-50"
+        >
           <span>
             删除持仓
-            <span className="mt-1 block text-xs">
-              删除会移除流水与关联记录，当前版本暂未开放
+            <span className="mt-1 block text-xs text-muted">
+              删除该股票的交易、分红和应收记录，不可恢复
             </span>
           </span>
-          <span className="text-xs">待开发</span>
-        </div>
+          <span className="text-xs">删除</span>
+        </button>
       </section>
       <section className={card}>
         <PortfolioPositionEvidence position={p} />

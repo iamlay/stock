@@ -14,6 +14,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
+    DividendEntitlement,
+    DividendReceipt,
     Instrument,
     PortfolioEntry,
     PortfolioPrivacyAcceptance,
@@ -355,3 +357,67 @@ def clear_ledger(session, user_id, account_id):
         session.execute(
             delete(model).where(model.user_id == user_id, model.account_id == account_id)
         )
+
+
+def delete_holding(
+    session, user_id, account_id, code, *, expected_version
+) -> dict:
+    if not re.fullmatch(r"\d{6}", code):
+        fail("invalid_code", "股票代码格式不正确")
+    accounts.lock_owner(session, user_id)
+    account = accounts.own_account(session, user_id, account_id, lock=True)
+    if account.version != expected_version:
+        raise accounts.PortfolioError("account_changed", "账本已变化，请刷新后重试")
+    if account.is_archived:
+        raise accounts.PortfolioError("account_archived", "账本已归档，请先恢复")
+    entry_count = session.scalar(
+        select(PortfolioEntry.id)
+        .where(
+            PortfolioEntry.user_id == user_id,
+            PortfolioEntry.account_id == account_id,
+            PortfolioEntry.code == code,
+        )
+        .limit(1)
+    )
+    if entry_count is None:
+        raise accounts.PortfolioError("position_missing", "该股票没有持仓记录", 404)
+
+    receipt_count = session.execute(
+        delete(DividendReceipt).where(
+            DividendReceipt.user_id == user_id,
+            DividendReceipt.account_id == account_id,
+            DividendReceipt.code == code,
+        )
+    ).rowcount
+    entitlement_count = session.execute(
+        delete(DividendEntitlement).where(
+            DividendEntitlement.user_id == user_id,
+            DividendEntitlement.account_id == account_id,
+            DividendEntitlement.code == code,
+        )
+    ).rowcount
+    session.execute(
+        delete(PortfolioReviewRange).where(
+            PortfolioReviewRange.user_id == user_id,
+            PortfolioReviewRange.account_id == account_id,
+            PortfolioReviewRange.code == code,
+        )
+    )
+    deleted_entries = session.execute(
+        delete(PortfolioEntry).where(
+            PortfolioEntry.user_id == user_id,
+            PortfolioEntry.account_id == account_id,
+            PortfolioEntry.code == code,
+        )
+    ).rowcount
+    account.version += 1
+    account.updated_at = datetime.now(UTC)
+    accounts._audit(session, account, "holding_delete")
+    session.flush()
+    return {
+        "deleted": True,
+        "code": code,
+        "entries": deleted_entries,
+        "receipts": receipt_count,
+        "entitlements": entitlement_count,
+    }

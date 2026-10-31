@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PortfolioPositionDetail } from "@/components/portfolio-position-detail";
 import { PortfolioTransactions } from "@/components/portfolio-transactions";
 import {
@@ -58,6 +59,7 @@ export function PortfolioLedger({
     position?: Position;
     correction?: Entry;
   } | null>(null);
+  const router = useRouter();
   const alive = useRef(false);
   const token = useRef(getToken());
   const current = () => alive.current && token.current === getToken();
@@ -162,6 +164,36 @@ export function PortfolioLedger({
     setEditing({ id: crypto.randomUUID(), kind, position, correction });
     setMessage("");
     setError("");
+  }
+
+  async function deletePosition(position: Position) {
+    if (!data || !current()) return;
+    if (
+      !window.confirm(
+        `确认删除 ${position.code} ${position.name} 的持仓？\n\n这会同时删除该股票的交易流水、分红记录和应收记录，操作不可恢复。`,
+      )
+    ) {
+      return;
+    }
+    if (window.prompt("请输入“删除持仓”确认") !== "删除持仓") return;
+    setBusy(true);
+    setError("");
+    try {
+      await portfolioRequest(`/accounts/${account.id}/holdings/${position.code}`, {
+        method: "DELETE",
+        body: JSON.stringify({
+          expected_version: data.account_version,
+          confirmation: "DELETE",
+        }),
+      });
+      router.push("/portfolio");
+      router.refresh();
+    } catch (err) {
+      authFailure(err);
+      setError(err instanceof Error ? err.message : "删除持仓失败");
+    } finally {
+      if (current()) setBusy(false);
+    }
   }
   const canWrite = !!data && !data.consent_required && !account.is_archived;
   const positions =
@@ -287,6 +319,7 @@ export function PortfolioLedger({
               canWrite={canWrite}
               onEdit={open}
               accountId={account.id}
+              onDelete={deletePosition}
             />
           </>
         )}
