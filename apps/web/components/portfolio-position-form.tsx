@@ -141,10 +141,12 @@ export function PortfolioPositionForm({
   );
   const settingsOnly = kind === "preference";
   const reversal = kind === "reversal";
+  const shareOnly = kind === "bonus" || kind === "reinvest";
   const existing = positions.find((p) => p.code === stock?.code);
   const duplicate = kind === "snapshot" && !!existing && !correction;
-  const total =
-    balance && mode === "total"
+  const total = shareOnly
+    ? "0"
+    : balance && mode === "total"
       ? cost
       : inputTotal(
           quantity,
@@ -174,7 +176,7 @@ export function PortfolioPositionForm({
   }
   function changeKind(value: Kind) {
     setKind(value);
-    setCost("");
+    setCost(value === "bonus" || value === "reinvest" ? "0" : "");
     setFees("");
     setError("");
     setMode("per_share");
@@ -199,11 +201,11 @@ export function PortfolioPositionForm({
       code: stock.code,
       kind,
       event_date: date,
-      quantity: settingsOnly || reversal ? "0" : quantity,
-      cost: settingsOnly || reversal ? "0" : cost,
-      input_mode: balance ? mode : ("per_share" as const),
-      basis: basis || ("weighted" as Basis),
-      fees: balance || reversal || settingsOnly ? null : fees.trim() || null,
+        quantity: settingsOnly || reversal ? "0" : quantity,
+        cost: settingsOnly || reversal ? "0" : shareOnly ? "0" : cost,
+        input_mode: balance ? mode : ("per_share" as const),
+        basis: basis || prefs.basis || ("weighted" as Basis),
+        fees: balance || reversal || settingsOnly || shareOnly ? null : fees.trim() || null,
       preferences: {
         ...prefs,
         basis: balance ? (basis as Basis) : prefs.basis,
@@ -290,7 +292,11 @@ export function PortfolioPositionForm({
                 ? "记录卖出"
                 : kind === "rebase"
                   ? "修正当前持仓"
-                  : "添加持仓"}
+                  : kind === "bonus"
+                    ? "记录送股"
+                    : kind === "reinvest"
+                      ? "记录分红复投"
+                      : "添加持仓"}
         </h2>
         <button
           type="button"
@@ -370,7 +376,15 @@ export function PortfolioPositionForm({
             </h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="space-y-2 text-sm">
-                <span>{balance ? "持仓数量（股）" : "成交数量（股）"}</span>
+                <span>
+                  {balance
+                    ? "持仓数量（股）"
+                    : shareOnly
+                      ? kind === "bonus"
+                        ? "送股数量（股）"
+                        : "复投数量（股）"
+                      : "成交数量（股）"}
+                </span>
                 <input
                   className={input}
                   aria-label="数量"
@@ -389,7 +403,11 @@ export function PortfolioPositionForm({
                     ? "持仓截至日期（日终）"
                     : balance
                       ? "原记录生效日期"
-                      : "成交日期"}
+                      : shareOnly
+                        ? kind === "bonus"
+                          ? "送股日期"
+                          : "复投日期"
+                        : "成交日期"}
                 </span>
                 <input
                   className={input}
@@ -448,47 +466,55 @@ export function PortfolioPositionForm({
                 </select>
               </label>
             ) : null}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="space-y-2 text-sm">
-                <span>
-                  {balance
-                    ? mode === "total"
-                      ? "对应总额（元）"
-                      : "当前每股成本（元/股）"
-                    : "成交价（元/股）"}
-                </span>
-                <input
-                  className={input}
-                  aria-label="成本或成交价"
-                  value={cost}
-                  inputMode="decimal"
-                  maxLength={20}
-                  onChange={(e) => setCost(e.target.value)}
-                  autoComplete="off"
-                  required
-                  placeholder={
-                    balance && ["dividend", "net", "unknown"].includes(basis)
-                      ? "允许正数、零或负数"
-                      : "例如：20.00"
-                  }
-                />
-              </label>
-              {!balance ? (
+            {shareOnly ? (
+              <p className="rounded-lg bg-paper p-4 text-sm leading-6 text-ink-soft">
+                {kind === "bonus"
+                  ? "送股适用于红股、配股、拆股等非现金交易获得的股份。数量增加，总成本不变，平均成本会被摊薄。"
+                  : "分红复投是用分红资金重新买入同一只股票。数量增加，不追加投入，总成本不变，平均成本会被摊薄。"}
+              </p>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
                 <label className="space-y-2 text-sm">
-                  <span>本笔全部费用（元，可选）</span>
+                  <span>
+                    {balance
+                      ? mode === "total"
+                        ? "对应总额（元）"
+                        : "当前每股成本（元/股）"
+                      : "成交价（元/股）"}
+                  </span>
                   <input
                     className={input}
-                    aria-label="费用"
+                    aria-label="成本或成交价"
+                    value={cost}
                     inputMode="decimal"
-                    maxLength={19}
-                    value={fees}
-                    onChange={(e) => setFees(e.target.value)}
-                    placeholder="未填暂按0估算"
+                    maxLength={20}
+                    onChange={(e) => setCost(e.target.value)}
                     autoComplete="off"
+                    required
+                    placeholder={
+                      balance && ["dividend", "net", "unknown"].includes(basis)
+                        ? "允许正数、零或负数"
+                        : "例如：20.00"
+                    }
                   />
                 </label>
-              ) : null}
-            </div>
+                {!balance ? (
+                  <label className="space-y-2 text-sm">
+                    <span>本笔全部费用（元，可选）</span>
+                    <input
+                      className={input}
+                      aria-label="费用"
+                      inputMode="decimal"
+                      maxLength={19}
+                      value={fees}
+                      onChange={(e) => setFees(e.target.value)}
+                      placeholder="未填暂按0估算"
+                      autoComplete="off"
+                    />
+                  </label>
+                ) : null}
+              </div>
+            )}
             {balance ? (
               <button
                 type="button"
@@ -509,26 +535,30 @@ export function PortfolioPositionForm({
             ) : null}
             <div className="rounded-lg bg-paper p-4 text-sm">
               <p>
-                {balance
-                  ? basis === "weighted"
-                    ? "加权持仓总成本"
-                    : "所选口径对应总额"
-                  : kind === "sell"
-                    ? "卖出净收入"
-                    : "买入总支出"}
+                {shareOnly
+                  ? "本次不增加持仓成本"
+                  : balance
+                    ? basis === "weighted"
+                      ? "加权持仓总成本"
+                      : "所选口径对应总额"
+                    : kind === "sell"
+                      ? "卖出净收入"
+                      : "买入总支出"}
               </p>
               <strong
                 data-testid="input-total"
                 className="mt-2 block break-all text-xl text-jade-deep"
               >
-                ¥ {amount(total)}
+                {shareOnly ? "总成本不变" : `¥ ${amount(total)}`}
               </strong>
               <p className="mt-2 text-xs leading-6 text-muted">
-                {balance
-                  ? "历史费用已体现在填写的成本中，不再重复添加。只知道一种口径时，不推导其他口径。"
-                  : fees.trim()
-                    ? "已包含本笔填写的费用；最终金额以服务端预览为准。"
-                    : "费用未知，当前暂按0估算；可在记录中更正补充。"}
+                {shareOnly
+                  ? "只增加股数，平均成本随数量增加而摊薄；不会产生买入支出或手续费。"
+                  : balance
+                    ? "历史费用已体现在填写的成本中，不再重复添加。只知道一种口径时，不推导其他口径。"
+                    : fees.trim()
+                      ? "已包含本笔填写的费用；最终金额以服务端预览为准。"
+                      : "费用未知，当前暂按0估算；可在记录中更正补充。"}
               </p>
             </div>
           </fieldset>

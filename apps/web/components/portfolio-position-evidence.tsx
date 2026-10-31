@@ -2,13 +2,8 @@
 import {
   amount,
   basisLabels,
-  kindLabels,
   type Position,
-  type Entry,
-  type Kind,
 } from "@/lib/portfolio-positions";
-const button =
-  "rounded-lg border border-line px-4 py-2 text-sm disabled:opacity-50 hover:border-jade";
 function sourceLink(url: string | null) {
   try {
     const u = new URL(url ?? "");
@@ -19,19 +14,13 @@ function sourceLink(url: string | null) {
 }
 export function PortfolioPositionEvidence({
   position: p,
-  entries,
-  canWrite,
-  onEdit: open,
 }: {
   position: Position;
-  entries: Entry[];
-  canWrite: boolean;
-  onEdit: (kind: Kind, p: Position, entry?: Entry) => void;
 }) {
   return (
     <details>
       <summary className="cursor-pointer text-sm text-jade-deep">
-        成本明细、分红依据与交易记录
+        成本明细与分红依据
       </summary>
       <div className="mt-4 space-y-4">
         <dl className="grid gap-3 sm:grid-cols-3">
@@ -125,56 +114,6 @@ export function PortfolioPositionEvidence({
               没有可展示的窗口内记录；不代表确认无分红。
             </p>
           ) : null}
-        </div>
-        <div className="space-y-3">
-          {entries
-            .filter((e) => e.code === p.code)
-            .map((e) => (
-              <div
-                key={e.id}
-                className="border-t border-line pt-3 text-xs leading-6"
-              >
-                <p>
-                  {e.event_date} · {kindLabels[e.kind]} · 当天顺序 {e.day_order}{" "}
-                  · {e.active ? "有效" : "已撤销 / 更正凭据"}
-                </p>
-                {!["preference", "reversal"].includes(e.kind) ? (
-                  <p>
-                    数量 {amount(e.quantity)} ·{" "}
-                    {["snapshot", "rebase"].includes(e.kind)
-                      ? `${basisLabels[e.details?.basis ?? "unknown"]} 总额 ${amount(e.details?.amount)}`
-                      : `价格 ${amount(e.price)} · 费用 ${amount(e.fees)}${e.details?.fees_known === false ? "（未知，暂按0）" : ""}`}
-                    {["opening", "adjustment"].includes(e.kind)
-                      ? ` · 原总成本 ${amount(e.total_cost)}`
-                      : ""}
-                  </p>
-                ) : null}
-                {e.note ? <p className="break-all">原因：{e.note}</p> : null}
-                {e.evidence ? (
-                  <p className="break-all">依据：{e.evidence}</p>
-                ) : null}
-                {e.active && !["preference", "reversal"].includes(e.kind) ? (
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      className={button}
-                      disabled={!canWrite}
-                      onClick={() => open(e.kind, p, e)}
-                    >
-                      更正
-                    </button>
-                    <button
-                      type="button"
-                      className={button}
-                      disabled={!canWrite}
-                      onClick={() => open("reversal", p, e)}
-                    >
-                      撤销
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            ))}
         </div>
       </div>
     </details>

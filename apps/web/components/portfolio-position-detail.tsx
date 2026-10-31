@@ -1,6 +1,7 @@
 "use client";
 
 import { PortfolioPositionEvidence } from "@/components/portfolio-position-evidence";
+import { PortfolioTransactions } from "@/components/portfolio-transactions";
 import {
   amount,
   basisLabels,
@@ -57,7 +58,7 @@ export function PortfolioPositionDetail({
             </span>
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             className={`${button} bg-ink text-paper`}
             disabled={!canWrite}
@@ -71,6 +72,20 @@ export function PortfolioPositionDetail({
             onClick={() => onEdit("sell", p)}
           >
             卖出
+          </button>
+          <button
+            className={button}
+            disabled={!canWrite}
+            onClick={() => onEdit("bonus", p)}
+          >
+            送股
+          </button>
+          <button
+            className={button}
+            disabled={!canWrite}
+            onClick={() => onEdit("reinvest", p)}
+          >
+            分红复投
           </button>
         </div>
       </header>
@@ -254,18 +269,19 @@ export function PortfolioPositionDetail({
           <span aria-hidden="true">↗</span>
         </a>
       </section>
+      <PortfolioTransactions
+        position={p}
+        entries={entries}
+        canWrite={canWrite}
+        onEdit={onEdit}
+      />
       <section className={card}>
-        <PortfolioPositionEvidence
-          position={p}
-          entries={entries}
-          canWrite={canWrite}
-          onEdit={onEdit}
-        />
+        <PortfolioPositionEvidence position={p} />
       </section>
       <p className="text-center text-xs leading-6 text-muted">
         每5分钟自动刷新 · 编辑时暂停
         <br />
-        交易明细、分红记录与历史回溯的独立页面将后续补充。
+        交易明细已集中展示；分红记录与历史回溯后续补充。
       </p>
       {p.reference != null ? (
         <p className="text-xs text-muted">

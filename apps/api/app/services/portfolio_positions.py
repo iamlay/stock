@@ -181,6 +181,8 @@ def project(rows):
                     if s[basis] is not None:
                         s[basis] += outlay
                 s["quantity"] += q
+            elif r.kind in {"bonus", "reinvest"}:
+                s["quantity"] += q
             elif r.kind == "sell":
                 if q > s["quantity"]:
                     fail("historical_oversell", "重算后存在历史超卖，请检查该笔及后续流水")
@@ -435,6 +437,9 @@ def prepare(session, user_id, account_id, data, rows):
         fail("invalid_reversal", "更正须保留原记录类型与日期语义")
     if kind in {"opening", "adjustment"} and not target:
         fail("legacy_only", "旧版记录类型仅支持更正，新建请使用持仓快照")
+    if kind in {"bonus", "reinvest"} and not target:
+        if not any(r.code == code for r in active if r.kind != "preference"):
+            fail("position_missing", "请先添加该股票的持仓，再记录送股或分红复投")
     q = ZERO if kind in {"reversal", "preference"} else decimal_input(data["quantity"])
     if kind not in {"reversal", "preference", "adjustment"} and not q:
         fail("invalid_quantity", "股数必须大于0")
@@ -483,6 +488,18 @@ def prepare(session, user_id, account_id, data, rows):
             fail("invalid_price", "成交价必须大于0")
         if q * price + fees >= Decimal("100000000000000"):
             fail("amount_overflow", "交易总额超过允许范围")
+    elif kind in {"bonus", "reinvest"}:
+        if data["cost"] not in {"", "0", "0.0"}:
+            fail("invalid_cost", "送股和分红复投不填写成交价")
+        if data["fees"] is not None and decimal_input(data["fees"]) != ZERO:
+            fail("invalid_fees", "送股和分红复投不产生交易费用")
+        price = fees = cost = ZERO
+        meta.update(
+            basis="weighted",
+            amount="0",
+            fees_known=True,
+            date_semantics="trade",
+        )
     prefs = data["preferences"].copy()
     if kind in {"snapshot", "rebase"}:
         prefs["basis"] = basis
@@ -542,7 +559,7 @@ def prepare(session, user_id, account_id, data, rows):
         input_mode=data["input_mode"],
         basis=basis,
         amount=meta.get("amount")
-        if kind in {"snapshot", "opening", "adjustment", "rebase"}
+        if kind in {"snapshot", "opening", "adjustment", "rebase", "bonus", "reinvest"}
         else string(q * price + fees if kind == "buy" else q * price - fees),
         fees=string(fees) if kind in {"buy", "sell"} else None,
         fees_known=meta["fees_known"],

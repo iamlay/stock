@@ -168,6 +168,8 @@ def replay(rows) -> list[dict]:
             elif row.kind == "buy":
                 state["quantity"] += q
                 state["total_cost"] += (q * price + fees).quantize(UNIT, rounding=ROUND_HALF_UP)
+            elif row.kind in {"bonus", "reinvest"}:
+                state["quantity"] += q
             elif row.kind == "sell":
                 if q > state["quantity"]:
                     fail("historical_oversell", "重算后存在超额卖出，请检查该笔及后续所有历史流水")

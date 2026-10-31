@@ -87,6 +87,8 @@ def quantity_at(
             quantity = qty
         elif row.kind == "buy":
             quantity += qty
+        elif row.kind in {"bonus", "reinvest"}:
+            quantity += qty
         elif row.kind == "sell":
             if qty > quantity:
                 return None, known_since, "historical_oversell"

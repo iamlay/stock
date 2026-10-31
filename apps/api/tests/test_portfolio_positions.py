@@ -43,6 +43,49 @@ def save(ledger, data):
     )
 
 
+def test_bonus_and_reinvest_only_change_quantity(ledger):
+    first = save(
+        ledger,
+        input_data(
+            kind="snapshot", quantity="100", cost="10", basis="weighted"
+        ),
+    )
+    assert first["positions"][0]["costs"]["weighted"]["total"] == "1000.000000"
+
+    bonus = save(
+        ledger,
+        input_data(
+            expected_version=2,
+            kind="bonus",
+            event_date="2025-02-01",
+            quantity="10",
+            cost="0",
+            fees=None,
+        ),
+    )
+    assert bonus["positions"][0]["quantity"] == "110.000000"
+    assert bonus["positions"][0]["costs"]["weighted"]["total"] == "1000.000000"
+
+    reinvest = save(
+        ledger,
+        input_data(
+            expected_version=3,
+            kind="reinvest",
+            event_date="2025-03-01",
+            quantity="5",
+            cost="0",
+            fees=None,
+        ),
+    )
+    assert reinvest["positions"][0]["quantity"] == "115.000000"
+    assert reinvest["positions"][0]["costs"]["weighted"]["total"] == "1000.000000"
+    assert [row["kind"] for row in reinvest["entries"]] == [
+        "snapshot",
+        "bonus",
+        "reinvest",
+    ]
+
+
 def test_preview_has_no_writes_and_unknown_costs_stay_unknown(ledger, session):
     data = input_data()
     before = call(ledger, "position-preview", data)

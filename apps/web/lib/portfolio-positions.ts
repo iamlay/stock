@@ -7,7 +7,9 @@ export type Kind =
   | "adjustment"
   | "reversal"
   | "preference"
-  | "rebase";
+  | "rebase"
+  | "bonus"
+  | "reinvest";
 export const basisLabels: Record<Basis, string> = {
   weighted: "加权平均成本",
   net: "摊薄成本（不含分红）",
@@ -23,6 +25,8 @@ export const kindLabels: Record<Kind, string> = {
   adjustment: "旧版持仓调整",
   reversal: "撤销",
   preference: "展示设置",
+  bonus: "送股",
+  reinvest: "分红复投",
 };
 export type StockChoice = {
   code: string;

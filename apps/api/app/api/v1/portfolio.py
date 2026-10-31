@@ -242,7 +242,7 @@ class CreateEntry(BaseModel):
     expected_version: Annotated[int, Field(strict=True, ge=1)]
     request_id: UUID
     code: Annotated[str, Field(pattern=r"^[0-9]{6}$")]
-    kind: Literal["opening", "buy", "sell", "adjustment", "reversal"]
+    kind: Literal["opening", "buy", "sell", "adjustment", "reversal", "bonus", "reinvest"]
     event_date: date
     day_order: Annotated[int, Field(strict=True, ge=1, le=1000000)]
     quantity: Annotated[str, Field(max_length=19)]
@@ -420,7 +420,16 @@ class PositionInput(BaseModel):
     request_id: UUID
     code: Annotated[str, Field(pattern=r"^[0-9]{6}$")]
     kind: Literal[
-        "snapshot", "buy", "sell", "opening", "adjustment", "reversal", "preference", "rebase"
+        "snapshot",
+        "buy",
+        "sell",
+        "opening",
+        "adjustment",
+        "reversal",
+        "preference",
+        "rebase",
+        "bonus",
+        "reinvest",
     ]
     event_date: date
     quantity: Annotated[str, Field(max_length=19)] = "0"

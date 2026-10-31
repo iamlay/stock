@@ -725,7 +725,7 @@ class PortfolioEntry(Base):
         CheckConstraint("day_order > 0", name="ck_portfolio_entry_order"),
         CheckConstraint(
             "kind IN ('opening','buy','sell','adjustment','reversal',"
-            "'snapshot','preference','rebase')",
+            "'snapshot','preference','rebase','bonus','reinvest')",
             name="ck_portfolio_entry_kind",
         ),
         Index("ix_portfolio_entries_owner", "user_id", "account_id", "event_date"),
