@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { PortfolioPositionDetail } from "@/components/portfolio-position-detail";
+import { PortfolioTransactions } from "@/components/portfolio-transactions";
 import {
   displayNumber,
   displayQuantity,
@@ -31,12 +32,14 @@ const button =
 export function PortfolioLedger({
   account,
   selectedCode,
+  initialView = "detail",
   policy,
   refresh,
   authFailure,
 }: {
   account: PortfolioAccount;
   selectedCode?: string;
+  initialView?: "detail" | "transactions";
   policy: PortfolioPolicy | null;
   refresh: (message?: string) => void;
   authFailure: (error: unknown) => void;
@@ -203,6 +206,50 @@ export function PortfolioLedger({
     );
   if (selectedCode) {
     const position = data?.positions.find((p) => p.code === selectedCode);
+    if (initialView === "transactions") {
+      return (
+        <section className="space-y-4">
+          <Link
+            href={`/portfolio/${selectedCode}`}
+            className="inline-flex py-2 text-sm text-jade-deep"
+          >
+            ← 返回持仓详情
+          </Link>
+          {error ? (
+            <p role="alert" className="text-sm text-loss">
+              {error}
+            </p>
+          ) : null}
+          {!data ? (
+            <p role="status">正在读取持仓…</p>
+          ) : !position ? (
+            <div className="card rounded-2xl p-8">
+              当前账本中没有这只股票的持仓。请返回列表查看。
+            </div>
+          ) : (
+            <>
+              <div>
+                <h1 className="font-serif text-2xl">交易明细</h1>
+                <p className="mt-1 text-sm text-muted">
+                  {position.code} {position.name} · 共{" "}
+                  {data.entries.filter(
+                    (entry) =>
+                      entry.code === position.code && entry.kind !== "preference",
+                  ).length}{" "}
+                  笔
+                </p>
+              </div>
+              <PortfolioTransactions
+                position={position}
+                entries={data.entries}
+                canWrite={canWrite}
+                onEdit={open}
+              />
+            </>
+          )}
+        </section>
+      );
+    }
     return (
       <section className="space-y-4">
         <Link
@@ -237,6 +284,7 @@ export function PortfolioLedger({
               entries={data.entries}
               canWrite={canWrite}
               onEdit={open}
+              accountId={account.id}
             />
           </>
         )}

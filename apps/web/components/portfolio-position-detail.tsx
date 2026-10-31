@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
 import { PortfolioPositionEvidence } from "@/components/portfolio-position-evidence";
-import { PortfolioTransactions } from "@/components/portfolio-transactions";
 import {
   amount,
   basisLabels,
@@ -16,6 +18,15 @@ import {
   displayPercent,
   shortBasis,
 } from "@/lib/portfolio-display";
+import { portfolioRequest } from "@/lib/portfolio";
+
+type IncomeSnapshot = {
+  receipts: {
+    code: string;
+    net_amount: string;
+    status: string;
+  }[];
+};
 
 const card = "min-w-0 rounded-2xl border border-line/50 bg-surface p-5 sm:p-6";
 const button =
@@ -25,12 +36,26 @@ export function PortfolioPositionDetail({
   entries,
   canWrite,
   onEdit,
+  accountId,
 }: {
   position: Position;
   entries: Entry[];
   canWrite: boolean;
   onEdit: (kind: Kind, p: Position, entry?: Entry) => void;
+  accountId: string;
 }) {
+  const [income, setIncome] = useState<IncomeSnapshot | null>(null);
+  useEffect(() => {
+    let active = true;
+    portfolioRequest<IncomeSnapshot>(`/accounts/${accountId}/income`)
+      .then((value) => {
+        if (active) setIncome(value);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [accountId]);
   const cost =
     p.preferences.basis === "unknown" ? null : p.costs[p.preferences.basis];
   const closed = /^0(?:\.0+)?$/.test(p.quantity);
@@ -39,6 +64,26 @@ export function PortfolioPositionDetail({
         timeZone: "Asia/Shanghai",
       })
     : null;
+  const received = income
+    ? income.receipts
+        .filter((row) => row.code === p.code && row.status === "active")
+        .reduce((sum, row) => sum + Number(row.net_amount), 0)
+    : null;
+  const netInvested =
+    p.costs.net.total == null ? null : Number(p.costs.net.total);
+  const payback =
+    received != null && netInvested != null && netInvested > 0
+      ? Math.min(100, Math.max(0, (received / netInvested) * 100))
+      : null;
+  const remaining =
+    received != null && netInvested != null
+      ? Math.max(netInvested - received, 0)
+      : null;
+  const annual = p.forecast.annual_amount == null ? null : Number(p.forecast.annual_amount);
+  const paybackYears =
+    remaining != null && annual != null && annual > 0
+      ? remaining / annual
+      : null;
   return (
     <div className="space-y-4" data-testid="position-detail">
       <header className="flex flex-wrap items-center justify-between gap-4 py-2">
@@ -216,49 +261,115 @@ export function PortfolioPositionDetail({
       <section className={card}>
         <div className="flex justify-between gap-3">
           <h2 className="text-sm text-muted">累计已获分红</h2>
-          <strong>—</strong>
+          <strong className="text-xl text-amber">
+            {received == null ? "—" : displayMoney(String(received))}
+          </strong>
         </div>
         <p className="mt-2 text-xs text-muted">
-          实收记录尚未开放，未知金额不计作0。
+          {received == null
+            ? "收息数据暂不可用；未知金额不计作0。"
+            : "来自本账本已确认的实际到账记录，按净额统计。"}
         </p>
       </section>
       <section className={card}>
         <div className="flex justify-between gap-3">
           <h2 className="font-medium">分红回本进度</h2>
-          <span className="text-sm text-muted">待补齐</span>
+          <span className="text-xl font-semibold text-amber">
+            {payback == null ? "—" : `${payback.toFixed(1)}%`}
+          </span>
         </div>
-        <p className="mt-3 text-sm leading-6 text-muted">
-          待完整投入与实收记录可核对后展示。当前成本和年度分红参考不能替代累计投入或实际到账。
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-line/50">
+          <div
+            className="h-full rounded-full bg-amber"
+            style={{ width: `${payback ?? 0}%` }}
+          />
+        </div>
+        <dl className="mt-4 space-y-2 text-sm">
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted">净投入</dt>
+            <dd className="tnum">
+              {netInvested == null ? "—" : displayMoney(String(netInvested))}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted">已收回分红</dt>
+            <dd className="tnum text-amber">
+              {received == null ? "—" : displayMoney(String(received))}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted">剩余待回收</dt>
+            <dd className="tnum">
+              {remaining == null ? "—" : displayMoney(String(remaining))}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted">按当前年度分红参考预计回本</dt>
+            <dd className="tnum">
+              {paybackYears == null ? "—" : `${paybackYears.toFixed(1)} 年`}
+            </dd>
+          </div>
+        </dl>
+        <p className="mt-3 text-xs leading-6 text-muted">
+          净投入为“摊薄成本”口径，不是累计买入金额；预计回本按当前年度分红参考静态推算，
+          不保证未来派息，也不构成收益承诺。
         </p>
       </section>
       <section className="overflow-hidden rounded-2xl border border-line/50 bg-surface">
+        <Link
+          href={`/portfolio/${p.code}/transactions`}
+          className="flex items-center justify-between gap-3 border-b border-line/50 p-5"
+        >
+          <span>
+            交易明细
+            <span className="mt-1 block text-xs text-muted">
+              支持买入、卖出、送股、分红复投等记录
+            </span>
+          </span>
+          <span className="rounded-full bg-ink px-3 py-1 text-xs text-paper">
+            + 添加
+          </span>
+        </Link>
+        <Link
+          href="/portfolio/income"
+          className="flex items-center justify-between gap-3 border-b border-line/50 p-5"
+        >
+          <span>
+            分红记录
+            <span className="mt-1 block text-xs text-muted">
+              累计已获 {received == null ? "—" : displayMoney(String(received))}
+            </span>
+          </span>
+          <span className="text-sm text-muted">查看 / 添加 ›</span>
+        </Link>
+        <div className="flex items-center justify-between gap-3 border-b border-line/50 p-5 text-muted">
+          <span>
+            历史分红回溯
+            <span className="mt-1 block text-xs">
+              按年回填历史分红记录，当前版本暂未开放
+            </span>
+          </span>
+          <span className="text-xs">待开发</span>
+        </div>
         <button
+          type="button"
           className="flex w-full items-center justify-between gap-3 border-b border-line/50 p-5 text-left disabled:opacity-50"
           disabled={!canWrite}
-          aria-label="修正当前持仓"
           onClick={() => onEdit("rebase", p)}
         >
           <span>
-            修正当前持仓
+            编辑持仓
             <span className="mt-1 block text-xs text-muted">
-              核对数量和{basisLabels[p.preferences.basis]}
+              修正数量与{basisLabels[p.preferences.basis]}
             </span>
           </span>
-          <span aria-hidden="true">›</span>
-        </button>
-        <button
-          className="flex w-full items-center justify-between gap-3 border-b border-line/50 p-5 text-left disabled:opacity-50"
-          disabled={!canWrite}
-          onClick={() => onEdit("preference", p)}
-        >
-          <span>分组与分红参考</span>
           <span aria-hidden="true">›</span>
         </button>
         <a
           href={`/stocks/${p.code}?tab=dividend`}
           target="_blank"
           rel="noreferrer"
-          className="flex items-center justify-between p-5"
+          className="flex items-center justify-between gap-3 border-b border-line/50 p-5"
         >
           <span>
             分红档案
@@ -268,13 +379,16 @@ export function PortfolioPositionDetail({
           </span>
           <span aria-hidden="true">↗</span>
         </a>
+        <div className="flex items-center justify-between gap-3 p-5 text-muted">
+          <span>
+            删除持仓
+            <span className="mt-1 block text-xs">
+              删除会移除流水与关联记录，当前版本暂未开放
+            </span>
+          </span>
+          <span className="text-xs">待开发</span>
+        </div>
       </section>
-      <PortfolioTransactions
-        position={p}
-        entries={entries}
-        canWrite={canWrite}
-        onEdit={onEdit}
-      />
       <section className={card}>
         <PortfolioPositionEvidence position={p} />
       </section>

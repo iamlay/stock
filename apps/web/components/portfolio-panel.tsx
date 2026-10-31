@@ -21,7 +21,7 @@ function analyticsPresent(): boolean {
   ));
 }
 
-export function PortfolioPanel({ selectedCode }: { selectedCode?: string } = {}) {
+export function PortfolioPanel({ selectedCode, initialView }: { selectedCode?: string; initialView?: "detail" | "transactions" } = {}) {
   const portfolioPath = selectedCode ? `/portfolio/${selectedCode}` : "/portfolio";
   const [policy, setPolicy] = useState<PortfolioPolicy | null>(null);
   const [list, setList] = useState<PortfolioList | null>(null);
@@ -203,7 +203,7 @@ export function PortfolioPanel({ selectedCode }: { selectedCode?: string } = {})
         </form>
       </> : null}
     </section> : null}
-    {!loading && account ? <PortfolioLedger key={`${account.id}:${account.version}`} account={account} selectedCode={selectedCode} policy={policy} refresh={(message) => { if (message) setMessage(message); void load(); }} authFailure={fail} /> : null}
+    {!loading && account ? <PortfolioLedger key={`${account.id}:${account.version}`} account={account} selectedCode={selectedCode} initialView={initialView} policy={policy} refresh={(message) => { if (message) setMessage(message); void load(); }} authFailure={fail} /> : null}
     {!selectedCode && !loading && account ? <details className="card space-y-5 p-5 sm:p-6"><summary className="cursor-pointer text-sm">账本设置 · 名称、导出、归档与删除</summary>
       <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="break-all font-medium">{account.name}</h2>
         <span className="text-xs text-muted">{account.is_archived ? "已归档" : "使用中"} · 人民币</span></div>
