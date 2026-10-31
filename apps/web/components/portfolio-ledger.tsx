@@ -188,6 +188,7 @@ export function PortfolioLedger({
         initialKind={editing.kind}
         initialPosition={editing.position}
         correction={editing.correction}
+        tradeTabs={initialView === "transactions" && !editing.correction}
         onCancel={() => setEditing(null)}
         onError={(err) => {
           if (err instanceof PortfolioRequestError && err.status === 401)
@@ -244,6 +245,7 @@ export function PortfolioLedger({
                 entries={data.entries}
                 canWrite={canWrite}
                 onEdit={open}
+                onAdd={() => open("buy", position)}
               />
             </>
           )}

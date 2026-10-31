@@ -41,11 +41,13 @@ export function PortfolioTransactions({
   entries,
   canWrite,
   onEdit,
+  onAdd,
 }: {
   position: Position;
   entries: Entry[];
   canWrite: boolean;
   onEdit: (kind: Kind, position: Position, entry?: Entry) => void;
+  onAdd: () => void;
 }) {
   const rows = entries
     .filter((entry) => entry.code === position.code && entry.kind !== "preference")
@@ -145,7 +147,7 @@ export function PortfolioTransactions({
         <button
           type="button"
           disabled={!canWrite}
-          onClick={() => onEdit("buy", position)}
+          onClick={onAdd}
           className="w-full rounded-xl bg-ink px-4 py-3 text-sm font-medium text-paper disabled:opacity-50"
         >
           + 添加交易

@@ -29,8 +29,6 @@ type IncomeSnapshot = {
 };
 
 const card = "min-w-0 rounded-2xl border border-line/50 bg-surface p-5 sm:p-6";
-const button =
-  "rounded-xl border border-line px-4 py-2.5 text-sm hover:border-jade disabled:opacity-50";
 export function PortfolioPositionDetail({
   position: p,
   entries,
@@ -103,35 +101,9 @@ export function PortfolioPositionDetail({
             </span>
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            className={`${button} bg-ink text-paper`}
-            disabled={!canWrite}
-            onClick={() => onEdit("buy", p)}
-          >
-            买入
-          </button>
-          <button
-            className={button}
-            disabled={!canWrite || closed}
-            onClick={() => onEdit("sell", p)}
-          >
-            卖出
-          </button>
-          <button
-            className={button}
-            disabled={!canWrite}
-            onClick={() => onEdit("bonus", p)}
-          >
-            送股
-          </button>
-          <button
-            className={button}
-            disabled={!canWrite}
-            onClick={() => onEdit("reinvest", p)}
-          >
-            分红复投
-          </button>
+        <div className="text-right text-xs text-muted">
+          <p>{displayQuantity(p.quantity)} 股</p>
+          <p className="mt-1">{closed ? "已清仓" : "持仓中"}</p>
         </div>
       </header>
       <section className="rounded-2xl border border-jade/20 bg-jade-soft p-5 sm:p-7">

@@ -34,6 +34,7 @@ export function PortfolioPositionForm({
   initialPosition,
   initialKind = "snapshot",
   correction,
+  tradeTabs = false,
   onSaved,
   onCancel,
   onError,
@@ -44,6 +45,7 @@ export function PortfolioPositionForm({
   initialPosition?: Position;
   initialKind?: Kind;
   correction?: Entry;
+  tradeTabs?: boolean;
   onSaved: (result: Holdings) => void;
   onCancel: () => void;
   onError: (err: unknown) => void;
@@ -296,7 +298,9 @@ export function PortfolioPositionForm({
                     ? "记录送股"
                     : kind === "reinvest"
                       ? "记录分红复投"
-                      : "添加持仓"}
+                      : tradeTabs
+                        ? "记录交易"
+                        : "添加持仓"}
         </h2>
         <button
           type="button"
@@ -313,7 +317,25 @@ export function PortfolioPositionForm({
           返回持仓
         </button>
       </div>
-      {!correction &&
+      {tradeTabs && !correction && !settingsOnly ? (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="tablist" aria-label="交易类型">
+          {(["buy", "sell", "bonus", "reinvest"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={kind === value}
+              disabled={busy}
+              className={`${button} py-3 ${kind === value ? "bg-jade text-white" : "bg-surface"}`}
+              onClick={() => changeKind(value)}
+            >
+              {kindLabels[value]}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {!tradeTabs &&
+      !correction &&
       !settingsOnly &&
       !(["sell", "rebase"] as Kind[]).includes(kind) ? (
         <div
