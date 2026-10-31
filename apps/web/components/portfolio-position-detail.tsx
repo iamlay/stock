@@ -316,20 +316,22 @@ export function PortfolioPositionDetail({
         </p>
       </section>
       <section className="overflow-hidden rounded-2xl border border-line/50 bg-surface">
-        <Link
-          href={`/portfolio/${p.code}/transactions`}
-          className="flex items-center justify-between gap-3 border-b border-line/50 p-5"
-        >
-          <span>
-            交易明细
-            <span className="mt-1 block text-xs text-muted">
-              支持买入、卖出、送股、分红复投等记录
+        <div className="flex items-center justify-between gap-3 border-b border-line/50 p-5">
+          <Link href={`/portfolio/${p.code}/transactions`} className="min-w-0">
+            <span>
+              交易明细
+              <span className="mt-1 block text-xs text-muted">
+                支持买入、卖出、送股、分红复投等记录
+              </span>
             </span>
-          </span>
-          <span className="rounded-full bg-ink px-3 py-1 text-xs text-paper">
+          </Link>
+          <Link
+            href={`/portfolio/${p.code}/transactions`}
+            className="shrink-0 rounded-full bg-ink px-3 py-1 text-xs text-paper"
+          >
             + 添加
-          </span>
-        </Link>
+          </Link>
+        </div>
         <Link
           href="/portfolio/income"
           className="flex items-center justify-between gap-3 border-b border-line/50 p-5"
