@@ -224,10 +224,18 @@ def test_new_migration_downgrade_upgrade_preserves_legacy_data(pg_engine):
     spec = importlib.util.spec_from_file_location("dividend_event_migration", path)
     migration = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(migration)
+    income_path = path.with_name("b2d5e7f1a034_portfolio_income.py")
+    income_spec = importlib.util.spec_from_file_location(
+        "portfolio_income_migration", income_path
+    )
+    income_migration = importlib.util.module_from_spec(income_spec)
+    income_spec.loader.exec_module(income_migration)
     with pg_engine.begin() as conn, Operations.context(MigrationContext.configure(conn)):
+        income_migration.downgrade()
         migration.downgrade()
         assert conn.scalar(text("SELECT count(*) FROM stock_dividends")) == 1
         migration.upgrade()
+        income_migration.upgrade()
         assert conn.scalar(text("SELECT count(*) FROM stock_dividends")) == 1
         assert conn.scalar(text("SELECT count(*) FROM dividend_events")) == 0
     with Session(pg_engine) as session:

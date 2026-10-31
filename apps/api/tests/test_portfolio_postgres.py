@@ -138,12 +138,20 @@ def test_private_migration_roundtrip_keeps_existing_users(pg_engine):
     ledger_spec = importlib.util.spec_from_file_location("ledger_migration", ledger_path)
     ledger_module = importlib.util.module_from_spec(ledger_spec)
     ledger_spec.loader.exec_module(ledger_module)
+    income_path = path.with_name("b2d5e7f1a034_portfolio_income.py")
+    income_spec = importlib.util.spec_from_file_location(
+        "portfolio_income_migration", income_path
+    )
+    income_module = importlib.util.module_from_spec(income_spec)
+    income_spec.loader.exec_module(income_module)
     with pg_engine.begin() as conn, Operations.context(MigrationContext.configure(conn)):
+        income_module.downgrade()
         ledger_module.downgrade()
         module.downgrade()
         assert conn.scalar(select(func.count()).select_from(User)) == 2
         module.upgrade()
         ledger_module.upgrade()
+        income_module.upgrade()
         assert conn.scalar(select(func.count()).select_from(User)) == 2
     with Session(pg_engine) as session:
         owner = session.scalar(select(User.id).order_by(User.id))
