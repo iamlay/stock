@@ -304,18 +304,22 @@ export function PortfolioPositionDetail({
             + 添加
           </Link>
         </div>
-        <Link
-          href="/portfolio/income"
-          className="flex items-center justify-between gap-3 border-b border-line/50 p-5"
-        >
-          <span>
-            分红记录
-            <span className="mt-1 block text-xs text-muted">
-              累计已获 {received == null ? "—" : displayMoney(String(received))}
+        <div className="flex items-center justify-between gap-3 border-b border-line/50 p-5">
+          <Link href={`/portfolio/${p.code}/dividends`} className="min-w-0">
+            <span>
+              分红记录
+              <span className="mt-1 block text-xs text-muted">
+                累计已获 {received == null ? "—" : displayMoney(String(received))}
+              </span>
             </span>
-          </span>
-          <span className="text-sm text-muted">查看 / 添加 ›</span>
-        </Link>
+          </Link>
+          <Link
+            href={`/portfolio/${p.code}/dividends/add`}
+            className="shrink-0 rounded-full bg-ink px-3 py-1 text-xs text-paper"
+          >
+            + 添加
+          </Link>
+        </div>
         <div className="flex items-center justify-between gap-3 border-b border-line/50 p-5 text-muted">
           <span>
             历史分红回溯

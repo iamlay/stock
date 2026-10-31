@@ -54,7 +54,6 @@ reinvest  分红复投
 两者不填写成交价，不产生交易费用。
 
 ## 持仓详情汇总
-
 详情页新增：
 
 ```text
@@ -68,10 +67,64 @@ reinvest  分红复投
 
 累计分红来自 V2-53 有效到账记录（净额）；回本进度按“摊薄成本”口径计算，不等于累计买入金额。
 
+## 分红记录页
+
+详情页「分红记录」进入：
+
+```text
+/portfolio/{code}/dividends
+```
+
+展示：
+
+- 累计已获分红；
+- 每笔到账日期、数量、每股派息、税额、实际到账；
+- 撤销记录；
+- `+ 添加分红`。
+
+添加页：
+
+```text
+/portfolio/{code}/dividends/add
+```
+
+字段：
+
+```text
+入账日期
+持仓数量
+每股派息
+红利税（选填）
+实际到账金额（自动计算）
+备注（选填）
+```
+
+实际到账：
+
+```text
+数量 × 每股派息 - 红利税
+```
+
+红利税说明弹窗包含 A 股差异化税率、除息不扣/卖出补税、长期持有填 0 的提示。
+
+实收记录新增：
+
+```text
+quantity
+cash_per_share
+```
+
+迁移：
+
+```text
+d1a6b9e3f472_dividend_receipt_quantity
+```
+
 ## 迁移
 
 ```text
 c9e4a1d7f250_bonus_reinvest
+d1a6b9e3f472_dividend_receipt_quantity
 ```
 
 更新 `portfolio_entries` 的 kind 约束。

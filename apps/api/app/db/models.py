@@ -841,6 +841,8 @@ class DividendReceipt(Base):
         String(36), ForeignKey("dividend_entitlements.id", ondelete="SET NULL")
     )
     code: Mapped[str] = mapped_column(String(16), nullable=False)
+    quantity: Mapped[Decimal | None] = mapped_column(Numeric(20, 6))
+    cash_per_share: Mapped[Decimal | None] = mapped_column(Numeric(20, 8))
     received_date: Mapped[date] = mapped_column(Date, nullable=False)
     gross_amount: Mapped[Decimal | None] = mapped_column(Numeric(20, 2))
     tax_amount: Mapped[Decimal | None] = mapped_column(Numeric(20, 2))

@@ -135,9 +135,13 @@ def test_entitlement_and_receipts(session, monkeypatch) -> None:
         net_amount="20.00",
         gross_amount="20.00",
         tax_amount="0",
+        quantity="40",
+        cash_per_share="0.50",
     )
     session.commit()
     assert first["status"] == "active"
+    assert first["quantity"] == "40.000000"
+    assert first["cash_per_share"] == "0.50000000"
     snapshot = income_snapshot(session, user.id, account.id)
     assert snapshot["entitlements"][0]["status"] == "partial"
     assert snapshot["entitlements"][0]["remaining_amount"] == "30.00"

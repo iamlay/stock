@@ -306,6 +306,8 @@ class ReceiptInput(BaseModel):
     request_id: UUID
     entitlement_id: Annotated[str | None, Field(max_length=36)] = None
     code: Annotated[str, Field(pattern=r"^[0-9]{6}$")]
+    quantity: Annotated[str | None, Field(max_length=19)] = None
+    cash_per_share: Annotated[str | None, Field(max_length=19)] = None
     received_date: date
     net_amount: Annotated[str, Field(max_length=20)]
     gross_amount: Annotated[str | None, Field(max_length=20)] = None
@@ -376,6 +378,8 @@ def add_receipt(
             gross_amount=body.gross_amount,
             tax_amount=body.tax_amount,
             note=body.note,
+            quantity=body.quantity,
+            cash_per_share=body.cash_per_share,
         ),
     )
 

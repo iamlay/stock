@@ -347,6 +347,12 @@ def _receipt_out(row: DividendReceipt) -> dict:
         "id": row.id,
         "entitlement_id": row.entitlement_id,
         "code": row.code,
+        "quantity": format(Decimal(row.quantity), ".6f") if row.quantity is not None else None,
+        "cash_per_share": (
+            format(Decimal(row.cash_per_share), ".8f")
+            if row.cash_per_share is not None
+            else None
+        ),
         "received_date": row.received_date.isoformat(),
         "gross_amount": _text(Decimal(row.gross_amount)) if row.gross_amount is not None else None,
         "tax_amount": _text(Decimal(row.tax_amount)) if row.tax_amount is not None else None,
@@ -445,6 +451,8 @@ def create_receipt(
     gross_amount: str | None,
     tax_amount: str | None,
     note: str = "",
+    quantity: str | None = None,
+    cash_per_share: str | None = None,
 ) -> dict:
     account = _write_account(session, user_id, account_id, expected_version)
     net = _parse_money(net_amount, "净额", required=True)
@@ -452,6 +460,26 @@ def create_receipt(
         raise accounts.PortfolioError("invalid_amount", "净额必须大于0", 422)
     gross = _parse_money(gross_amount, "税前金额")
     tax = _parse_money(tax_amount, "税额")
+    parsed_quantity = None
+    parsed_cash = None
+    if quantity is not None or cash_per_share is not None:
+        if quantity is None or cash_per_share is None:
+            raise accounts.PortfolioError("invalid_amount", "数量和每股派息必须同时填写", 422)
+        try:
+            parsed_quantity = decimal_input(quantity)
+            parsed_cash = decimal_input(cash_per_share)
+        except accounts.PortfolioError as exc:
+            raise accounts.PortfolioError(
+                "invalid_amount", "数量和每股派息必须是非负十进制数", 422
+            ) from exc
+        if parsed_quantity <= 0 or parsed_cash <= 0:
+            raise accounts.PortfolioError("invalid_amount", "数量和每股派息必须大于0", 422)
+        calculated_gross = _money(parsed_quantity * parsed_cash)
+        if gross is not None and gross != calculated_gross:
+            raise accounts.PortfolioError(
+                "invalid_amount", "税前金额与数量×每股派息不一致", 422
+            )
+        gross = calculated_gross
     if gross is not None and tax is not None and gross != net + tax:
         raise accounts.PortfolioError(
             "invalid_amount", "税前金额必须等于净额加税额", 422
@@ -489,6 +517,8 @@ def create_receipt(
     values = {
         "entitlement_id": entitlement_id,
         "code": code,
+        "quantity": quantity,
+        "cash_per_share": cash_per_share,
         "received_date": received_date.isoformat(),
         "gross_amount": gross_amount,
         "tax_amount": tax_amount,
@@ -511,6 +541,8 @@ def create_receipt(
         user_id=user_id,
         entitlement_id=entitlement_id,
         code=code,
+        quantity=parsed_quantity,
+        cash_per_share=parsed_cash,
         received_date=received_date,
         gross_amount=gross,
         tax_amount=tax,
