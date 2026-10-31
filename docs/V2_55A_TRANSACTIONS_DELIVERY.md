@@ -79,6 +79,7 @@ reinvest  分红复投
 
 - 累计已获分红；
 - 每笔到账日期、数量、每股派息、税额、实际到账；
+- 编辑记录；
 - 撤销记录；
 - `+ 添加分红`。
 
@@ -87,6 +88,20 @@ reinvest  分红复投
 ```text
 /portfolio/{code}/dividends/add
 ```
+
+编辑页：
+
+```text
+/portfolio/{code}/dividends/{receiptId}/edit
+```
+
+修改接口：
+
+```text
+PATCH /api/v1/portfolio/accounts/{account_id}/receipts/{receipt_id}
+```
+
+已撤销记录不能修改，只能重新添加。
 
 字段：
 

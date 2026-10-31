@@ -147,14 +147,22 @@ export function PortfolioDividendRecords({ code }: { code: string }) {
                     : "未扣税"}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => reverse(row.id)}
-                disabled={busy}
-                className="text-xs text-loss hover:underline disabled:opacity-50"
-              >
-                撤销
-              </button>
+              <div className="flex items-center gap-3">
+                <Link
+                  href={`/portfolio/${code}/dividends/${row.id}/edit`}
+                  className="text-xs text-jade-deep hover:underline"
+                >
+                  编辑
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => reverse(row.id)}
+                  disabled={busy}
+                  className="text-xs text-loss hover:underline disabled:opacity-50"
+                >
+                  撤销
+                </button>
+              </div>
             </div>
           ))}
         </div>

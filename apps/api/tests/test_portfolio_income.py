@@ -16,6 +16,7 @@ from app.services.portfolio_income import (
     income_snapshot,
     reverse_receipt,
     sync_entitlements,
+    update_receipt,
 )
 from app.settings import settings
 
@@ -146,6 +147,25 @@ def test_entitlement_and_receipts(session, monkeypatch) -> None:
     assert snapshot["entitlements"][0]["status"] == "partial"
     assert snapshot["entitlements"][0]["remaining_amount"] == "30.00"
 
+    updated = update_receipt(
+        session,
+        user.id,
+        account.id,
+        first["id"],
+        expected_version=account.version,
+        received_date=date(2026, 6, 30),
+        net_amount="25.00",
+        gross_amount="25.00",
+        tax_amount="0",
+        quantity="50",
+        cash_per_share="0.50",
+    )
+    session.commit()
+    assert updated["net_amount"] == "25.00"
+    assert updated["quantity"] == "50.000000"
+    snapshot = income_snapshot(session, user.id, account.id)
+    assert snapshot["entitlements"][0]["remaining_amount"] == "25.00"
+
     create_receipt(
         session,
         user.id,
@@ -155,8 +175,8 @@ def test_entitlement_and_receipts(session, monkeypatch) -> None:
         entitlement_id=entitlement["id"],
         code="600519",
         received_date=date(2026, 7, 1),
-        net_amount="30.00",
-        gross_amount="30.00",
+        net_amount="25.00",
+        gross_amount="25.00",
         tax_amount="0",
     )
     session.commit()
@@ -177,8 +197,8 @@ def test_entitlement_and_receipts(session, monkeypatch) -> None:
     assert any(row["status"] == "reversed" for row in snapshot["receipts"])
 
     home = income_home(session, user.id, account.id, 2026)
-    assert home["summary"]["received"] == "30.00"
-    assert home["summary"]["pending"] == "20.00"
+    assert home["summary"]["received"] == "25.00"
+    assert home["summary"]["pending"] == "25.00"
     assert home["calendar"]
     assert any(
         item["date_type"] == "payment"

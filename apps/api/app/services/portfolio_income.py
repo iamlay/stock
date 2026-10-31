@@ -437,24 +437,14 @@ def _write_account(session: Session, user_id: int, account_id: str, version: int
     return account
 
 
-def create_receipt(
-    session: Session,
-    user_id: int,
-    account_id: str,
+def _prepare_receipt_amounts(
     *,
-    expected_version: int,
-    request_id: str,
-    entitlement_id: str | None,
-    code: str,
-    received_date: date,
     net_amount: str,
     gross_amount: str | None,
     tax_amount: str | None,
-    note: str = "",
-    quantity: str | None = None,
-    cash_per_share: str | None = None,
-) -> dict:
-    account = _write_account(session, user_id, account_id, expected_version)
+    quantity: str | None,
+    cash_per_share: str | None,
+) -> tuple[Decimal, Decimal | None, Decimal | None, Decimal | None, Decimal | None]:
     net = _parse_money(net_amount, "净额", required=True)
     if net is None or net <= 0:
         raise accounts.PortfolioError("invalid_amount", "净额必须大于0", 422)
@@ -490,6 +480,34 @@ def create_receipt(
         tax = gross - net
     if tax is not None and tax < 0:
         raise accounts.PortfolioError("invalid_amount", "税额不能为负", 422)
+    return net, gross, tax, parsed_quantity, parsed_cash
+
+
+def create_receipt(
+    session: Session,
+    user_id: int,
+    account_id: str,
+    *,
+    expected_version: int,
+    request_id: str,
+    entitlement_id: str | None,
+    code: str,
+    received_date: date,
+    net_amount: str,
+    gross_amount: str | None,
+    tax_amount: str | None,
+    note: str = "",
+    quantity: str | None = None,
+    cash_per_share: str | None = None,
+) -> dict:
+    account = _write_account(session, user_id, account_id, expected_version)
+    net, gross, tax, parsed_quantity, parsed_cash = _prepare_receipt_amounts(
+        net_amount=net_amount,
+        gross_amount=gross_amount,
+        tax_amount=tax_amount,
+        quantity=quantity,
+        cash_per_share=cash_per_share,
+    )
     if not re.fullmatch(r"\d{6}", code):
         raise accounts.PortfolioError("invalid_code", "股票代码格式不正确", 422)
     if received_date > datetime.now(UTC).date():
@@ -562,6 +580,62 @@ def create_receipt(
         received = _active_received(session, entitlement.id)
         entitlement.status = _status_for(Decimal(entitlement.gross_amount), received)
         entitlement.updated_at = datetime.now(UTC)
+    return _receipt_out(row)
+
+
+def update_receipt(
+    session: Session,
+    user_id: int,
+    account_id: str,
+    receipt_id: str,
+    *,
+    expected_version: int,
+    received_date: date,
+    net_amount: str,
+    gross_amount: str | None,
+    tax_amount: str | None,
+    note: str = "",
+    quantity: str | None = None,
+    cash_per_share: str | None = None,
+) -> dict:
+    account = _write_account(session, user_id, account_id, expected_version)
+    row = session.scalar(
+        select(DividendReceipt).where(
+            DividendReceipt.id == receipt_id,
+            DividendReceipt.account_id == account.id,
+            DividendReceipt.user_id == user_id,
+        )
+    )
+    if row is None:
+        raise accounts.PortfolioError("receipt_not_found", "到账记录不存在", 404)
+    if row.status != "active":
+        raise accounts.PortfolioError("receipt_reversed", "已撤销记录不能修改", 409)
+    net, gross, tax, parsed_quantity, parsed_cash = _prepare_receipt_amounts(
+        net_amount=net_amount,
+        gross_amount=gross_amount,
+        tax_amount=tax_amount,
+        quantity=quantity,
+        cash_per_share=cash_per_share,
+    )
+    if received_date > datetime.now(UTC).date():
+        raise accounts.PortfolioError("future_date", "到账日期不能晚于今天", 422)
+    row.received_date = received_date
+    row.quantity = parsed_quantity
+    row.cash_per_share = parsed_cash
+    row.gross_amount = gross
+    row.tax_amount = tax
+    row.net_amount = net
+    row.note = text_input(note)
+    account.version += 1
+    account.updated_at = datetime.now(UTC)
+    accounts._audit(session, account, "dividend_receipt_update")
+    session.flush()
+    if row.entitlement_id:
+        entitlement = session.get(DividendEntitlement, row.entitlement_id)
+        if entitlement is not None:
+            received = _active_received(session, entitlement.id)
+            entitlement.status = _status_for(Decimal(entitlement.gross_amount), received)
+            entitlement.updated_at = datetime.now(UTC)
     return _receipt_out(row)
 
 

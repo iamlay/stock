@@ -325,6 +325,23 @@ class ReverseReceipt(BaseModel):
     expected_version: Annotated[int, Field(strict=True, ge=1)]
 
 
+class ReceiptUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_version: Annotated[int, Field(strict=True, ge=1)]
+    received_date: date
+    net_amount: Annotated[str, Field(max_length=20)]
+    gross_amount: Annotated[str | None, Field(max_length=20)] = None
+    tax_amount: Annotated[str | None, Field(max_length=20)] = None
+    quantity: Annotated[str | None, Field(max_length=19)] = None
+    cash_per_share: Annotated[str | None, Field(max_length=19)] = None
+    note: Annotated[str, Field(max_length=500)] = ""
+
+    @field_validator("received_date", mode="before")
+    @classmethod
+    def calendar_date_only(cls, value):
+        return CreateEntry.calendar_date_only(value)
+
+
 @router.get("/accounts/{account_id}/income", summary="本人应收与实收汇总")
 def income(account_id: str, session: SessionDep, user: UserDep):
     from app.services.portfolio_income import income_snapshot
@@ -373,6 +390,39 @@ def add_receipt(
             request_id=str(body.request_id),
             entitlement_id=body.entitlement_id,
             code=body.code,
+            received_date=body.received_date,
+            net_amount=body.net_amount,
+            gross_amount=body.gross_amount,
+            tax_amount=body.tax_amount,
+            note=body.note,
+            quantity=body.quantity,
+            cash_per_share=body.cash_per_share,
+        ),
+    )
+
+
+@router.patch(
+    "/accounts/{account_id}/receipts/{receipt_id}",
+    summary="修改实际到账记录",
+)
+def edit_receipt(
+    account_id: str,
+    receipt_id: str,
+    body: ReceiptUpdate,
+    session: SessionDep,
+    user: UserDep,
+):
+    from app.services.portfolio_income import update_receipt
+
+    write_limit(session, user.id)
+    return commit_mutation(
+        session,
+        lambda: update_receipt(
+            session,
+            user.id,
+            account_id,
+            receipt_id,
+            expected_version=body.expected_version,
             received_date=body.received_date,
             net_amount=body.net_amount,
             gross_amount=body.gross_amount,

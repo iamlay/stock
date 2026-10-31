@@ -11,7 +11,13 @@ import { inputTotal, shanghaiToday } from "@/lib/portfolio-positions";
 const input =
   "w-full rounded-xl border border-line bg-surface px-4 py-3 text-base outline-none focus:border-jade";
 
-export function PortfolioDividendAdd({ code }: { code: string }) {
+export function PortfolioDividendAdd({
+  code,
+  receiptId,
+}: {
+  code: string;
+  receiptId?: string;
+}) {
   const router = useRouter();
   const [accountId, setAccountId] = useState("");
   const [version, setVersion] = useState(0);
@@ -48,12 +54,40 @@ export function PortfolioDividendAdd({ code }: { code: string }) {
         setName(position.name);
         setQuantity(position.quantity.replace(/\.0+$/, ""));
       }
+      if (receiptId) {
+        const income = await portfolioRequest<{
+          receipts: {
+            id: string;
+            code: string;
+            received_date: string;
+            quantity: string | null;
+            cash_per_share: string | null;
+            gross_amount: string | null;
+            tax_amount: string | null;
+            net_amount: string;
+            note: string;
+            status: string;
+          }[];
+        }>(`/accounts/${first.id}/income`);
+        const receipt = income.receipts.find(
+          (row) => row.id === receiptId && row.code === code && row.status === "active",
+        );
+        if (!receipt) {
+          setError("分红记录不存在或已撤销");
+        } else {
+          setDate(receipt.received_date);
+          setQuantity(receipt.quantity?.replace(/\.0+$/, "") ?? "");
+          setCash(receipt.cash_per_share ?? "");
+          setTax(receipt.tax_amount ?? "");
+          setNote(receipt.note ?? "");
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "加载失败");
     } finally {
       setLoading(false);
     }
-  }, [code, router]);
+  }, [code, receiptId, router]);
 
   useEffect(() => {
     void load();
@@ -81,22 +115,40 @@ export function PortfolioDividendAdd({ code }: { code: string }) {
     setBusy(true);
     setError("");
     try {
-      await portfolioRequest(`/accounts/${accountId}/receipts`, {
-        method: "POST",
-        body: JSON.stringify({
-          expected_version: version,
-          request_id: crypto.randomUUID(),
-          entitlement_id: null,
-          code,
-          quantity,
-          cash_per_share: cash,
-          received_date: date,
-          gross_amount: gross,
-          tax_amount: tax || "0",
-          net_amount: net.toFixed(2),
-          note,
-        }),
-      });
+      await portfolioRequest(
+        receiptId
+          ? `/accounts/${accountId}/receipts/${receiptId}`
+          : `/accounts/${accountId}/receipts`,
+        {
+          method: receiptId ? "PATCH" : "POST",
+          body: JSON.stringify(
+            receiptId
+              ? {
+                  expected_version: version,
+                  received_date: date,
+                  gross_amount: gross,
+                  tax_amount: tax || "0",
+                  net_amount: net.toFixed(2),
+                  quantity,
+                  cash_per_share: cash,
+                  note,
+                }
+              : {
+                  expected_version: version,
+                  request_id: crypto.randomUUID(),
+                  entitlement_id: null,
+                  code,
+                  quantity,
+                  cash_per_share: cash,
+                  received_date: date,
+                  gross_amount: gross,
+                  tax_amount: tax || "0",
+                  net_amount: net.toFixed(2),
+                  note,
+                },
+          ),
+        },
+      );
       router.push(`/portfolio/${code}/dividends`);
       router.refresh();
     } catch (err) {
@@ -111,7 +163,9 @@ export function PortfolioDividendAdd({ code }: { code: string }) {
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <div>
-        <p className="text-xs text-muted">添加分红记录</p>
+        <p className="text-xs text-muted">
+          {receiptId ? "编辑分红记录" : "添加分红记录"}
+        </p>
         <h1 className="mt-1 font-serif text-2xl">
           {code} {name}
         </h1>
@@ -204,7 +258,7 @@ export function PortfolioDividendAdd({ code }: { code: string }) {
           disabled={busy}
           className="w-full rounded-xl bg-ink px-4 py-3 text-sm font-medium text-paper disabled:opacity-50"
         >
-          {busy ? "保存中…" : "确认添加"}
+          {busy ? "保存中…" : receiptId ? "保存修改" : "确认添加"}
         </button>
       </form>
       <Link
