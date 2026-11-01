@@ -65,10 +65,18 @@ export default async function DividendArchivePage({
   for (let year = firstYear; year <= latestCompleted; year += 1) {
     series.push(annual.get(year) ?? 0);
   }
+  // Stability looks at the latest 10 completed years, matching the archive
+  // prototype. Using the first 2006 dividend (often a tiny initial payout)
+  // would make every long-history company look wildly unstable.
+  const stabilityStart = Math.max(firstYear, latestCompleted - 9);
+  const stabilitySeries: number[] = [];
+  for (let year = stabilityStart; year <= latestCompleted; year += 1) {
+    stabilitySeries.push(annual.get(year) ?? 0);
+  }
   const changes: number[] = [];
-  for (let index = 1; index < series.length; index += 1) {
-    const previous = series[index - 1];
-    const current = series[index];
+  for (let index = 1; index < stabilitySeries.length; index += 1) {
+    const previous = stabilitySeries[index - 1];
+    const current = stabilitySeries[index];
     if (previous > 0) changes.push(Math.abs(current / previous - 1));
     else if (current > 0) changes.push(1);
   }
@@ -105,7 +113,7 @@ export default async function DividendArchivePage({
       label: "稳定性",
       score: Math.round(stabilityScore),
       max: 30,
-      note: `年度派息最大变动 ${(maxChange * 100).toFixed(1)}%；稳步增长不扣分，剧烈波动扣分。`,
+      note: `最近 ${stabilitySeries.length} 个完整年度最大变动 ${(maxChange * 100).toFixed(1)}%；稳步增长不扣分，剧烈波动扣分。`,
     },
     {
       label: "增长趋势",
