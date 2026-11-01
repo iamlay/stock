@@ -346,15 +346,13 @@ export function PortfolioPositionDetail({
           <span aria-hidden="true">›</span>
         </button>
         <a
-          href={`/stocks/${p.code}?tab=dividend`}
-          target="_blank"
-          rel="noreferrer"
+          href={`/portfolio/${p.code}/dividends/archive`}
           className="flex items-center justify-between gap-3 border-b border-line/50 p-5"
         >
           <span>
             分红档案
             <span className="mt-1 block text-xs text-muted">
-              查看股票公开分红资料
+              连续分红、稳定性与历史记录
             </span>
           </span>
           <span aria-hidden="true">↗</span>
