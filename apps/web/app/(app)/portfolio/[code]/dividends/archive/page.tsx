@@ -43,31 +43,91 @@ export default async function DividendArchivePage({
     .map((row) => ({ ...row, ex_date: row.ex_date as string }));
   const annual = new Map<number, number>();
   for (const row of dividends) {
+    if (row.is_special) continue;
     annual.set(row.fiscal_year, (annual.get(row.fiscal_year) ?? 0) + row.cash_per_share);
   }
   const years = [...annual.keys()].sort((a, b) => a - b);
   const latestYear = years.at(-1) ?? new Date().getFullYear();
-  const firstYear = years[0] ?? latestYear;
+  const currentYear = new Date().getFullYear();
+  // The current fiscal year is incomplete and must not lower continuity/coverage.
+  const completedYears = years.filter((year) => year < currentYear);
+  const scoredYears = completedYears.length ? completedYears : years;
+  const latestCompleted = scoredYears.at(-1) ?? latestYear;
+  const firstYear = scoredYears[0] ?? latestCompleted;
+  const span = Math.max(1, latestCompleted - firstYear + 1);
+  const ageBase = Math.min(10, span);
+
   let continuous = 0;
-  for (let year = latestYear; annual.has(year); year -= 1) continuous += 1;
-  const span = Math.max(1, latestYear - firstYear + 1);
-  const coverage = Math.min(100, Math.round((years.length / span) * 100));
-  const base = annual.get(latestYear - 5);
-  const latestCash = annual.get(latestYear) ?? 0;
+  for (let year = latestCompleted; annual.has(year); year -= 1) continuous += 1;
+  const continuityScore = 30 * Math.min(1, continuous / ageBase);
+
+  const series: number[] = [];
+  for (let year = firstYear; year <= latestCompleted; year += 1) {
+    series.push(annual.get(year) ?? 0);
+  }
+  const changes: number[] = [];
+  for (let index = 1; index < series.length; index += 1) {
+    const previous = series[index - 1];
+    const current = series[index];
+    if (previous > 0) changes.push(Math.abs(current / previous - 1));
+    else if (current > 0) changes.push(1);
+  }
+  const maxChange = changes.length ? Math.max(...changes) : 0;
+  const stabilityScore = 30 * Math.max(0, Math.min(1, 1 - Math.max(0, maxChange - 0.5) / 0.5));
+
+  const baseYear = Math.max(firstYear, latestCompleted - 5);
+  const baseCash = annual.get(baseYear) ?? 0;
+  const latestCash = annual.get(latestCompleted) ?? 0;
+  const growthYears = latestCompleted - baseYear;
   const growth =
-    base && base > 0 && latestYear - 5 >= firstYear
-      ? (Math.pow(latestCash / base, 1 / 5) - 1) * 100
+    baseCash > 0 && latestCash > 0 && growthYears > 0
+      ? (Math.pow(latestCash / baseCash, 1 / growthYears) - 1) * 100
       : null;
+  const growthScore =
+    20 * Math.max(0, Math.min(1, ((growth ?? -5) + 5) / 13));
+
+  const coveredYears = series.filter((value) => value > 0).length;
+  const coverage = Math.round((coveredYears / span) * 100);
+  const coverageScore = 20 * Math.min(1, coveredYears / span);
   const avg3 =
-    [latestYear, latestYear - 1, latestYear - 2].reduce(
+    [latestCompleted, latestCompleted - 1, latestCompleted - 2].reduce(
       (sum, year) => sum + (annual.get(year) ?? 0),
       0,
     ) / 3;
+  const breakdown = [
+    {
+      label: "连续性",
+      score: Math.round(continuityScore),
+      max: 30,
+      note: `从 ${latestCompleted} 年往回连续 ${continuous} 年；按 ${ageBase} 年满分基准计算。`,
+    },
+    {
+      label: "稳定性",
+      score: Math.round(stabilityScore),
+      max: 30,
+      note: `年度派息最大变动 ${(maxChange * 100).toFixed(1)}%；稳步增长不扣分，剧烈波动扣分。`,
+    },
+    {
+      label: "增长趋势",
+      score: Math.round(growthScore),
+      max: 20,
+      note:
+        growth == null
+          ? "历史不足，暂不计算增长分。"
+          : `近 ${growthYears} 年每股分红年均 ${growth >= 0 ? "+" : ""}${growth.toFixed(2)}%；8% 以上满分。`,
+    },
+    {
+      label: "分红覆盖",
+      score: Math.round(coverageScore),
+      max: 20,
+      note: `${firstYear}–${latestCompleted} 共 ${span} 年，有 ${coveredYears} 年分红，覆盖率 ${coverage}%。`,
+    },
+  ];
   const score = Math.max(
     0,
     Math.min(
-      99,
-      Math.round((continuous / span) * 65 + coverage * 0.2 + (growth != null && growth >= 0 ? 15 : 5)),
+      100,
+      Math.round(breakdown.reduce((sum, item) => sum + item.score, 0)),
     ),
   );
 
@@ -167,12 +227,25 @@ export default async function DividendArchivePage({
             <p className="mt-1 font-medium">{coverage}%</p>
           </div>
         </div>
-        <details className="mt-4 text-xs text-muted">
+        <details open className="mt-4 text-xs text-muted">
           <summary className="cursor-pointer text-jade-deep">这个分数怎么算？</summary>
-          <p className="mt-2 leading-6">
-            分数由连续分红年限、历年覆盖率、近 5 年每股分红变化综合计算，仅用于快速浏览历史稳定性。
-            缺失年份按未覆盖处理，不推断为 0；预案和未实施记录不计入。
-          </p>
+          <div className="mt-3 space-y-3">
+            {breakdown.map((item) => (
+              <div key={item.label} className="rounded-xl bg-paper p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium text-ink-soft">{item.label}</p>
+                  <p className="tnum text-jade-deep">
+                    {item.score} / {item.max}
+                  </p>
+                </div>
+                <p className="mt-1 leading-6">{item.note}</p>
+              </div>
+            ))}
+            <p className="leading-6">
+              总分 {score} / 100。当年数据不完整，不参与评分；预案和未实施记录不计入。
+              缺失年份按未覆盖处理，不推断为 0。评分仅供参考，不构成投资建议。
+            </p>
+          </div>
         </details>
       </section>
 
